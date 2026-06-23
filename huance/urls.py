@@ -16,7 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from core.views import add_employee, create_order, current_user, frontend, lims_dashboard, lims_login, lims_logout
 
 urlpatterns = [
+    path('', frontend, name='frontend'),
+    path('api/auth/me/', current_user, name='current_user'),
+    path('api/auth/login/', lims_login, name='lims_login'),
+    path('api/auth/logout/', lims_logout, name='lims_logout'),
+    path('api/employees/add/', add_employee, name='add_employee'),
+    path('api/orders/create/', create_order, name='create_order'),
+    path('api/lims/dashboard/', lims_dashboard, name='lims_dashboard'),
     path('admin/', admin.site.urls),
 ]
