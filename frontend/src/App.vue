@@ -15,13 +15,57 @@ type User = {
 type OrderItem = {
   order_no: string
   customer: string
+  contact?: string
+  phone?: string
   project_name: string
+  test_demand?: string
   status: string
-  status_key: string
+  status_key: number
   execution_mode: string
   expected_delivery_date: string
+  total_quote?: string
   is_urgent: boolean
   sales_owner?: string
+  created_at?: string
+}
+
+type ScheduleItem = {
+  order_no: string
+  customer: string
+  project_name: string
+  status: string
+  test_type: string
+  start_time: string
+  end_time: string
+  schedule_status: string
+  remark: string
+}
+
+type LabDevice = {
+  name: string
+  status: string
+  order_no: string
+  project_name: string
+  end_time: string
+  future_orders: ScheduleItem[]
+}
+
+type LabView = {
+  name: string
+  devices: LabDevice[]
+  orders: ScheduleItem[]
+}
+
+type ReportItem = {
+  report_no: string
+  order_no: string
+  customer: string
+  project_name: string
+  status: string
+  status_key: number
+  conclusion: string
+  remake_count: number
+  quality_user: string
 }
 
 type Dashboard = {
@@ -30,11 +74,20 @@ type Dashboard = {
   metrics: Record<string, number>
   roles: string[]
   recent_orders: OrderItem[]
+  order_groups: Record<string, OrderItem[]>
+  labs: {
+    suzhou: LabView
+    jiangyin: LabView
+  }
+  outsource_orders: OrderItem[]
+  pending_reports: ReportItem[]
 }
 
 const user = ref<User>({ authenticated: false })
 const dashboard = ref<Dashboard | null>(null)
 const activeMenu = ref('dashboard')
+const activeMetric = ref('orders')
+const selectedOrder = ref<OrderItem | null>(null)
 const loading = ref(true)
 const loginError = ref('')
 const employeeMessage = ref('')
@@ -60,6 +113,11 @@ const orderForm = reactive({
   quoted_amount: '',
   is_urgent: false,
 })
+const labFilters = reactive({
+  suzhou: '',
+  jiangyin: '',
+})
+
 
 const backgroundStyle = computed(() => ({
   backgroundImage: `linear-gradient(90deg, rgba(5, 14, 28, 0.54), rgba(5, 14, 28, 0.2)), url(${backgroundImage})`,
@@ -102,16 +160,39 @@ const menuGroups = computed(() => [
 const metricCards = computed(() => {
   const metrics = dashboard.value?.metrics
   return [
-    { label: '相关订单', value: metrics?.orders ?? 0 },
-    { label: '进行中订单', value: metrics?.active_orders ?? 0 },
-    { label: '试验执行中', value: metrics?.running_experiments ?? 0 },
-    { label: '待处理报告', value: metrics?.pending_reports ?? 0 },
-    { label: '变更待闭环', value: metrics?.change_requests ?? 0 },
+    { key: 'orders', label: '相关订单', value: metrics?.orders ?? 0 },
+    { key: 'active_orders', label: '进行中订单', value: metrics?.active_orders ?? 0 },
+    { key: 'running_experiments', label: '试验执行中', value: metrics?.running_experiments ?? 0 },
+    { key: 'pending_reports', label: '待处理报告', value: metrics?.pending_reports ?? 0 },
+    { key: 'change_requests', label: '变更待闭环', value: metrics?.change_requests ?? 0 },
   ]
 })
 
+const activeMetricOrders = computed(() => dashboard.value?.order_groups?.[activeMetric.value] ?? [])
 const roleText = computed(() => user.value.roles?.join(' / ') || '普通用户')
 const orders = computed(() => dashboard.value?.recent_orders ?? [])
+
+function openMetric(key: string) {
+  activeMetric.value = key
+  selectedOrder.value = null
+}
+
+function chooseOrder(order: OrderItem) {
+  selectedOrder.value = order
+}
+
+function filteredLabOrders(key: 'suzhou' | 'jiangyin') {
+  const lab = dashboard.value?.labs?.[key]
+  const keyword = labFilters[key].trim().toLowerCase()
+  if (!lab) return []
+  if (!keyword) return lab.orders
+  return lab.orders.filter((order) =>
+    [order.order_no, order.customer, order.project_name, order.status, order.remark]
+      .join(' ')
+      .toLowerCase()
+      .includes(keyword),
+  )
+}
 
 async function loadMe() {
   const response = await fetch('/api/auth/me/', { credentials: 'include' })
@@ -272,31 +353,60 @@ onMounted(async () => {
 
       <section v-if="activeMenu === 'dashboard'" class="content-panel">
         <div class="metric-grid">
-          <article v-for="item in metricCards" :key="item.label">
+          <button
+            v-for="item in metricCards"
+            :key="item.key"
+            type="button"
+            :class="{ active: activeMetric === item.key }"
+            @click="openMetric(item.key)"
+          >
             <strong>{{ item.value }}</strong>
             <span>{{ item.label }}</span>
-          </article>
+          </button>
         </div>
         <div class="panel-section-title">
-          <h2>我的相关订单</h2>
-          <p>按当前登录角色筛选，流程节点不在总览中铺开。</p>
+          <h2>{{ metricCards.find((item) => item.key === activeMetric)?.label }}明细</h2>
+          <p>点击订单行查看客户、报价、交付、试验需求和当前流程状态。</p>
         </div>
-        <div class="orders-table">
-          <div class="table-row table-head">
-            <span>订单</span>
-            <span>客户 / 项目</span>
-            <span>路径</span>
-            <span>状态</span>
-            <span>交付</span>
+        <div class="split-view">
+          <div class="orders-table compact">
+            <div class="table-row table-head">
+              <span>订单</span>
+              <span>客户 / 项目</span>
+              <span>状态</span>
+              <span>交付</span>
+            </div>
+            <button
+              v-for="order in activeMetricOrders"
+              :key="order.order_no"
+              type="button"
+              class="table-row table-button"
+              @click="chooseOrder(order)"
+            >
+              <span><strong>{{ order.order_no }}</strong><em v-if="order.is_urgent">加急</em></span>
+              <span>{{ order.customer }} / {{ order.project_name }}</span>
+              <span>{{ order.status }}</span>
+              <span>{{ order.expected_delivery_date || '待确认' }}</span>
+            </button>
+            <div v-if="activeMetricOrders.length === 0" class="empty-row">当前分组暂无订单。</div>
           </div>
-          <div v-for="order in orders" :key="order.order_no" class="table-row">
-            <span><strong>{{ order.order_no }}</strong><em v-if="order.is_urgent">加急</em></span>
-            <span>{{ order.customer }} / {{ order.project_name }}</span>
-            <span>{{ order.execution_mode }}</span>
-            <span>{{ order.status }}</span>
-            <span>{{ order.expected_delivery_date || '待确认' }}</span>
-          </div>
-          <div v-if="orders.length === 0" class="empty-row">暂无与当前角色相关的订单。</div>
+          <aside class="detail-panel">
+            <template v-if="selectedOrder">
+              <p class="panel-kicker">订单详情</p>
+              <h3>{{ selectedOrder.order_no }}</h3>
+              <dl>
+                <div><dt>客户</dt><dd>{{ selectedOrder.customer }}</dd></div>
+                <div><dt>项目</dt><dd>{{ selectedOrder.project_name }}</dd></div>
+                <div><dt>状态</dt><dd>{{ selectedOrder.status }}</dd></div>
+                <div><dt>执行路径</dt><dd>{{ selectedOrder.execution_mode }}</dd></div>
+                <div><dt>销售</dt><dd>{{ selectedOrder.sales_owner || '未指定' }}</dd></div>
+                <div><dt>报价</dt><dd>{{ selectedOrder.total_quote || '0.00' }}</dd></div>
+                <div><dt>交付</dt><dd>{{ selectedOrder.expected_delivery_date || '待确认' }}</dd></div>
+                <div><dt>需求</dt><dd>{{ selectedOrder.test_demand || '未填写' }}</dd></div>
+              </dl>
+            </template>
+            <p v-else>选择左侧订单后，这里会显示订单的详细状态。</p>
+          </aside>
         </div>
       </section>
 
@@ -325,8 +435,6 @@ onMounted(async () => {
           <p v-if="orderMessage" class="form-message">{{ orderMessage }}</p>
         </form>
 
-        <p v-if="orderMessage" class="order-result">{{ orderMessage }}</p>
-
         <div class="orders-table">
           <div class="table-row table-head">
             <span>订单</span>
@@ -342,7 +450,102 @@ onMounted(async () => {
             <span>{{ order.status }}</span>
             <span>{{ order.expected_delivery_date || '待确认' }}</span>
           </div>
-          <div v-if="orders.length === 0" class="empty-row">暂无与当前角色相关的订单。</div>
+          <div v-if="orders.length === 0" class="empty-row">暂无符合条件的订单。</div>
+        </div>
+      </section>
+
+      <section v-else-if="activeMenu === 'suzhou' || activeMenu === 'jiangyin'" class="content-panel lab-panel">
+        <div class="panel-toolbar">
+          <div>
+            <h2>{{ dashboard?.labs?.[activeMenu]?.name }}</h2>
+            <p>上半部分看设备运行和未来排期，下半部分筛选本实验室执行订单。</p>
+          </div>
+        </div>
+        <div class="device-grid">
+          <article v-for="device in dashboard?.labs?.[activeMenu]?.devices" :key="device.name" class="device-card">
+            <div>
+              <h3>{{ device.name }}</h3>
+              <span :class="['device-status', device.status === '运行中' ? 'running' : 'idle']">{{ device.status }}</span>
+            </div>
+            <p v-if="device.order_no">
+              正在执行：<strong>{{ device.order_no }}</strong> / {{ device.project_name }}
+            </p>
+            <p v-else>当前无执行订单。</p>
+            <small>预计结束：{{ device.end_time || '暂无' }}</small>
+            <ul>
+              <li v-for="future in device.future_orders" :key="future.order_no">
+                {{ future.order_no }} · {{ future.start_time || '待排' }} 至 {{ future.end_time || '待定' }}
+              </li>
+              <li v-if="device.future_orders.length === 0">暂无未来排期</li>
+            </ul>
+          </article>
+        </div>
+        <div class="filter-block">
+          <label>
+            <span>订单筛选</span>
+            <input v-model="labFilters[activeMenu]" placeholder="输入订单号、客户、项目、状态" />
+          </label>
+        </div>
+        <div class="orders-table schedule-table">
+          <div class="table-row table-head">
+            <span>订单</span>
+            <span>客户 / 项目</span>
+            <span>任务</span>
+            <span>排期</span>
+            <span>状态</span>
+          </div>
+          <div v-for="order in filteredLabOrders(activeMenu)" :key="`${activeMenu}-${order.order_no}-${order.remark}`" class="table-row">
+            <span><strong>{{ order.order_no }}</strong></span>
+            <span>{{ order.customer }} / {{ order.project_name }}</span>
+            <span>{{ order.remark || order.test_type }}</span>
+            <span>{{ order.start_time || '待排' }} - {{ order.end_time || '待定' }}</span>
+            <span>{{ order.status }} / {{ order.schedule_status }}</span>
+          </div>
+          <div v-if="filteredLabOrders(activeMenu).length === 0" class="empty-row">没有匹配的实验室订单。</div>
+        </div>
+      </section>
+
+      <section v-else-if="activeMenu === 'outsource'" class="content-panel">
+        <div class="panel-section-title first">
+          <h2>委外试验订单</h2>
+          <p>展示执行路径为委外或排期中包含外部委托实验室的订单。</p>
+        </div>
+        <div class="orders-table">
+          <div class="table-row table-head">
+            <span>订单</span>
+            <span>客户 / 项目</span>
+            <span>路径</span>
+            <span>状态</span>
+            <span>交付</span>
+          </div>
+          <div v-for="order in dashboard?.outsource_orders ?? []" :key="order.order_no" class="table-row">
+            <span><strong>{{ order.order_no }}</strong><em v-if="order.is_urgent">加急</em></span>
+            <span>{{ order.customer }} / {{ order.project_name }}</span>
+            <span>{{ order.execution_mode }}</span>
+            <span>{{ order.status }}</span>
+            <span>{{ order.expected_delivery_date || '待确认' }}</span>
+          </div>
+          <div v-if="(dashboard?.outsource_orders?.length ?? 0) === 0" class="empty-row">当前没有委外试验订单。</div>
+        </div>
+      </section>
+
+      <section v-else-if="activeMenu === 'reports'" class="content-panel">
+        <div class="panel-section-title first">
+          <h2>当前待审核报告</h2>
+          <p>按当前登录角色显示需要处理的报告；没有待办时显示 0 条。</p>
+        </div>
+        <div class="report-list">
+          <article v-for="report in dashboard?.pending_reports" :key="report.report_no">
+            <div>
+              <strong>{{ report.report_no }}</strong>
+              <span>{{ report.status }}</span>
+            </div>
+            <h3>{{ report.order_no }} · {{ report.project_name }}</h3>
+            <p>{{ report.customer }}</p>
+            <p>{{ report.conclusion || '暂无报告结论' }}</p>
+            <small>出具人：{{ report.quality_user || '未记录' }} · 重制次数：{{ report.remake_count }}</small>
+          </article>
+          <div v-if="(dashboard?.pending_reports?.length ?? 0) === 0" class="empty-row">当前登录角色暂无待审核报告。</div>
         </div>
       </section>
 
@@ -361,6 +564,7 @@ onMounted(async () => {
             <select v-model="employeeForm.role">
               <option value="销售">销售</option>
               <option value="商务">商务</option>
+              <option value="技术">技术</option>
               <option value="质量部">质量部</option>
               <option value="苏州实验室">苏州实验室</option>
               <option value="江阴实验室">江阴实验室</option>
@@ -376,9 +580,9 @@ onMounted(async () => {
       </section>
 
       <section v-else class="content-panel placeholder-panel">
-        <p class="panel-kicker">模块规划</p>
-        <h2>{{ menuGroups.flatMap(group => group.items).find(item => item.key === activeMenu)?.label }}</h2>
-        <p>该模块已预留入口，后续会继续接入具体表单、审批动作和明细页面。</p>
+        <p class="panel-kicker">模块入口</p>
+        <h2>{{ menuGroups.flatMap((group) => group.items).find((item) => item.key === activeMenu)?.label }}</h2>
+        <p>该模块会继续接入具体表单、审批动作和明细页面。</p>
       </section>
     </section>
   </main>

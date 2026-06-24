@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
@@ -7,9 +7,22 @@ from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.models import Group
 from django.db.models import Count, Q
 from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, JsonResponse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import ChangeRequest, Customer, Experiment, LabOrder, TestReport, WorkflowEvent
+from .models import ChangeRequest, Experiment, LabOrder, ReportAudit, SchedulePlan, TestReport, WorkflowEvent
+
+
+ROLE_SALES = '销售'
+ROLE_BUSINESS = '商务'
+ROLE_TECH = '技术'
+ROLE_QUALITY = '质量部'
+ROLE_SUZHOU_LAB = '苏州实验室'
+ROLE_JIANGYIN_LAB = '江阴实验室'
+ROLE_OUTSOURCE = '委外供应商'
+ROLE_GENERAL_MANAGER = '总经理'
+ROLE_ACCOUNTING = '会计'
+ROLE_CHAIRMAN = '董事长'
 
 
 def frontend(request):
@@ -25,7 +38,7 @@ def _is_chairman(user):
     return bool(
         user
         and user.is_authenticated
-        and (user.is_superuser or user.groups.filter(name='董事长').exists())
+        and (user.is_superuser or user.groups.filter(name=ROLE_CHAIRMAN).exists())
     )
 
 
@@ -53,36 +66,35 @@ def _user_payload(user):
 
 
 def _orders_for_user(user):
-    orders = LabOrder.objects.select_related('customer', 'sales_owner')
+    orders = LabOrder.objects.select_related('sale_user')
     if _is_chairman(user):
         return orders
 
     roles = set(_roles(user))
     query = Q()
-    if '销售' in roles:
-        query |= Q(sales_owner=user) | Q(status__in=[
-            LabOrder.Status.SALES_REVISION,
-            LabOrder.Status.CUSTOMER_CONFIRM,
-            LabOrder.Status.SALES_REPORT_REVIEW,
+    if ROLE_SALES in roles:
+        query |= Q(sale_user=user) | Q(order_status__in=[
+            LabOrder.Status.REVIEW_REJECTED,
+            LabOrder.Status.REPORT_REVIEW,
         ])
-    if '商务' in roles:
-        query |= Q(status__in=[LabOrder.Status.REVIEWING, LabOrder.Status.BUSINESS_ASSIGN])
-    if '质量部' in roles:
-        query |= Q(status__in=[
-            LabOrder.Status.QUALITY_SCHEDULING,
-            LabOrder.Status.SAMPLE_REGISTER,
-            LabOrder.Status.REPORT_DRAFT,
+    if ROLE_BUSINESS in roles or ROLE_TECH in roles:
+        query |= Q(order_status__in=[LabOrder.Status.PENDING_REVIEW, LabOrder.Status.SCHEDULING])
+    if ROLE_QUALITY in roles:
+        query |= Q(order_status__in=[
+            LabOrder.Status.SCHEDULING,
+            LabOrder.Status.TESTING,
+            LabOrder.Status.REPORT_REVIEW,
         ])
-    if '苏州实验室' in roles:
+    if ROLE_SUZHOU_LAB in roles:
         query |= Q(execution_mode__in=[LabOrder.ExecutionMode.SUZHOU, LabOrder.ExecutionMode.MIXED])
-    if '江阴实验室' in roles:
+    if ROLE_JIANGYIN_LAB in roles:
         query |= Q(execution_mode__in=[LabOrder.ExecutionMode.JIANGYIN, LabOrder.ExecutionMode.MIXED])
-    if '委外供应商' in roles:
+    if ROLE_OUTSOURCE in roles:
         query |= Q(execution_mode__in=[LabOrder.ExecutionMode.OUTSOURCE, LabOrder.ExecutionMode.MIXED])
-    if '总经理' in roles:
-        query |= Q(status=LabOrder.Status.GM_REPORT_REVIEW)
-    if '会计' in roles:
-        query |= Q(status=LabOrder.Status.ACCOUNTING_INVOICE)
+    if ROLE_GENERAL_MANAGER in roles:
+        query |= Q(order_status=LabOrder.Status.REPORT_REVIEW)
+    if ROLE_ACCOUNTING in roles:
+        query |= Q(order_status=LabOrder.Status.REPORT_REVIEW)
 
     if not query:
         return orders.none()
@@ -90,21 +102,110 @@ def _orders_for_user(user):
 
 
 def _order_payload(order):
+    delivery = order.expect_delivery_time
+    if delivery:
+        delivery_value = delivery.date().isoformat()
+    else:
+        delivery_value = ''
+
     return {
         'order_no': order.order_no,
-        'customer': order.customer.name,
+        'customer': order.customer_name,
+        'contact': order.customer_contact,
+        'phone': order.customer_phone,
         'project_name': order.project_name,
-        'status': order.get_status_display(),
-        'status_key': order.status,
+        'test_demand': order.test_demand,
+        'status': order.get_order_status_display(),
+        'status_key': order.order_status,
         'execution_mode': order.get_execution_mode_display(),
-        'expected_delivery_date': order.expected_delivery_date.isoformat()
-        if order.expected_delivery_date
-        else '',
+        'expected_delivery_date': delivery_value,
+        'total_quote': str(order.total_quote),
         'is_urgent': order.is_urgent,
-        'sales_owner': order.sales_owner.first_name or order.sales_owner.username
-        if order.sales_owner
+        'sales_owner': order.sale_user.first_name or order.sale_user.username
+        if order.sale_user
+        else '',
+        'created_at': order.create_time.strftime('%Y-%m-%d %H:%M') if order.create_time else '',
+    }
+
+
+def _report_payload(report):
+    return {
+        'report_no': report.report_no,
+        'order_no': report.order.order_no,
+        'customer': report.order.customer_name,
+        'project_name': report.order.project_name,
+        'status': report.get_report_status_display(),
+        'status_key': report.report_status,
+        'conclusion': report.final_conclusion,
+        'remake_count': report.remake_count,
+        'quality_user': report.create_quality_user.first_name or report.create_quality_user.username
+        if report.create_quality_user
         else '',
     }
+
+
+def _schedule_payload(schedule):
+    order = schedule.order
+    return {
+        'order_no': order.order_no,
+        'customer': order.customer_name,
+        'project_name': order.project_name,
+        'status': order.get_order_status_display(),
+        'test_type': schedule.get_test_type_display(),
+        'start_time': schedule.plan_start_time.strftime('%Y-%m-%d') if schedule.plan_start_time else '',
+        'end_time': schedule.plan_end_time.strftime('%Y-%m-%d') if schedule.plan_end_time else '',
+        'schedule_status': schedule.get_schedule_status_display(),
+        'remark': schedule.remark,
+    }
+
+
+def _lab_payload(test_type, name):
+    schedules = SchedulePlan.objects.select_related('order').filter(test_type=test_type).order_by('plan_start_time')
+    active_statuses = [SchedulePlan.Status.RUNNING, SchedulePlan.Status.CHANGE_PENDING]
+    active_schedules = schedules.filter(schedule_status__in=active_statuses)
+    future_schedules = schedules.exclude(schedule_status=SchedulePlan.Status.FINISHED)
+
+    device_names = {
+        SchedulePlan.TestType.SUZHOU: ['20吨台', '50吨台', '三综合试验箱'],
+        SchedulePlan.TestType.JIANGYIN: ['振动台', '盐雾试验箱', '高低温湿热箱'],
+    }[test_type]
+    active_list = list(active_schedules[:3])
+    future_list = list(future_schedules[3:9])
+
+    devices = []
+    for index, device_name in enumerate(device_names):
+        schedule = active_list[index] if index < len(active_list) else None
+        devices.append({
+            'name': device_name,
+            'status': '运行中' if schedule else '空闲',
+            'order_no': schedule.order.order_no if schedule else '',
+            'project_name': schedule.order.project_name if schedule else '',
+            'end_time': schedule.plan_end_time.strftime('%Y-%m-%d') if schedule and schedule.plan_end_time else '',
+            'future_orders': [_schedule_payload(item) for item in future_list[index::len(device_names)][:3]],
+        })
+
+    return {
+        'name': name,
+        'devices': devices,
+        'orders': [_schedule_payload(item) for item in schedules],
+    }
+
+
+def _pending_reports_for_user(user, related_orders):
+    reports = TestReport.objects.select_related('order', 'create_quality_user').filter(order__in=related_orders)
+    if _is_chairman(user):
+        return reports.exclude(report_status=TestReport.Status.APPROVED)
+    roles = set(_roles(user))
+    query = Q()
+    if ROLE_SALES in roles:
+        query |= Q(report_status=TestReport.Status.SALES_REVIEW)
+    if ROLE_GENERAL_MANAGER in roles:
+        query |= Q(report_status=TestReport.Status.GM_REVIEW)
+    if ROLE_QUALITY in roles:
+        query |= Q(report_status__in=[TestReport.Status.DRAFT, TestReport.Status.REJECTED])
+    if not query:
+        return reports.none()
+    return reports.filter(query)
 
 
 def _next_order_no():
@@ -119,13 +220,20 @@ def _next_order_no():
     return f'{prefix}{next_number:04d}'
 
 
-def _parse_date(value):
+def _parse_datetime(value):
     if not value:
         return None
     try:
-        return date.fromisoformat(value)
+        parsed_date = date.fromisoformat(value)
+        parsed = datetime.combine(parsed_date, time.min)
     except ValueError:
-        return None
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            return None
+    if timezone.is_naive(parsed):
+        return timezone.make_aware(parsed)
+    return parsed
 
 
 def current_user(request):
@@ -220,7 +328,7 @@ def create_order(request):
         return JsonResponse({'ok': False, 'error': '请先登录'}, status=401, json_dumps_params={'ensure_ascii': False})
 
     roles = set(_roles(request.user))
-    if not (_is_chairman(request.user) or '销售' in roles):
+    if not (_is_chairman(request.user) or ROLE_SALES in roles):
         return JsonResponse({'ok': False, 'error': '仅销售或董事长可以下单'}, status=403, json_dumps_params={'ensure_ascii': False})
 
     try:
@@ -230,43 +338,45 @@ def create_order(request):
 
     customer_name = payload.get('customer_name', '').strip()
     project_name = payload.get('project_name', '').strip()
-    test_requirements = payload.get('test_requirements', '').strip()
-    contact_name = payload.get('contact_name', '').strip()
-    phone = payload.get('phone', '').strip()
-    expected_sample_arrival = _parse_date(payload.get('expected_sample_arrival'))
-    expected_delivery_date = _parse_date(payload.get('expected_delivery_date'))
+    test_demand = payload.get('test_requirements', '').strip()
+    customer_contact = payload.get('contact_name', '').strip()
+    customer_phone = payload.get('phone', '').strip()
+    expect_sample_arrive = _parse_datetime(payload.get('expected_sample_arrival'))
+    expect_delivery_time = _parse_datetime(payload.get('expected_delivery_date'))
 
-    if not customer_name or not project_name or not test_requirements:
+    if not customer_name or not project_name or not test_demand:
         return JsonResponse({'ok': False, 'error': '客户名称、项目名称、试验需求必填'}, status=400, json_dumps_params={'ensure_ascii': False})
 
     try:
-        quoted_amount = Decimal(str(payload.get('quoted_amount') or '0'))
+        total_quote = Decimal(str(payload.get('quoted_amount') or '0'))
     except InvalidOperation:
         return JsonResponse({'ok': False, 'error': '报价金额格式错误'}, status=400, json_dumps_params={'ensure_ascii': False})
 
-    customer, _ = Customer.objects.get_or_create(name=customer_name)
-    customer.contact_name = contact_name
-    customer.phone = phone
-    customer.save(update_fields=['contact_name', 'phone', 'updated_at'])
+    remark = '销售前台下单，等待商务技术评审。'
+    if payload.get('is_urgent'):
+        remark = f'加急；{remark}'
 
     order = LabOrder.objects.create(
         order_no=_next_order_no(),
-        customer=customer,
+        customer_name=customer_name,
+        customer_contact=customer_contact,
+        customer_phone=customer_phone,
         project_name=project_name,
-        test_requirements=test_requirements,
-        sales_owner=request.user,
-        status=LabOrder.Status.REVIEWING,
-        expected_sample_arrival=expected_sample_arrival,
-        expected_delivery_date=expected_delivery_date,
-        quoted_amount=quoted_amount,
-        is_urgent=bool(payload.get('is_urgent')),
-        remark='销售前台下单，等待商务技术评审。',
+        test_demand=test_demand,
+        sale_user=request.user,
+        order_status=LabOrder.Status.PENDING_REVIEW,
+        expect_sample_arrive=expect_sample_arrive,
+        expect_delivery_time=expect_delivery_time,
+        total_quote=total_quote,
+        create_by=request.user.username,
+        update_by=request.user.username,
+        remark=remark,
     )
     WorkflowEvent.objects.create(
         order=order,
         actor=request.user,
         event_type=WorkflowEvent.EventType.STATUS,
-        to_status=order.status,
+        to_status=str(order.order_status),
         note='销售下单，进入商务技术评审。',
     )
     return JsonResponse({'ok': True, 'order': _order_payload(order)}, json_dumps_params={'ensure_ascii': False})
@@ -278,11 +388,43 @@ def lims_dashboard(request):
 
     related_orders = _orders_for_user(request.user)
     active_related_orders = related_orders.exclude(
-        status__in=[LabOrder.Status.CLOSED, LabOrder.Status.CANCELLED]
+        order_status__in=[LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]
     )
     recent_orders = [
         _order_payload(order)
-        for order in related_orders.order_by('-created_at')[:10]
+        for order in related_orders.order_by('-create_time')[:10]
+    ]
+    all_orders = [_order_payload(order) for order in related_orders.order_by('-create_time')]
+    active_orders = [
+        _order_payload(order)
+        for order in active_related_orders.order_by('-create_time')
+    ]
+    report_orders = [
+        _order_payload(order)
+        for order in related_orders.filter(order_status=LabOrder.Status.REPORT_REVIEW).order_by('-create_time')
+    ]
+    running_order_ids = Experiment.objects.filter(
+        order__in=related_orders,
+        test_status=Experiment.Status.RUNNING,
+    ).values_list('order_id', flat=True)
+    running_orders = [
+        _order_payload(order)
+        for order in related_orders.filter(id__in=running_order_ids).order_by('-create_time')
+    ]
+    change_order_ids = ChangeRequest.objects.filter(
+        order__in=related_orders,
+    ).exclude(change_status=ChangeRequest.Status.APPLIED).values_list('order_id', flat=True)
+    change_orders = [
+        _order_payload(order)
+        for order in related_orders.filter(id__in=change_order_ids).order_by('-create_time')
+    ]
+    pending_reports = _pending_reports_for_user(request.user, related_orders)
+    outsource_orders = [
+        _order_payload(order)
+        for order in related_orders.filter(
+            Q(execution_mode=LabOrder.ExecutionMode.OUTSOURCE)
+            | Q(schedules__test_type=SchedulePlan.TestType.OUTSOURCE)
+        ).distinct().order_by('-create_time')
     ]
 
     data = {
@@ -291,31 +433,45 @@ def lims_dashboard(request):
         'metrics': {
             'orders': related_orders.count(),
             'active_orders': active_related_orders.count(),
-            'running_experiments': Experiment.objects.filter(order__in=related_orders, status=Experiment.Status.RUNNING).count(),
-            'pending_reports': TestReport.objects.filter(order__in=related_orders).exclude(status=TestReport.Status.APPROVED).count(),
+            'running_experiments': Experiment.objects.filter(order__in=related_orders, test_status=Experiment.Status.RUNNING).count(),
+            'pending_reports': TestReport.objects.filter(order__in=related_orders).exclude(report_status=TestReport.Status.APPROVED).count(),
             'change_requests': ChangeRequest.objects.filter(order__in=related_orders).exclude(
-                status__in=[ChangeRequest.Status.APPLIED, ChangeRequest.Status.REJECTED]
+                change_status=ChangeRequest.Status.APPLIED
             ).count(),
         },
         'status_counts': {
-            item['status']: item['count']
-            for item in related_orders.values('status').annotate(count=Count('id'))
+            item['order_status']: item['count']
+            for item in related_orders.values('order_status').annotate(count=Count('id'))
         },
         'mode_counts': {
             item['execution_mode']: item['count']
             for item in related_orders.values('execution_mode').annotate(count=Count('id'))
         },
         'recent_orders': recent_orders,
+        'order_groups': {
+            'orders': all_orders,
+            'active_orders': active_orders,
+            'running_experiments': running_orders,
+            'pending_reports': report_orders,
+            'change_requests': change_orders,
+        },
+        'labs': {
+            'suzhou': _lab_payload(SchedulePlan.TestType.SUZHOU, '苏州实验室'),
+            'jiangyin': _lab_payload(SchedulePlan.TestType.JIANGYIN, '江阴实验室'),
+        },
+        'outsource_orders': outsource_orders,
+        'pending_reports': [_report_payload(report) for report in pending_reports.order_by('-create_time')],
         'roles': [
-            '销售',
-            '商务',
-            '质量部',
-            '苏州实验室',
-            '江阴实验室',
-            '委外供应商',
-            '总经理',
-            '会计',
-            '董事长',
+            ROLE_SALES,
+            ROLE_BUSINESS,
+            ROLE_TECH,
+            ROLE_QUALITY,
+            ROLE_SUZHOU_LAB,
+            ROLE_JIANGYIN_LAB,
+            ROLE_OUTSOURCE,
+            ROLE_GENERAL_MANAGER,
+            ROLE_ACCOUNTING,
+            ROLE_CHAIRMAN,
         ],
     }
     return JsonResponse(data, json_dumps_params={'ensure_ascii': False})

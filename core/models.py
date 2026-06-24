@@ -4,206 +4,241 @@ from django.utils import timezone
 
 
 class TimeStampedModel(models.Model):
-    created_at = models.DateTimeField('创建时间', auto_now_add=True)
-    updated_at = models.DateTimeField('更新时间', auto_now=True)
+    create_time = models.DateTimeField('创建时间', auto_now_add=True)
+    update_time = models.DateTimeField('更新时间', auto_now=True)
 
     class Meta:
         abstract = True
 
 
-class Customer(TimeStampedModel):
-    name = models.CharField('客户名称', max_length=120)
-    contact_name = models.CharField('联系人', max_length=60, blank=True)
-    phone = models.CharField('联系电话', max_length=40, blank=True)
-    email = models.EmailField('邮箱', blank=True)
-    address = models.CharField('地址', max_length=240, blank=True)
-
-    class Meta:
-        verbose_name = '客户'
-        verbose_name_plural = '客户'
-        ordering = ['name']
-
-    def __str__(self):
-        return self.name
-
-
 class LabOrder(TimeStampedModel):
-    class Status(models.TextChoices):
-        DRAFT = 'draft', '销售下单'
-        REVIEWING = 'reviewing', '商务技术评审'
-        SALES_REVISION = 'sales_revision', '销售修改/退单'
-        BUSINESS_ASSIGN = 'business_assign', '商务任务分配'
-        QUALITY_SCHEDULING = 'quality_scheduling', '质量部排期'
-        CUSTOMER_CONFIRM = 'customer_confirm', '销售确认需求'
-        SAMPLE_REGISTER = 'sample_register', '样品编号登记'
-        TESTING = 'testing', '试验执行'
-        REPORT_DRAFT = 'report_draft', '质量部出具报告'
-        SALES_REPORT_REVIEW = 'sales_report_review', '销售审核报告'
-        GM_REPORT_REVIEW = 'gm_report_review', '总经理审核报告'
-        ACCOUNTING_INVOICE = 'accounting_invoice', '会计开票'
-        CLOSED = 'closed', '办结'
-        CANCELLED = 'cancelled', '退单'
+    class Status(models.IntegerChoices):
+        PENDING_REVIEW = 1, '待评审'
+        REVIEW_REJECTED = 2, '评审驳回'
+        SCHEDULING = 3, '排期中'
+        TESTING = 4, '试验中'
+        REPORT_REVIEW = 5, '报告审核中'
+        INVOICED_CLOSED = 6, '已开票办结'
+        CANCELLED = 7, '退单'
 
-    class ExecutionMode(models.TextChoices):
-        SUZHOU = 'suzhou', '苏州实验室'
-        JIANGYIN = 'jiangyin', '江阴实验室'
-        OUTSOURCE = 'outsource', '外部委外'
-        MIXED = 'mixed', '多路径并行'
+    class ExecutionMode(models.IntegerChoices):
+        SUZHOU = 1, '苏州内部实验室'
+        JIANGYIN = 2, '江阴内部实验室'
+        OUTSOURCE = 3, '外部委外'
+        MIXED = 4, '多路径并行'
 
-    order_no = models.CharField('订单编号', max_length=40, unique=True)
-    customer = models.ForeignKey(Customer, verbose_name='客户', on_delete=models.PROTECT)
-    project_name = models.CharField('项目名称', max_length=160)
-    test_requirements = models.TextField('试验需求')
-    sales_owner = models.ForeignKey(
+    order_no = models.CharField('订单唯一业务编号', max_length=64, unique=True)
+    customer_name = models.CharField('客户单位名称', max_length=100)
+    customer_contact = models.CharField('客户对接人', max_length=50, blank=True)
+    customer_phone = models.CharField('客户联系电话', max_length=20, blank=True)
+    project_name = models.CharField('项目名称', max_length=160, blank=True)
+    test_demand = models.TextField('详细试验需求、检测标准、检测项目清单')
+    total_quote = models.DecimalField('订单总报价金额', max_digits=12, decimal_places=2, default=0)
+    expect_sample_arrive = models.DateTimeField('预估样品送达时间', null=True, blank=True)
+    expect_delivery_time = models.DateTimeField('预估交付时间', null=True, blank=True)
+    order_status = models.PositiveSmallIntegerField('订单状态', choices=Status.choices, default=Status.PENDING_REVIEW)
+    execution_mode = models.PositiveSmallIntegerField('试验执行路径', choices=ExecutionMode.choices, default=ExecutionMode.MIXED)
+    sale_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        verbose_name='销售负责人',
+        verbose_name='下单销售',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='sales_orders',
+        related_name='lims_sales_orders',
     )
-    status = models.CharField('当前状态', max_length=40, choices=Status.choices, default=Status.DRAFT)
-    execution_mode = models.CharField(
-        '执行路径',
-        max_length=20,
-        choices=ExecutionMode.choices,
-        default=ExecutionMode.MIXED,
-    )
-    expected_sample_arrival = models.DateField('预计样品到达日期', null=True, blank=True)
-    expected_delivery_date = models.DateField('预计交付日期', null=True, blank=True)
-    quoted_amount = models.DecimalField('报价金额', max_digits=12, decimal_places=2, default=0)
-    is_urgent = models.BooleanField('加急订单', default=False)
-    chairman_visible = models.BooleanField('董事长可查看/审批', default=True)
-    closed_at = models.DateTimeField('办结时间', null=True, blank=True)
-    remark = models.TextField('备注', blank=True)
+    create_by = models.CharField('创建人账号', max_length=32, blank=True)
+    update_by = models.CharField('更新人账号', max_length=32, blank=True)
+    remark = models.CharField('订单备注', max_length=500, blank=True)
 
     class Meta:
-        verbose_name = 'LIMS订单'
-        verbose_name_plural = 'LIMS订单'
-        ordering = ['-created_at']
+        db_table = 'lims_sales_order'
+        verbose_name = 'LIMS 销售订单'
+        verbose_name_plural = 'LIMS 销售订单'
+        ordering = ['-create_time']
+
+    @property
+    def status(self):
+        return self.order_status
+
+    @property
+    def sales_owner(self):
+        return self.sale_user
+
+    @property
+    def expected_delivery_date(self):
+        return self.expect_delivery_time
+
+    @property
+    def is_urgent(self):
+        return '加急' in (self.remark or '')
 
     def __str__(self):
-        return f'{self.order_no} - {self.project_name}'
+        title = self.project_name or self.customer_name
+        return f'{self.order_no} - {title}'
 
     def mark_status(self, status, actor=None, note=''):
-        old_status = self.status
-        self.status = status
-        if status == self.Status.CLOSED and self.closed_at is None:
-            self.closed_at = timezone.now()
-        self.save(update_fields=['status', 'closed_at', 'updated_at'])
+        old_status = self.order_status
+        self.order_status = status
+        if actor:
+            self.update_by = actor.username
+        self.save(update_fields=['order_status', 'update_by', 'update_time'])
         WorkflowEvent.objects.create(
             order=self,
             actor=actor,
             event_type=WorkflowEvent.EventType.STATUS,
-            from_status=old_status,
-            to_status=status,
+            from_status=str(old_status or ''),
+            to_status=str(status or ''),
             note=note,
         )
 
 
 class BusinessReview(TimeStampedModel):
-    order = models.ForeignKey(LabOrder, verbose_name='订单', on_delete=models.CASCADE, related_name='reviews')
-    reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='评审人', on_delete=models.SET_NULL, null=True, blank=True)
-    business_passed = models.BooleanField('商务评审通过', default=False)
-    technical_passed = models.BooleanField('技术评审通过', default=False)
-    quotation_note = models.TextField('报价说明', blank=True)
-    feasibility_note = models.TextField('可行性说明', blank=True)
-    delivery_note = models.TextField('交付周期说明', blank=True)
-    reviewed_at = models.DateTimeField('评审时间', null=True, blank=True)
+    order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='reviews')
+    biz_review_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='商务评审人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_biz_reviews',
+    )
+    tech_review_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='技术评审人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_tech_reviews',
+    )
+    biz_quote_detail = models.TextField('商务分项报价明细', blank=True)
+    tech_feasible = models.BooleanField('技术可行性', default=True)
+    review_result = models.BooleanField('评审结果', default=True)
+    reject_reason = models.CharField('驳回原因', max_length=1000, blank=True)
+    review_time = models.DateTimeField('评审完成时间', null=True, blank=True)
 
     class Meta:
+        db_table = 'lims_biz_review'
         verbose_name = '商务技术评审'
         verbose_name_plural = '商务技术评审'
-        ordering = ['-created_at']
-
-    @property
-    def passed(self):
-        return self.business_passed and self.technical_passed
+        ordering = ['-create_time']
 
     def __str__(self):
         return f'{self.order.order_no} 评审'
 
 
 class SchedulePlan(TimeStampedModel):
-    order = models.OneToOneField(LabOrder, verbose_name='订单', on_delete=models.CASCADE, related_name='schedule_plan')
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='质量部负责人', on_delete=models.SET_NULL, null=True, blank=True)
-    version = models.PositiveIntegerField('版本号', default=1)
-    start_date = models.DateField('计划开始日期', null=True, blank=True)
-    end_date = models.DateField('计划完成日期', null=True, blank=True)
-    summary = models.TextField('项目总周期说明', blank=True)
-    approved = models.BooleanField('周期表已确认', default=False)
+    class TestType(models.IntegerChoices):
+        SUZHOU = 1, '苏州内部实验室'
+        JIANGYIN = 2, '江阴内部实验室'
+        OUTSOURCE = 3, '外部委外'
+
+    class Status(models.IntegerChoices):
+        NEW = 1, '新建'
+        CHANGE_PENDING = 2, '变更待调整'
+        RUNNING = 3, '执行中'
+        FINISHED = 4, '试验完成'
+
+    order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='schedules')
+    test_type = models.PositiveSmallIntegerField('试验执行类型', choices=TestType.choices, default=TestType.SUZHOU)
+    lab_manager = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='实验室负责人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_lab_schedules',
+    )
+    outsource_factory = models.CharField('委外厂家名称', max_length=100, blank=True)
+    outsource_price = models.DecimalField('委外试验单价', max_digits=12, decimal_places=2, default=0)
+    outsource_cycle = models.PositiveIntegerField('委外交付周期（天）', null=True, blank=True)
+    plan_start_time = models.DateTimeField('试验计划开始时间', null=True, blank=True)
+    plan_end_time = models.DateTimeField('试验计划完成时间', null=True, blank=True)
+    schedule_status = models.PositiveSmallIntegerField('排期状态', choices=Status.choices, default=Status.NEW)
+    quality_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='质量部操作人员',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_quality_schedules',
+    )
+    remark = models.CharField('排期备注', max_length=500, blank=True)
 
     class Meta:
-        verbose_name = '项目周期表'
-        verbose_name_plural = '项目周期表'
+        db_table = 'lims_project_schedule'
+        verbose_name = '项目周期排期'
+        verbose_name_plural = '项目周期排期'
+        ordering = ['plan_start_time', 'id']
 
     def __str__(self):
-        return f'{self.order.order_no} 周期表 V{self.version}'
-
-
-class ScheduleItem(TimeStampedModel):
-    class ResourceType(models.TextChoices):
-        SUZHOU = 'suzhou', '苏州实验室'
-        JIANGYIN = 'jiangyin', '江阴实验室'
-        OUTSOURCE = 'outsource', '委外供应商'
-
-    plan = models.ForeignKey(SchedulePlan, verbose_name='周期表', on_delete=models.CASCADE, related_name='items')
-    resource_type = models.CharField('执行主体', max_length=20, choices=ResourceType.choices)
-    owner_name = models.CharField('项目负责人/供应商', max_length=100)
-    task_name = models.CharField('试验任务', max_length=160)
-    start_date = models.DateField('开始日期', null=True, blank=True)
-    end_date = models.DateField('结束日期', null=True, blank=True)
-    cost = models.DecimalField('成本/报价', max_digits=12, decimal_places=2, default=0)
-    note = models.TextField('排期说明', blank=True)
-
-    class Meta:
-        verbose_name = '排期明细'
-        verbose_name_plural = '排期明细'
-        ordering = ['start_date', 'id']
-
-    def __str__(self):
-        return f'{self.get_resource_type_display()} - {self.task_name}'
+        return f'{self.order.order_no} {self.get_test_type_display()}排期'
 
 
 class ChangeRequest(TimeStampedModel):
-    class ChangeStage(models.TextChoices):
-        BEFORE_SAMPLE = 'before_sample', '样品到货前'
-        DURING_TEST = 'during_test', '试验进行中'
+    class Scene(models.IntegerChoices):
+        BEFORE_SAMPLE = 1, '样品到货前变更'
+        DURING_TEST = 2, '试验过程中变更'
 
-    class Status(models.TextChoices):
-        SUBMITTED = 'submitted', '已提交'
-        ACCEPTED = 'accepted', '已接收'
-        APPLIED = 'applied', '已应用并回流排期'
-        REJECTED = 'rejected', '已驳回'
+    class Status(models.IntegerChoices):
+        PENDING = 1, '待调整排期'
+        APPLIED = 2, '排期已更新完成'
 
-    order = models.ForeignKey(LabOrder, verbose_name='订单', on_delete=models.CASCADE, related_name='change_requests')
-    stage = models.CharField('变更阶段', max_length=20, choices=ChangeStage.choices)
-    requester = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='发起人', on_delete=models.SET_NULL, null=True, blank=True)
-    reason = models.TextField('变更原因')
-    requested_changes = models.TextField('变更内容')
-    status = models.CharField('处理状态', max_length=20, choices=Status.choices, default=Status.SUBMITTED)
+    order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='change_requests')
+    schedule = models.ForeignKey(SchedulePlan, verbose_name='项目排期', on_delete=models.SET_NULL, null=True, blank=True, related_name='change_requests')
+    change_scene = models.PositiveSmallIntegerField('变更场景', choices=Scene.choices, default=Scene.BEFORE_SAMPLE)
+    old_test_demand = models.TextField('变更前原始试验需求', blank=True)
+    new_test_demand = models.TextField('变更后调整试验需求', blank=True)
+    change_content = models.CharField('变更详细描述', max_length=1000)
+    change_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='变更发起人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_order_changes',
+    )
+    change_time = models.DateTimeField('变更提交时间', default=timezone.now)
+    change_status = models.PositiveSmallIntegerField('变更状态', choices=Status.choices, default=Status.PENDING)
 
     class Meta:
-        verbose_name = '订单更改单'
-        verbose_name_plural = '订单更改单'
-        ordering = ['-created_at']
+        db_table = 'lims_order_change'
+        verbose_name = '订单变更单'
+        verbose_name_plural = '订单变更单'
+        ordering = ['-create_time']
 
     def __str__(self):
-        return f'{self.order.order_no} {self.get_stage_display()}变更'
+        return f'{self.order.order_no} {self.get_change_scene_display()}'
 
 
 class Sample(TimeStampedModel):
-    order = models.ForeignKey(LabOrder, verbose_name='订单', on_delete=models.CASCADE, related_name='samples')
-    sample_no = models.CharField('样品编号', max_length=60, unique=True)
-    name = models.CharField('样品名称', max_length=120)
-    quantity = models.PositiveIntegerField('数量', default=1)
-    received_at = models.DateTimeField('收样时间', null=True, blank=True)
-    storage_location = models.CharField('存放位置', max_length=120, blank=True)
-    note = models.TextField('样品备注', blank=True)
+    class Status(models.IntegerChoices):
+        REGISTERED = 1, '已登记待试验'
+        TESTING = 2, '试验中'
+        FINISHED = 3, '试验完成'
+        RETURNED = 4, '已归还客户'
+
+    order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='samples')
+    schedule = models.ForeignKey(SchedulePlan, verbose_name='项目排期', on_delete=models.SET_NULL, null=True, blank=True, related_name='samples')
+    sample_no = models.CharField('全局唯一样品编号', max_length=64, unique=True)
+    sample_name = models.CharField('样品名称', max_length=100)
+    sample_spec = models.CharField('样品规格型号', max_length=200, blank=True)
+    sample_count = models.PositiveIntegerField('样品数量', default=1)
+    storage_condition = models.CharField('样品存储条件', max_length=200, blank=True)
+    actual_arrive_time = models.DateTimeField('样品实际送达入库时间', null=True, blank=True)
+    sample_status = models.PositiveSmallIntegerField('样品状态', choices=Status.choices, default=Status.REGISTERED)
+    quality_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='登记质量人员',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_registered_samples',
+    )
 
     class Meta:
-        verbose_name = '样品台账'
-        verbose_name_plural = '样品台账'
+        db_table = 'lims_sample_info'
+        verbose_name = '样品信息登记'
+        verbose_name_plural = '样品信息登记'
         ordering = ['sample_no']
 
     def __str__(self):
@@ -211,69 +246,124 @@ class Sample(TimeStampedModel):
 
 
 class Experiment(TimeStampedModel):
-    class Status(models.TextChoices):
-        WAITING = 'waiting', '待开始'
-        RUNNING = 'running', '试验中'
-        CHANGING = 'changing', '变更回流'
-        FINISHED = 'finished', '已完成'
+    class Status(models.IntegerChoices):
+        WAITING = 1, '待开展'
+        RUNNING = 2, '试验中'
+        FINISHED = 3, '试验完成待出报告'
 
-    order = models.ForeignKey(LabOrder, verbose_name='订单', on_delete=models.CASCADE, related_name='experiments')
+    order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='experiments')
+    schedule = models.ForeignKey(SchedulePlan, verbose_name='项目排期', on_delete=models.SET_NULL, null=True, blank=True, related_name='experiments')
     sample = models.ForeignKey(Sample, verbose_name='样品', on_delete=models.SET_NULL, null=True, blank=True, related_name='experiments')
-    schedule_item = models.ForeignKey(ScheduleItem, verbose_name='排期明细', on_delete=models.SET_NULL, null=True, blank=True, related_name='experiments')
-    name = models.CharField('试验项目', max_length=160)
-    executor = models.CharField('执行人/供应商', max_length=100, blank=True)
-    status = models.CharField('试验状态', max_length=20, choices=Status.choices, default=Status.WAITING)
-    started_at = models.DateTimeField('开始时间', null=True, blank=True)
-    finished_at = models.DateTimeField('完成时间', null=True, blank=True)
-    result_summary = models.TextField('结果摘要', blank=True)
+    test_item_list = models.TextField('实际开展检测项目清单')
+    test_standard = models.CharField('执行检测标准号', max_length=500, blank=True)
+    test_start_time = models.DateTimeField('试验实际开始时间', null=True, blank=True)
+    test_end_time = models.DateTimeField('试验实际结束时间', null=True, blank=True)
+    test_operator = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='试验操作人员',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_test_records',
+    )
+    test_raw_data = models.TextField('原始检测数据、数值记录', blank=True)
+    test_conclusion_temp = models.CharField('试验临时初步结论', max_length=1000, blank=True)
+    test_status = models.PositiveSmallIntegerField('试验状态', choices=Status.choices, default=Status.WAITING)
+    test_type = models.PositiveSmallIntegerField('试验执行类型', choices=SchedulePlan.TestType.choices, default=SchedulePlan.TestType.SUZHOU)
 
     class Meta:
-        verbose_name = '试验记录'
-        verbose_name_plural = '试验记录'
-        ordering = ['-created_at']
+        db_table = 'lims_test_record'
+        verbose_name = '试验执行记录'
+        verbose_name_plural = '试验执行记录'
+        ordering = ['-create_time']
 
     def __str__(self):
-        return f'{self.order.order_no} - {self.name}'
+        return f'{self.order.order_no} - {self.test_item_list[:20]}'
 
 
 class TestReport(TimeStampedModel):
-    class Status(models.TextChoices):
-        DRAFT = 'draft', '质量部出具'
-        SALES_REVIEW = 'sales_review', '销售审核'
-        GM_REVIEW = 'gm_review', '总经理审核'
-        APPROVED = 'approved', '审核通过'
-        REJECTED = 'rejected', '驳回重制'
+    class Status(models.IntegerChoices):
+        DRAFT = 1, '草稿'
+        SALES_REVIEW = 2, '待销售初审'
+        GM_REVIEW = 3, '待总经理终审'
+        REJECTED = 4, '审核驳回重制'
+        APPROVED = 5, '审核通过待开票'
 
-    order = models.ForeignKey(LabOrder, verbose_name='订单', on_delete=models.CASCADE, related_name='reports')
-    report_no = models.CharField('报告编号', max_length=60, unique=True)
-    version = models.PositiveIntegerField('版本号', default=1)
-    status = models.CharField('报告状态', max_length=20, choices=Status.choices, default=Status.DRAFT)
-    prepared_by = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='编制人', on_delete=models.SET_NULL, null=True, blank=True, related_name='prepared_reports')
-    sales_reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='销售审核人', on_delete=models.SET_NULL, null=True, blank=True, related_name='sales_reviewed_reports')
-    gm_reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='总经理审核人', on_delete=models.SET_NULL, null=True, blank=True, related_name='gm_reviewed_reports')
-    conclusion = models.TextField('报告结论', blank=True)
-    reject_reason = models.TextField('驳回原因', blank=True)
+    order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='reports')
+    test_record = models.ForeignKey(Experiment, verbose_name='试验记录', on_delete=models.SET_NULL, null=True, blank=True, related_name='reports')
+    report_no = models.CharField('全局唯一报告编号', max_length=64, unique=True)
+    report_file_url = models.CharField('报告 PDF 文件存储地址', max_length=500, blank=True)
+    final_conclusion = models.TextField('检测最终正式结论', blank=True)
+    report_status = models.PositiveSmallIntegerField('报告状态', choices=Status.choices, default=Status.DRAFT)
+    remake_count = models.PositiveIntegerField('驳回重制次数统计', default=0)
+    create_quality_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='出具报告质量人员',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_created_reports',
+    )
 
     class Meta:
+        db_table = 'lims_test_report'
         verbose_name = '检测报告'
         verbose_name_plural = '检测报告'
-        ordering = ['-created_at']
+        ordering = ['-create_time']
 
     def __str__(self):
         return self.report_no
 
 
-class Invoice(TimeStampedModel):
-    order = models.OneToOneField(LabOrder, verbose_name='订单', on_delete=models.CASCADE, related_name='invoice')
-    invoice_no = models.CharField('发票编号', max_length=80, unique=True)
-    accountant = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='会计', on_delete=models.SET_NULL, null=True, blank=True)
-    amount = models.DecimalField('开票金额', max_digits=12, decimal_places=2)
-    issued_at = models.DateField('开票日期', null=True, blank=True)
-    note = models.TextField('财务备注', blank=True)
+class ReportAudit(TimeStampedModel):
+    class Level(models.IntegerChoices):
+        SALES = 1, '销售初审'
+        GENERAL_MANAGER = 2, '总经理终审'
+
+    class Result(models.IntegerChoices):
+        REJECTED = 0, '驳回'
+        APPROVED = 1, '通过'
+
+    report = models.ForeignKey(TestReport, verbose_name='检测报告', on_delete=models.CASCADE, related_name='audits')
+    audit_level = models.PositiveSmallIntegerField('审核层级', choices=Level.choices)
+    audit_user = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='审核操作人', on_delete=models.SET_NULL, null=True, blank=True)
+    audit_result = models.PositiveSmallIntegerField('审核结果', choices=Result.choices)
+    audit_opinion = models.CharField('审核意见、修改要求', max_length=1000, blank=True)
+    audit_time = models.DateTimeField('审核操作时间', default=timezone.now)
 
     class Meta:
-        verbose_name = '财务开票'
-        verbose_name_plural = '财务开票'
+        db_table = 'lims_report_audit'
+        verbose_name = '报告多级审核记录'
+        verbose_name_plural = '报告多级审核记录'
+        ordering = ['-audit_time']
+
+    def __str__(self):
+        return f'{self.report.report_no} {self.get_audit_level_display()}'
+
+
+class Invoice(TimeStampedModel):
+    class PayStatus(models.IntegerChoices):
+        UNPAID = 0, '未收款'
+        PAID = 1, '已回款'
+
+    class FinishFlag(models.IntegerChoices):
+        UNFINISHED = 0, '未办结'
+        FINISHED = 1, '全部流程完成'
+
+    order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='invoices')
+    report = models.ForeignKey(TestReport, verbose_name='检测报告', on_delete=models.SET_NULL, null=True, blank=True, related_name='invoices')
+    invoice_no = models.CharField('发票号码', max_length=64, unique=True)
+    invoice_amount = models.DecimalField('开票金额', max_digits=12, decimal_places=2)
+    invoice_type = models.CharField('发票类型', max_length=32, blank=True)
+    invoice_date = models.DateTimeField('发票开具日期', null=True, blank=True)
+    pay_status = models.PositiveSmallIntegerField('回款状态', choices=PayStatus.choices, default=PayStatus.UNPAID)
+    finance_user = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='操作开票会计', on_delete=models.SET_NULL, null=True, blank=True)
+    order_finish_flag = models.PositiveSmallIntegerField('订单办结标记', choices=FinishFlag.choices, default=FinishFlag.UNFINISHED)
+
+    class Meta:
+        db_table = 'lims_finance_invoice'
+        verbose_name = '财务开票结算'
+        verbose_name_plural = '财务开票结算'
 
     def __str__(self):
         return self.invoice_no
@@ -287,7 +377,7 @@ class WorkflowEvent(TimeStampedModel):
         COMMENT = 'comment', '备注'
         CHAIRMAN = 'chairman', '董事长操作'
 
-    order = models.ForeignKey(LabOrder, verbose_name='订单', on_delete=models.CASCADE, related_name='events')
+    order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='events')
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='操作人', on_delete=models.SET_NULL, null=True, blank=True)
     event_type = models.CharField('事件类型', max_length=20, choices=EventType.choices, default=EventType.COMMENT)
     from_status = models.CharField('原状态', max_length=40, blank=True)
@@ -295,9 +385,10 @@ class WorkflowEvent(TimeStampedModel):
     note = models.TextField('说明', blank=True)
 
     class Meta:
-        verbose_name = '流程日志'
-        verbose_name_plural = '流程日志'
-        ordering = ['-created_at']
+        db_table = 'lims_workflow_event'
+        verbose_name = '流程操作日志'
+        verbose_name_plural = '流程操作日志'
+        ordering = ['-create_time']
 
     def __str__(self):
         return f'{self.order.order_no} {self.get_event_type_display()}'
