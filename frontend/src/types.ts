@@ -39,6 +39,56 @@ export type ScheduleItem = {
   remark: string
 }
 
+export type SampleItem = {
+  sample_no: string
+  order_no: string
+  customer: string
+  project_name: string
+  sample_name: string
+  sample_spec: string
+  sample_count: number
+  storage_condition: string
+  actual_arrive_time: string
+  sample_status: string
+  test_type: string
+  quality_user: string
+}
+
+export type ChangeItem = {
+  order_no: string
+  customer: string
+  project_name: string
+  scene: string
+  status: string
+  content: string
+  change_user: string
+  change_time: string
+}
+
+export type ReviewItem = {
+  order_no: string
+  customer: string
+  project_name: string
+  biz_user: string
+  tech_user: string
+  result: string
+  tech_feasible: string
+  reject_reason: string
+  review_time: string
+}
+
+export type WorkflowEventItem = {
+  order_no: string
+  customer: string
+  project_name: string
+  actor: string
+  event_type: string
+  from_status: string
+  to_status: string
+  note: string
+  create_time: string
+}
+
 export type LabDevice = {
   name: string
   status: string
@@ -92,6 +142,11 @@ export type Dashboard = {
     jiangyin: LabView
   }
   outsource_orders: OrderItem[]
+  schedules: ScheduleItem[]
+  samples: SampleItem[]
+  changes: ChangeItem[]
+  reviews: ReviewItem[]
+  workflow_events: WorkflowEventItem[]
   pending_reports: ReportItem[]
   finance: {
     pending_invoices: InvoiceItem[]

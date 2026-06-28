@@ -10,7 +10,7 @@ from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseNotFou
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import ChangeRequest, Experiment, Invoice, LabOrder, ReportAudit, SchedulePlan, TestReport, WorkflowEvent
+from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabOrder, ReportAudit, Sample, SchedulePlan, TestReport, WorkflowEvent
 
 
 ROLE_SALES = '销售'
@@ -46,6 +46,12 @@ def _roles(user):
     if not user.is_authenticated:
         return []
     return list(user.groups.values_list('name', flat=True))
+
+
+def _display_user(user):
+    if not user:
+        return ''
+    return user.first_name or user.username
 
 
 def _can_view_finance(user):
@@ -195,6 +201,69 @@ def _schedule_payload(schedule):
         'end_time': schedule.plan_end_time.strftime('%Y-%m-%d') if schedule.plan_end_time else '',
         'schedule_status': schedule.get_schedule_status_display(),
         'remark': schedule.remark,
+    }
+
+
+def _sample_payload(sample):
+    order = sample.order
+    schedule = sample.schedule
+    return {
+        'sample_no': sample.sample_no,
+        'order_no': order.order_no,
+        'customer': order.customer_name,
+        'project_name': order.project_name,
+        'sample_name': sample.sample_name,
+        'sample_spec': sample.sample_spec,
+        'sample_count': sample.sample_count,
+        'storage_condition': sample.storage_condition,
+        'actual_arrive_time': sample.actual_arrive_time.strftime('%Y-%m-%d') if sample.actual_arrive_time else '',
+        'sample_status': sample.get_sample_status_display(),
+        'test_type': schedule.get_test_type_display() if schedule else '',
+        'quality_user': _display_user(sample.quality_user),
+    }
+
+
+def _change_payload(change):
+    order = change.order
+    return {
+        'order_no': order.order_no,
+        'customer': order.customer_name,
+        'project_name': order.project_name,
+        'scene': change.get_change_scene_display(),
+        'status': change.get_change_status_display(),
+        'content': change.change_content,
+        'change_user': _display_user(change.change_user),
+        'change_time': change.change_time.strftime('%Y-%m-%d %H:%M') if change.change_time else '',
+    }
+
+
+def _review_payload(review):
+    order = review.order
+    return {
+        'order_no': order.order_no,
+        'customer': order.customer_name,
+        'project_name': order.project_name,
+        'biz_user': _display_user(review.biz_review_user),
+        'tech_user': _display_user(review.tech_review_user),
+        'result': '通过' if review.review_result else '驳回',
+        'tech_feasible': '可行' if review.tech_feasible else '不可行',
+        'reject_reason': review.reject_reason,
+        'review_time': review.review_time.strftime('%Y-%m-%d %H:%M') if review.review_time else '',
+    }
+
+
+def _workflow_payload(event):
+    order = event.order
+    return {
+        'order_no': order.order_no,
+        'customer': order.customer_name,
+        'project_name': order.project_name,
+        'actor': _display_user(event.actor),
+        'event_type': event.get_event_type_display(),
+        'from_status': event.from_status,
+        'to_status': event.to_status,
+        'note': event.note,
+        'create_time': event.create_time.strftime('%Y-%m-%d %H:%M') if event.create_time else '',
     }
 
 
@@ -494,6 +563,21 @@ def lims_dashboard(request):
             | Q(schedules__test_type=SchedulePlan.TestType.OUTSOURCE)
         ).distinct().order_by('-create_time')
     ]
+    schedules = SchedulePlan.objects.select_related('order', 'lab_manager', 'quality_user').filter(
+        order__in=related_orders
+    ).order_by('-plan_start_time', '-create_time')
+    samples = Sample.objects.select_related('order', 'schedule', 'quality_user').filter(
+        order__in=related_orders
+    ).order_by('-actual_arrive_time', '-create_time')
+    changes = ChangeRequest.objects.select_related('order', 'schedule', 'change_user').filter(
+        order__in=related_orders
+    ).order_by('-change_time', '-create_time')
+    reviews = BusinessReview.objects.select_related('order', 'biz_review_user', 'tech_review_user').filter(
+        order__in=related_orders
+    ).order_by('-review_time', '-create_time')
+    workflow_events = WorkflowEvent.objects.select_related('order', 'actor').filter(
+        order__in=related_orders
+    ).order_by('-create_time')[:500]
     pending_invoice_reports = TestReport.objects.none()
     invoices = Invoice.objects.none()
     if can_view_finance:
@@ -540,6 +624,11 @@ def lims_dashboard(request):
             'jiangyin': _lab_payload(SchedulePlan.TestType.JIANGYIN, '江阴实验室', related_orders, request.user),
         },
         'outsource_orders': outsource_orders,
+        'schedules': [_schedule_payload(schedule) for schedule in schedules],
+        'samples': [_sample_payload(sample) for sample in samples],
+        'changes': [_change_payload(change) for change in changes],
+        'reviews': [_review_payload(review) for review in reviews],
+        'workflow_events': [_workflow_payload(event) for event in workflow_events],
         'pending_reports': [_report_payload(report) for report in pending_reports.order_by('-create_time')],
         'finance': {
             'pending_invoices': [_pending_invoice_payload(report) for report in pending_invoice_reports],
