@@ -66,8 +66,14 @@ async function logout() {
         <img :src="companyLogo" alt="苏州环测检测技术有限公司 logo">
         <div>
           <strong>环测 LIMS</strong>
-          <span>{{ roleText }}</span>
+          <span>Laboratory Operations</span>
         </div>
+      </div>
+
+      <div class="role-card">
+        <span>当前岗位</span>
+        <strong>{{ roleText }}</strong>
+        <small>按权责隔离菜单与数据</small>
       </div>
 
       <el-scrollbar class="menu-scroll">
@@ -93,6 +99,10 @@ async function logout() {
           <h1>{{ currentTitle }}</h1>
         </div>
         <div class="header-actions">
+          <div class="system-health">
+            <span></span>
+            运行正常
+          </div>
           <el-button v-if="session.canAccessAdmin.value" tag="a" href="/admin/" type="primary" plain>进入 Django 后台</el-button>
           <el-dropdown>
             <el-button>
