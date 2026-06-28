@@ -15,7 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, re_path
 from core.views import add_employee, create_order, current_user, frontend, lims_dashboard, lims_login, lims_logout
 
 urlpatterns = [
@@ -27,4 +27,5 @@ urlpatterns = [
     path('api/orders/create/', create_order, name='create_order'),
     path('api/lims/dashboard/', lims_dashboard, name='lims_dashboard'),
     path('admin/', admin.site.urls),
+    re_path(r'^(?!api/|admin/|static/).*$', frontend, name='frontend_spa'),
 ]
