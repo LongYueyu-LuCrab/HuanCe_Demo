@@ -444,6 +444,103 @@ button {
   align-items: start;
 }
 
+.orders-list-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.list-controls {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-control,
+.page-size-control {
+  display: grid;
+  gap: 6px;
+}
+
+.search-control {
+  flex: 1;
+  min-width: 280px;
+}
+
+.page-size-control {
+  width: 130px;
+}
+
+.search-control span,
+.page-size-control span {
+  color: #667286;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.search-control input,
+.page-size-control select {
+  height: 40px;
+  border: 1px solid rgba(23, 32, 51, 0.14);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #101827;
+  background: #fff;
+  outline: none;
+}
+
+.search-control input:focus,
+.page-size-control select:focus {
+  border-color: rgba(21, 100, 83, 0.45);
+  box-shadow: 0 0 0 3px rgba(45, 177, 139, 0.12);
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(23, 32, 51, 0.1);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: #566274;
+  background: #fff;
+}
+
+.pagination-bar > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pagination-bar button {
+  min-width: 72px;
+  border: 1px solid rgba(23, 32, 51, 0.14);
+  border-radius: 7px;
+  padding: 7px 12px;
+  color: #173b56;
+  background: #f8fbfa;
+  font-weight: 800;
+}
+
+.pagination-bar button:not(:disabled):hover {
+  border-color: rgba(21, 100, 83, 0.36);
+  background: #eef8f4;
+}
+
+.pagination-bar button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pagination-bar strong {
+  min-width: 58px;
+  color: #101827;
+  text-align: center;
+}
+
 .orders-table.compact .table-row {
   grid-template-columns: 1fr 1.5fr 0.8fr 0.75fr;
 }
@@ -857,6 +954,19 @@ button {
   .split-view,
   .table-row {
     grid-template-columns: 1fr;
+  }
+
+  .list-controls,
+  .pagination-bar,
+  .pagination-bar > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .search-control,
+  .page-size-control {
+    width: 100%;
+    min-width: 0;
   }
 
   .orders-table.compact .table-row,

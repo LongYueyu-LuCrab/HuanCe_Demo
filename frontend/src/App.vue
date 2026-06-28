@@ -88,6 +88,9 @@ const dashboard = ref<Dashboard | null>(null)
 const activeMenu = ref('dashboard')
 const activeMetric = ref('orders')
 const selectedOrder = ref<OrderItem | null>(null)
+const dashboardSearch = ref('')
+const dashboardPageSize = ref(10)
+const dashboardPage = ref(1)
 const loading = ref(true)
 const loginError = ref('')
 const employeeMessage = ref('')
@@ -169,16 +172,70 @@ const metricCards = computed(() => {
 })
 
 const activeMetricOrders = computed(() => dashboard.value?.order_groups?.[activeMetric.value] ?? [])
+const filteredMetricOrders = computed(() => {
+  const keyword = dashboardSearch.value.trim().toLowerCase()
+  const source = activeMetricOrders.value
+  if (!keyword) return source
+  return source.filter((order) =>
+    [
+      order.order_no,
+      order.customer,
+      order.contact,
+      order.phone,
+      order.project_name,
+      order.test_demand,
+      order.status,
+      order.execution_mode,
+      order.expected_delivery_date,
+      order.sales_owner,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(keyword),
+  )
+})
+const totalDashboardPages = computed(() =>
+  Math.max(1, Math.ceil(filteredMetricOrders.value.length / dashboardPageSize.value)),
+)
+const pagedMetricOrders = computed(() => {
+  const currentPage = Math.min(dashboardPage.value, totalDashboardPages.value)
+  const start = (currentPage - 1) * dashboardPageSize.value
+  return filteredMetricOrders.value.slice(start, start + dashboardPageSize.value)
+})
+const dashboardRangeText = computed(() => {
+  const total = filteredMetricOrders.value.length
+  if (total === 0) return '0 / 0'
+  const currentPage = Math.min(dashboardPage.value, totalDashboardPages.value)
+  const start = (currentPage - 1) * dashboardPageSize.value + 1
+  const end = Math.min(start + dashboardPageSize.value - 1, total)
+  return `${start}-${end} / ${total}`
+})
 const roleText = computed(() => user.value.roles?.join(' / ') || '普通用户')
 const orders = computed(() => dashboard.value?.recent_orders ?? [])
 
 function openMetric(key: string) {
   activeMetric.value = key
+  dashboardSearch.value = ''
+  dashboardPage.value = 1
   selectedOrder.value = null
 }
 
 function chooseOrder(order: OrderItem) {
   selectedOrder.value = order
+}
+
+function resetDashboardList() {
+  dashboardPage.value = 1
+  selectedOrder.value = null
+}
+
+function previousDashboardPage() {
+  if (dashboardPage.value > 1) dashboardPage.value -= 1
+}
+
+function nextDashboardPage() {
+  if (dashboardPage.value < totalDashboardPages.value) dashboardPage.value += 1
 }
 
 function filteredLabOrders(key: 'suzhou' | 'jiangyin') {
@@ -369,7 +426,27 @@ onMounted(async () => {
           <p>点击订单行查看客户、报价、交付、试验需求和当前流程状态。</p>
         </div>
         <div class="split-view">
-          <div class="orders-table compact">
+          <div class="orders-list-panel">
+            <div class="list-controls">
+              <label class="search-control">
+                <span>搜索订单</span>
+                <input
+                  v-model="dashboardSearch"
+                  type="search"
+                  placeholder="订单号、客户、项目、状态"
+                  @input="resetDashboardList"
+                >
+              </label>
+              <label class="page-size-control">
+                <span>每页显示</span>
+                <select v-model.number="dashboardPageSize" @change="resetDashboardList">
+                  <option :value="10">10 条</option>
+                  <option :value="15">15 条</option>
+                  <option :value="20">20 条</option>
+                </select>
+              </label>
+            </div>
+            <div class="orders-table compact">
             <div class="table-row table-head">
               <span>订单</span>
               <span>客户 / 项目</span>
@@ -377,7 +454,7 @@ onMounted(async () => {
               <span>交付</span>
             </div>
             <button
-              v-for="order in activeMetricOrders"
+              v-for="order in pagedMetricOrders"
               :key="order.order_no"
               type="button"
               class="table-row table-button"
@@ -388,7 +465,16 @@ onMounted(async () => {
               <span>{{ order.status }}</span>
               <span>{{ order.expected_delivery_date || '待确认' }}</span>
             </button>
-            <div v-if="activeMetricOrders.length === 0" class="empty-row">当前分组暂无订单。</div>
+            <div v-if="filteredMetricOrders.length === 0" class="empty-row">当前没有匹配的订单。</div>
+          </div>
+            <div class="pagination-bar">
+              <span>{{ dashboardRangeText }}</span>
+              <div>
+                <button type="button" :disabled="dashboardPage <= 1" @click="previousDashboardPage">上一页</button>
+                <strong>{{ Math.min(dashboardPage, totalDashboardPages) }} / {{ totalDashboardPages }}</strong>
+                <button type="button" :disabled="dashboardPage >= totalDashboardPages" @click="nextDashboardPage">下一页</button>
+              </div>
+            </div>
           </div>
           <aside class="detail-panel">
             <template v-if="selectedOrder">
