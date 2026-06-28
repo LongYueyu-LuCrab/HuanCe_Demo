@@ -1,121 +1,118 @@
 # HuanCe LIMS Project Baseline
 
-This document is the working baseline for future development of the HuanCe LIMS project.
+This document is the development baseline for the Suzhou HuanCe LIMS project. Future work should follow this file unless the user explicitly changes the architecture or business process.
 
-Project name: HuanCe LIMS
+## 1. Project
 
-Company: 苏州环测检测技术有限公司
+- Project name: HuanCe LIMS
+- Company: 苏州环测检测技术有限公司
+- Product: 实验室管理（LIMS）系统
+- Domain: aroundtest.com / www.aroundtest.com
+- Production server: 119.45.220.99
+- Git remote: git@github.com:LongYueyu-LuCrab/HuanCe_Demo.git
+- Current verified commit: 0f62c8f Implement LIMS workflow actions
 
-Domain reserved: aroundtest.com
+## 2. Architecture
 
-Current production server: 119.45.220.99
+The system is a Django backend plus a Vue SPA frontend served by Django.
 
-Git remote:
+Backend:
 
-```text
-git@github.com:LongYueyu-LuCrab/HuanCe_Demo.git
-```
+- Django 6
+- Python virtual environment: .venv locally, /opt/huance/venv on production
+- Django admin with django-simpleui
+- PostgreSQL on production
+- SQLite allowed only for local development fallback
+- Gunicorn + systemd on production
+- Nginx reverse proxy on production
 
-Current verified commit:
+Frontend:
 
-```text
-36d08cd Add PostgreSQL deployment configuration
-```
+- Vue 3
+- TypeScript
+- Vue Router
+- Element Plus
+- Vite
+- Frontend source: frontend/
+- Built SPA output: static/frontend/
 
-## 1. Architecture
-
-The project is a Django + Vue laboratory information management system.
-
-Local development stack:
-
-- Backend: Django 6.0.6
-- Admin UI: django-simpleui
-- Frontend: Vue 3 + Vite
-- Local database fallback: SQLite, only for development
-- Frontend package manager: pnpm
-- Local virtual environment: `.venv/`
-
-Production stack on Tencent Cloud:
-
-- OS: Ubuntu Server 22.04 LTS
-- Python: 3.12
-- Database: PostgreSQL
-- App server: Gunicorn
-- Reverse proxy: Nginx
-- Process manager: systemd
-- Production app path: `/opt/huance/app`
-- Production virtual environment: `/opt/huance/venv`
-- Production env file: `/opt/huance/.env`
-- Production media path: `/opt/huance/media`
-
-Production URL currently available:
+Production layout:
 
 ```text
-http://119.45.220.99/
+/opt/huance/app            source code and built frontend
+/opt/huance/venv           Python virtual environment
+/opt/huance/.env           production environment variables
+/opt/huance/run            Gunicorn socket directory
+/opt/huance/media          uploaded files
+/etc/systemd/system/huance.service
+/etc/nginx/sites-available/huance
+/etc/nginx/sites-enabled/huance
 ```
 
-After DNS is configured:
+Never run production with Django runserver.
 
-```text
-http://aroundtest.com/
-http://www.aroundtest.com/
-```
-
-HTTPS is not configured yet. Add HTTPS after DNS and ICP/domain steps are ready.
-
-## 2. Important Local Paths
+## 3. Important Local Paths
 
 ```text
 core/                         Django LIMS app
+core/models.py                LIMS business data model
+core/views.py                 JSON APIs and workflow action handlers
+core/admin.py                 Django admin registration
+core/management/commands/     Demo data seed commands
 huance/                       Django project settings and URLs
-frontend/                     Vue frontend source
-static/frontend/              Built Vue frontend served by Django
-core/migrations/0001_initial.py
+frontend/src/                 Vue source
+frontend/src/router.ts        SPA routes
+frontend/src/permissions.ts   role-based menu definitions
+frontend/src/stores/session.ts session/dashboard state
+frontend/src/services/api.ts  frontend API client
+static/frontend/              built frontend served by Django
 requirements.txt
 manage.py
 agnet.md
 ```
 
-Do not commit local runtime data:
+Do not commit:
 
 ```text
 .venv/
 db.sqlite3
 db.sqlite3*
 frontend/node_modules/
-static/frontend/
 staticfiles/
 media/
 *.log
+.env
 ```
 
-## 3. Database Baseline
+Note: `static/frontend/` contains built assets needed by Django. It may be generated and deployed, but avoid unrelated churn.
 
-The LIMS business data model is now standardized as 9 core business tables plus 1 workflow log table.
+## 4. Database Baseline
+
+The LIMS business schema uses 9 core business tables plus 1 workflow log table.
 
 Core business tables:
 
 ```text
-lims_sales_order
-lims_biz_review
-lims_project_schedule
-lims_order_change
-lims_sample_info
-lims_test_record
-lims_test_report
-lims_report_audit
-lims_finance_invoice
+lims_sales_order          sales order root table
+lims_biz_review           business and technical review
+lims_project_schedule     project schedule and lab/outsource dispatch
+lims_order_change         order change request
+lims_sample_info          sample registration
+lims_test_record          experiment/test execution record
+lims_test_report          test report
+lims_report_audit         sales and general-manager report audit
+lims_finance_invoice      finance invoice and settlement
 ```
 
-Workflow log table:
+Workflow log:
 
 ```text
 lims_workflow_event
 ```
 
-Production database is PostgreSQL. Local development can still fall back to SQLite when `POSTGRES_DB` is not set.
+All business records attach to `lims_sales_order` through order relations. Keep future schema changes aligned with this 9+1 table design unless the user explicitly approves a redesign.
 
-Production database settings are read from environment variables:
+Production database is PostgreSQL. Environment variables are loaded from `/opt/huance/.env`:
 
 ```text
 POSTGRES_DB
@@ -125,103 +122,233 @@ POSTGRES_HOST
 POSTGRES_PORT
 ```
 
-The PostgreSQL password is stored only on the server in `/opt/huance/.env`. Do not copy secrets into Git or this document.
+Do not copy production secrets into Git or this document.
 
-## 4. Roles
+## 5. Roles And Accounts
 
-The system uses Django users and groups for staff roles.
+The system uses Django users and groups. Menus, dashboard data, row visibility, and workflow buttons depend on role/group.
 
-Current workflow roles:
+Demo accounts:
+
+| Role | Username | Password | Display Name |
+|---|---|---|---|
+| 董事长 / 超级管理员 | zhihao | 123456 | 董事长 |
+| 销售 | sales01 | HuanCe@2026 | 销售一号 |
+| 商务部评审人员 | business01 | HuanCe@2026 | 商务评审一号 |
+| 技术评审人员 | tech01 | HuanCe@2026 | 技术评审一号 |
+| 质量部专员 | quality01 | HuanCe@2026 | 质量专员一号 |
+| 苏州实验室项目负责人 | suzhou_lab01 | HuanCe@2026 | 苏州实验室负责人 |
+| 江阴实验室项目负责人 | jiangyin_lab01 | HuanCe@2026 | 江阴实验室负责人 |
+| 总经理 | general_manager01 | HuanCe@2026 | 总经理一号 |
+| 会计 | accountant01 | HuanCe@2026 | 会计一号 |
+
+Additional sales demo users may exist:
 
 ```text
-销售
-商务
-技术
-质量部
-苏州实验室
-江阴实验室
-委外供应商
-总经理
-会计
-董事长
+sales02 / sales03, password HuanCe@2026
 ```
 
 Chairman logic:
 
 - Django superusers are treated as chairman-level users.
 - Users in the `董事长` group are also treated as chairman-level users.
-- Chairman users can view all workflow orders and add employees.
+- Chairman users can view all business data and add employees.
 
-## 5. Workflow Baseline
+## 6. LIMS Workflow
 
-The core business process is:
+Main flow:
 
-1. 销售下单
-2. 商务 + 技术联合评审
-3. 商务任务书与订单分配
-4. 质量部统筹排期
-5. 苏州实验室 / 江阴实验室 / 委外供应商并行执行
-6. 生成项目周期排期
-7. 销售确认样品与需求
-8. 质量部登记样品编号
-9. 试验执行
-10. 试验中动态变更回流排期
-11. 质量部出具报告
-12. 销售初审报告
-13. 总经理终审报告
-14. 会计开票办结
+```text
+销售下单
+-> 商务/技术联合评审
+-> 商务任务书与订单分配
+-> 质量部排期分流
+-> 苏州实验室 / 江阴实验室 / 外部委外
+-> 生成项目周期表
+-> 销售确认样品和需求
+-> 质量部样品编号登记
+-> 实验室或委外开展试验
+-> 质量部出具检测报告
+-> 销售初审报告
+-> 总经理终审报告
+-> 会计开票办结
+```
 
 Required loopbacks:
 
-- Business/technical review rejected -> return to sales for order edit or cancellation.
-- Pre-sample change -> create change request -> return to quality scheduling.
-- During-test change -> create change request -> return to quality scheduling.
-- Sales report rejection -> return to quality for report remake.
-- General manager report rejection -> return to quality for report remake.
+- 商务/技术评审驳回 -> 销售修改订单或退单
+- 样品到货前变更 -> 填写更改单 -> 回流质量部排期
+- 试验过程中变更 -> 填写更改单 -> 回流质量部排期
+- 销售报告初审驳回 -> 回流质量部重制报告
+- 总经理报告终审驳回 -> 回流质量部重制报告
 
-## 6. Current Frontend Baseline
+Order statuses in `LabOrder.Status`:
+
+```text
+1 待评审
+2 评审驳回
+3 排期中
+4 试验中
+5 报告审核中
+6 已开票办结
+7 退单
+```
+
+Report statuses in `TestReport.Status`:
+
+```text
+1 草稿
+2 待销售初审
+3 待总经理终审
+4 审核驳回重制
+5 审核通过待开票
+```
+
+## 7. Workflow Actions
+
+The current system has a real workflow action layer, not only static display.
+
+Unified backend action endpoint:
+
+```text
+POST /api/lims/action/
+```
+
+The frontend sends:
+
+```json
+{
+  "action": "action_name",
+  "order_no": "...",
+  "report_no": "...",
+  "invoice_no": "...",
+  "other_form_fields": "..."
+}
+```
+
+Implemented action names:
+
+```text
+review_pass              商务/技术评审通过
+review_reject            商务/技术评审驳回
+order_update             销售修改订单并重提
+order_cancel             销售退单
+sales_confirm            销售确认无变更
+create_change            销售/质量/实验室创建更改单
+schedule_assign          质量部排期分配
+process_change           质量部处理变更并闭环
+register_sample          质量部样品登记
+start_test               苏州/江阴实验室开始试验
+submit_test              苏州/江阴实验室提交试验结果
+issue_report             质量部出具报告
+report_sales_pass        销售初审通过
+report_sales_reject      销售初审驳回
+report_gm_pass           总经理终审通过
+report_gm_reject         总经理终审驳回
+invoice_create           会计开票办结
+invoice_pay              会计更新回款状态
+```
+
+Each action should:
+
+- verify login
+- verify role permission
+- update the correct business table
+- update order/report/schedule/sample/test/invoice status where needed
+- append `WorkflowEvent`
+- return JSON with `ok`, `message`, and updated record data where useful
+
+## 8. Frontend Baseline
 
 Logged-out state:
 
-- Fullscreen background image.
-- Company logo at top-left.
-- Centered animated login panel.
+- Fullscreen background image
+- HuanCe logo at top-left
+- Centered login panel
 
 Logged-in layout:
 
-- Left vertical navigation.
-- Role text under the HuanCe LIMS logo.
-- Django admin shortcut in the header.
+- Professional admin shell
+- Left role-based menu
+- Header with system state and role selector/user area
+- Element Plus tables, cards, drawers/dialogs, tags, pagination
 
-Implemented frontend modules:
+Main views:
 
-- 业务总览
-  - Metric cards are clickable.
-  - Cards open filtered order lists.
-  - Clicking an order shows detailed status, customer, project, quote, delivery, demand, and owner.
-- 订单管理
-  - Sales/chairman can create orders.
-- 苏州实验室
-  - Shows equipment cards, running orders, expected finish time, future schedule, and order filtering.
-- 江阴实验室
-  - Same structure as Suzhou lab.
-- 委外试验
-  - Shows outsourced orders.
-- 报告审核
-  - Shows reports that the current role needs to audit.
-- 添加员工
-  - Chairman only.
+```text
+DashboardView.vue       role workbench and clickable metric order groups
+OrdersView.vue          order list, sales order creation, workflow order actions
+ScheduleView.vue        visible project schedules
+SamplesView.vue         sample ledger
+LabView.vue             Suzhou/Jiangyin equipment and lab task actions
+OutsourceView.vue       outsourced order list
+ReportsView.vue         report audit actions
+FinanceView.vue         invoice creation and payment-status update
+AuditView.vue           workflow logs, change records, review ledger
+EmployeesView.vue       chairman-only employee creation
+LoginView.vue           login page
+```
 
-Reserved modules:
+Reusable components:
 
-- 排期管理
-- 样品台账
-- 财务开票
-- 流程日志
+```text
+OrderTable.vue          paginated/searchable orders plus action buttons
+ScheduleTable.vue       paginated/searchable schedules plus lab action buttons
+ReportList.vue          paginated/searchable reports plus audit buttons
+InvoiceTable.vue        paginated/searchable invoices plus finance buttons
+```
 
-These should be implemented using the current 9+1 database baseline.
+Pagination/search baseline:
 
-## 7. Backend APIs
+- Long lists must be finite height.
+- Provide search input when listing orders, reports, schedules, samples, invoices, logs.
+- Provide 10/15/20 page-size selector where appropriate.
+- Avoid pages that grow endlessly downward.
+
+## 9. Data Permissions
+
+Data access is currently role-filtered in `_orders_for_user()` and related dashboard payloads:
+
+- 董事长: all business data
+- 销售: own orders
+- 商务/技术: review-related orders
+- 质量部: scheduling/testing/report-review orders
+- 苏州实验室: schedules assigned to current Suzhou lab manager
+- 江阴实验室: schedules assigned to current Jiangyin lab manager
+- 总经理: all business data, with report final-audit action
+- 会计: approved reports, invoices, and finance-related orders
+
+Do not add a new menu or workflow button without checking role visibility and row-level access.
+
+## 10. Demo Data
+
+Primary demo seed command:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py seed_lims_workflow_demo
+```
+
+This command creates/updates the demo users and recreates 100 `DEMO-2026-*` workflow orders.
+
+Current coverage target:
+
+- all 7 order statuses
+- Suzhou schedules
+- Jiangyin schedules
+- outsourced schedules
+- sample registration records
+- waiting/running/finished test records
+- pre-sample change requests
+- during-test change requests
+- sales report approval/rejection
+- general-manager report approval/rejection
+- pending invoice records
+- issued invoice records
+- workflow logs
+
+Use this command before demos when a clean full-flow dataset is needed. It deletes and rebuilds only `DEMO-2026-*` orders.
+
+## 11. API Baseline
 
 Authentication:
 
@@ -235,21 +362,37 @@ LIMS:
 
 ```text
 GET  /api/lims/dashboard/
+POST /api/lims/action/
 POST /api/orders/create/
 POST /api/employees/add/
 ```
 
-`/api/lims/dashboard/` currently returns:
+`/api/lims/dashboard/` returns role-filtered:
 
-- role-filtered metrics
-- order groups for clickable dashboard cards
-- lab equipment and scheduling information
-- outsourced orders
-- pending reports for the current role
+- company/system labels
+- metrics
+- status counts
+- mode counts
 - recent orders
-- supported roles
+- order groups
+- lab devices and lab schedules
+- outsource orders
+- schedules
+- samples
+- changes
+- reviews
+- workflow events
+- pending reports
+- finance pending/issued invoices
+- current roles
 
-## 8. Local Development Commands
+## 12. Local Development
+
+Use PowerShell from project root:
+
+```powershell
+cd G:\Codex\djiango_HuanCe
+```
 
 Run Django checks:
 
@@ -260,7 +403,7 @@ Run Django checks:
 Run tests:
 
 ```powershell
-.\.venv\Scripts\python.exe manage.py test core
+.\.venv\Scripts\python.exe manage.py test
 ```
 
 Run migrations:
@@ -269,55 +412,41 @@ Run migrations:
 .\.venv\Scripts\python.exe manage.py migrate
 ```
 
-Seed demo LIMS data:
+Seed full workflow demo data:
 
 ```powershell
-.\.venv\Scripts\python.exe manage.py seed_lims_demo
+.\.venv\Scripts\python.exe manage.py seed_lims_workflow_demo
 ```
 
-Build frontend:
-
-```powershell
-cd frontend
-pnpm run build
-```
-
-Run local development server:
+Run local server:
 
 ```powershell
 .\.venv\Scripts\python.exe manage.py runserver 127.0.0.1:8000
 ```
 
-## 9. Production Commands
+Build frontend with a Node version compatible with current Vite. The system Node may be too old. Codex bundled Node works:
 
-SSH user:
+```powershell
+cd frontend
+& "C:\Users\LuCrab\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe" ".\node_modules\typescript\bin\tsc"
+& "C:\Users\LuCrab\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe" ".\node_modules\vite\bin\vite.js" build
+```
+
+The Vite build may show dependency warnings about pure annotations or chunk size. Those warnings are acceptable if the command exits successfully.
+
+## 13. Production Operations
+
+SSH:
 
 ```text
-ubuntu
+host: 119.45.220.99
+user: ubuntu
+key: D:\IE_DownLoad\huance_server_key.pem
 ```
 
-Production app directory:
+Windows OpenSSH may reject the PEM if its file permissions are too open. Paramiko can still use the key.
 
-```bash
-cd /opt/huance/app
-```
-
-Check service state:
-
-```bash
-systemctl status huance
-systemctl status nginx
-systemctl status postgresql
-```
-
-Restart services:
-
-```bash
-sudo systemctl restart huance
-sudo systemctl restart nginx
-```
-
-Run Django commands with production environment loaded:
+Production commands:
 
 ```bash
 cd /opt/huance/app
@@ -325,90 +454,122 @@ set -a
 . /opt/huance/.env
 set +a
 /opt/huance/venv/bin/python manage.py check
-/opt/huance/venv/bin/python manage.py migrate
+/opt/huance/venv/bin/python manage.py migrate --noinput
 /opt/huance/venv/bin/python manage.py collectstatic --noinput
+sudo systemctl restart huance
+systemctl is-active huance
 ```
 
-Check production database table count:
+Nginx:
 
 ```bash
-cd /opt/huance/app
-set -a
-. /opt/huance/.env
-set +a
-/opt/huance/venv/bin/python manage.py shell -c "from django.db import connection; print(connection.vendor); print(len([t for t in connection.introspection.table_names() if t.startswith('lims_')]))"
+sudo systemctl restart nginx
+systemctl is-active nginx
 ```
 
-Expected result:
+Production health checks:
+
+```powershell
+Invoke-WebRequest -UseBasicParsing -Uri http://www.aroundtest.com/ -TimeoutSec 20
+```
+
+Expected:
 
 ```text
-postgresql
-10
+HTTP 200
 ```
 
-## 10. Deployment Notes
+## 14. Deployment Pattern
 
-Current deployment was performed by uploading a clean zip package to the Tencent Cloud server.
+The production directory is not currently a Git working tree. Deployment has been done by uploading changed files and built `static/frontend/` assets, then running `collectstatic` and restarting `huance`.
 
-Production service layout:
+When deploying:
+
+1. Run backend checks and tests locally.
+2. Run frontend typecheck/build locally.
+3. Commit and push to GitHub.
+4. Upload changed backend/frontend source files.
+5. Upload generated `static/frontend/` files.
+6. On production, run `manage.py check`.
+7. Run migrations if there are migrations.
+8. Run `collectstatic --noinput`.
+9. Restart `huance`.
+10. Verify HTTP 200.
+
+## 15. Verification Snapshot
+
+Latest verified code commit:
 
 ```text
-/opt/huance/app            source code and static build
-/opt/huance/venv           Python virtual environment
-/opt/huance/.env           production environment variables
-/opt/huance/run            Gunicorn socket directory
-/opt/huance/media          uploaded files
-/etc/systemd/system/huance.service
-/etc/nginx/sites-available/huance
-/etc/nginx/sites-enabled/huance
+0f62c8f Implement LIMS workflow actions
 ```
 
-Nginx proxies requests to Gunicorn through:
+Recent verification completed:
+
+- Django `manage.py check`: passed
+- Django tests: passed
+- TypeScript check: passed
+- Vite production build: passed
+- Local full workflow smoke test: passed
+- Local branch workflow smoke test: passed
+- GitHub push: completed
+- Production upload/deploy: completed
+- Production `manage.py check`: passed
+- Production `collectstatic`: completed
+- Production `huance` service: active
+- Production HTTP: 200
+
+Full workflow smoke test path:
 
 ```text
-/opt/huance/run/gunicorn.sock
+sales01 creates order
+business01 review_pass
+quality01 schedule_assign
+quality01 register_sample
+suzhou_lab01 start_test
+suzhou_lab01 submit_test
+quality01 issue_report
+sales01 report_sales_pass
+general_manager01 report_gm_pass
+accountant01 invoice_create
+final order status = 已开票办结
 ```
 
-Do not run production using:
+Branch smoke test path:
 
-```bash
-python manage.py runserver
+```text
+tech01 review_reject
+sales01 order_update
+business01 review_pass
+sales01 create_change
+order returns to scheduling / change request created
 ```
 
-## 11. Verification Status
+## 16. Known Gaps And Next Work
 
-Latest local verification:
+The workflow action layer is functional but still a pragmatic first version. Improve these later:
 
-- Local Git working tree clean.
-- Local HEAD equals GitHub `origin/main`.
-- Latest commit: `36d08cd Add PostgreSQL deployment configuration`.
+- Add dedicated forms per role with stronger validation.
+- Add separate business and technical review states if the user wants true parallel approval.
+- Add explicit task assignment records if the user wants a formal "商务任务书" document object.
+- Add report PDF upload and file preview.
+- Add invoice creation form validation and export.
+- Add better audit timeline visualization.
+- Add automated browser tests for all role flows.
+- Add HTTPS for aroundtest.com.
+- Add scheduled PostgreSQL backups.
 
-Latest production verification:
+## 17. Development Rules
 
-- `huance` service active.
-- `nginx` service active.
-- Django check passes when `/opt/huance/.env` is loaded.
-- Production database vendor is PostgreSQL.
-- 10 `lims_` tables are present.
-- `http://119.45.220.99/` returns HTTP 200.
-
-## 12. Next Operational Tasks
-
-Later tasks not yet completed:
-
-1. Add DNS A records for `aroundtest.com` and `www.aroundtest.com` to `119.45.220.99`.
-2. Configure HTTPS after DNS is active.
-3. Change the initial server password and move to SSH key login.
-4. Add scheduled PostgreSQL backups.
-5. Decide whether report PDF/media files remain on server disk or move to Tencent COS later.
-
-## 13. Development Rules Going Forward
-
-- Treat this `agnet.md` as the project baseline.
-- Keep model changes aligned with the 9+1 LIMS table design.
-- Add migrations for every database change.
-- Update tests when workflow roles, status transitions, dashboard filters, or APIs change.
-- Run `manage.py check` and `manage.py test core` before committing.
-- Build Vue before deployment.
-- Never commit `.env`, database files, uploaded media, virtual environments, or secrets.
-- For production commands, always load `/opt/huance/.env` before running Django management commands manually.
+- Treat this `agnet.md` as the baseline for future development.
+- Preserve the 9+1 LIMS table architecture unless the user approves a migration plan.
+- Do not break role-based menu and row-level permissions.
+- Every workflow action must write `WorkflowEvent`.
+- Every new workflow button must have backend permission checks.
+- Prefer scoped changes over broad rewrites.
+- Add migrations for database changes.
+- Run Django checks/tests before committing.
+- Run frontend typecheck/build before deployment.
+- Never commit secrets, `.env`, virtual environments, database files, logs, or uploaded media.
+- Keep production commands loading `/opt/huance/.env`.
+- After deployment, verify service status and HTTP 200.
