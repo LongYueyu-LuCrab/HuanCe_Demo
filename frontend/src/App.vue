@@ -68,6 +68,9 @@ type ReportItem = {
   quality_user: string
 }
 
+type ListKey = 'orders' | 'suzhou' | 'jiangyin' | 'outsource' | 'reports'
+type LabKey = 'suzhou' | 'jiangyin'
+
 type Dashboard = {
   company: string
   system: string
@@ -116,9 +119,26 @@ const orderForm = reactive({
   quoted_amount: '',
   is_urgent: false,
 })
-const labFilters = reactive({
+const listSearch = reactive<Record<ListKey, string>>({
+  orders: '',
   suzhou: '',
   jiangyin: '',
+  outsource: '',
+  reports: '',
+})
+const listPageSize = reactive<Record<ListKey, number>>({
+  orders: 10,
+  suzhou: 10,
+  jiangyin: 10,
+  outsource: 10,
+  reports: 10,
+})
+const listPage = reactive<Record<ListKey, number>>({
+  orders: 1,
+  suzhou: 1,
+  jiangyin: 1,
+  outsource: 1,
+  reports: 1,
 })
 
 
@@ -213,6 +233,87 @@ const dashboardRangeText = computed(() => {
 })
 const roleText = computed(() => user.value.roles?.join(' / ') || '普通用户')
 const orders = computed(() => dashboard.value?.recent_orders ?? [])
+const currentLabKey = computed<LabKey>(() => (activeMenu.value === 'jiangyin' ? 'jiangyin' : 'suzhou'))
+const filteredOrders = computed(() => filterOrders(orders.value, listSearch.orders))
+const pagedOrders = computed(() => paginateItems(filteredOrders.value, 'orders'))
+const outsourceOrders = computed(() => dashboard.value?.outsource_orders ?? [])
+const filteredOutsourceOrders = computed(() => filterOrders(outsourceOrders.value, listSearch.outsource))
+const pagedOutsourceOrders = computed(() => paginateItems(filteredOutsourceOrders.value, 'outsource'))
+const pendingReports = computed(() => dashboard.value?.pending_reports ?? [])
+const filteredPendingReports = computed(() => {
+  const keyword = listSearch.reports.trim().toLowerCase()
+  const source = pendingReports.value
+  if (!keyword) return source
+  return source.filter((report) =>
+    [
+      report.report_no,
+      report.order_no,
+      report.customer,
+      report.project_name,
+      report.status,
+      report.conclusion,
+      report.quality_user,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(keyword),
+  )
+})
+const pagedPendingReports = computed(() => paginateItems(filteredPendingReports.value, 'reports'))
+
+function filterOrders(source: OrderItem[], keywordValue: string) {
+  const keyword = keywordValue.trim().toLowerCase()
+  if (!keyword) return source
+  return source.filter((order) =>
+    [
+      order.order_no,
+      order.customer,
+      order.contact,
+      order.phone,
+      order.project_name,
+      order.test_demand,
+      order.status,
+      order.execution_mode,
+      order.expected_delivery_date,
+      order.sales_owner,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(keyword),
+  )
+}
+
+function paginateItems<T>(source: T[], key: ListKey) {
+  const currentPage = Math.min(listPage[key], listTotalPages(key, source.length))
+  const start = (currentPage - 1) * listPageSize[key]
+  return source.slice(start, start + listPageSize[key])
+}
+
+function listTotalPages(key: ListKey, total: number) {
+  return Math.max(1, Math.ceil(total / listPageSize[key]))
+}
+
+function listRangeText(key: ListKey, total: number) {
+  if (total === 0) return '0 / 0'
+  const currentPage = Math.min(listPage[key], listTotalPages(key, total))
+  const start = (currentPage - 1) * listPageSize[key] + 1
+  const end = Math.min(start + listPageSize[key] - 1, total)
+  return `${start}-${end} / ${total}`
+}
+
+function resetList(key: ListKey) {
+  listPage[key] = 1
+}
+
+function previousListPage(key: ListKey) {
+  if (listPage[key] > 1) listPage[key] -= 1
+}
+
+function nextListPage(key: ListKey, total: number) {
+  if (listPage[key] < listTotalPages(key, total)) listPage[key] += 1
+}
 
 function openMetric(key: string) {
   activeMetric.value = key
@@ -238,9 +339,9 @@ function nextDashboardPage() {
   if (dashboardPage.value < totalDashboardPages.value) dashboardPage.value += 1
 }
 
-function filteredLabOrders(key: 'suzhou' | 'jiangyin') {
+function filteredLabOrders(key: LabKey) {
   const lab = dashboard.value?.labs?.[key]
-  const keyword = labFilters[key].trim().toLowerCase()
+  const keyword = listSearch[key].trim().toLowerCase()
   if (!lab) return []
   if (!keyword) return lab.orders
   return lab.orders.filter((order) =>
@@ -249,6 +350,10 @@ function filteredLabOrders(key: 'suzhou' | 'jiangyin') {
       .toLowerCase()
       .includes(keyword),
   )
+}
+
+function pagedLabOrders(key: LabKey) {
+  return paginateItems(filteredLabOrders(key), key)
 }
 
 async function loadMe() {
@@ -521,6 +626,25 @@ onMounted(async () => {
           <p v-if="orderMessage" class="form-message">{{ orderMessage }}</p>
         </form>
 
+        <div class="list-controls">
+          <label class="search-control">
+            <span>搜索订单</span>
+            <input
+              v-model="listSearch.orders"
+              type="search"
+              placeholder="订单号、客户、项目、状态"
+              @input="resetList('orders')"
+            >
+          </label>
+          <label class="page-size-control">
+            <span>每页显示</span>
+            <select v-model.number="listPageSize.orders" @change="resetList('orders')">
+              <option :value="10">10 条</option>
+              <option :value="15">15 条</option>
+              <option :value="20">20 条</option>
+            </select>
+          </label>
+        </div>
         <div class="orders-table">
           <div class="table-row table-head">
             <span>订单</span>
@@ -529,14 +653,22 @@ onMounted(async () => {
             <span>状态</span>
             <span>交付</span>
           </div>
-          <div v-for="order in orders" :key="order.order_no" class="table-row">
+          <div v-for="order in pagedOrders" :key="order.order_no" class="table-row">
             <span><strong>{{ order.order_no }}</strong><em v-if="order.is_urgent">加急</em></span>
             <span>{{ order.customer }} / {{ order.project_name }}</span>
             <span>{{ order.execution_mode }}</span>
             <span>{{ order.status }}</span>
             <span>{{ order.expected_delivery_date || '待确认' }}</span>
           </div>
-          <div v-if="orders.length === 0" class="empty-row">暂无符合条件的订单。</div>
+          <div v-if="filteredOrders.length === 0" class="empty-row">暂无符合条件的订单。</div>
+        </div>
+        <div class="pagination-bar">
+          <span>{{ listRangeText('orders', filteredOrders.length) }}</span>
+          <div>
+            <button type="button" :disabled="listPage.orders <= 1" @click="previousListPage('orders')">上一页</button>
+            <strong>{{ Math.min(listPage.orders, listTotalPages('orders', filteredOrders.length)) }} / {{ listTotalPages('orders', filteredOrders.length) }}</strong>
+            <button type="button" :disabled="listPage.orders >= listTotalPages('orders', filteredOrders.length)" @click="nextListPage('orders', filteredOrders.length)">下一页</button>
+          </div>
         </div>
       </section>
 
@@ -566,10 +698,23 @@ onMounted(async () => {
             </ul>
           </article>
         </div>
-        <div class="filter-block">
-          <label>
+        <div class="filter-block list-controls">
+          <label class="search-control">
             <span>订单筛选</span>
-            <input v-model="labFilters[activeMenu]" placeholder="输入订单号、客户、项目、状态" />
+            <input
+              v-model="listSearch[currentLabKey]"
+              type="search"
+              placeholder="输入订单号、客户、项目、状态"
+              @input="resetList(currentLabKey)"
+            >
+          </label>
+          <label class="page-size-control">
+            <span>每页显示</span>
+            <select v-model.number="listPageSize[currentLabKey]" @change="resetList(currentLabKey)">
+              <option :value="10">10 条</option>
+              <option :value="15">15 条</option>
+              <option :value="20">20 条</option>
+            </select>
           </label>
         </div>
         <div class="orders-table schedule-table">
@@ -580,14 +725,22 @@ onMounted(async () => {
             <span>排期</span>
             <span>状态</span>
           </div>
-          <div v-for="order in filteredLabOrders(activeMenu)" :key="`${activeMenu}-${order.order_no}-${order.remark}`" class="table-row">
+          <div v-for="order in pagedLabOrders(currentLabKey)" :key="`${activeMenu}-${order.order_no}-${order.remark}`" class="table-row">
             <span><strong>{{ order.order_no }}</strong></span>
             <span>{{ order.customer }} / {{ order.project_name }}</span>
             <span>{{ order.remark || order.test_type }}</span>
             <span>{{ order.start_time || '待排' }} - {{ order.end_time || '待定' }}</span>
             <span>{{ order.status }} / {{ order.schedule_status }}</span>
           </div>
-          <div v-if="filteredLabOrders(activeMenu).length === 0" class="empty-row">没有匹配的实验室订单。</div>
+          <div v-if="filteredLabOrders(currentLabKey).length === 0" class="empty-row">没有匹配的实验室订单。</div>
+        </div>
+        <div class="pagination-bar">
+          <span>{{ listRangeText(currentLabKey, filteredLabOrders(currentLabKey).length) }}</span>
+          <div>
+            <button type="button" :disabled="listPage[currentLabKey] <= 1" @click="previousListPage(currentLabKey)">上一页</button>
+            <strong>{{ Math.min(listPage[currentLabKey], listTotalPages(currentLabKey, filteredLabOrders(currentLabKey).length)) }} / {{ listTotalPages(currentLabKey, filteredLabOrders(currentLabKey).length) }}</strong>
+            <button type="button" :disabled="listPage[currentLabKey] >= listTotalPages(currentLabKey, filteredLabOrders(currentLabKey).length)" @click="nextListPage(currentLabKey, filteredLabOrders(currentLabKey).length)">下一页</button>
+          </div>
         </div>
       </section>
 
@@ -595,6 +748,25 @@ onMounted(async () => {
         <div class="panel-section-title first">
           <h2>委外试验订单</h2>
           <p>展示执行路径为委外或排期中包含外部委托实验室的订单。</p>
+        </div>
+        <div class="list-controls">
+          <label class="search-control">
+            <span>搜索订单</span>
+            <input
+              v-model="listSearch.outsource"
+              type="search"
+              placeholder="订单号、客户、项目、状态"
+              @input="resetList('outsource')"
+            >
+          </label>
+          <label class="page-size-control">
+            <span>每页显示</span>
+            <select v-model.number="listPageSize.outsource" @change="resetList('outsource')">
+              <option :value="10">10 条</option>
+              <option :value="15">15 条</option>
+              <option :value="20">20 条</option>
+            </select>
+          </label>
         </div>
         <div class="orders-table">
           <div class="table-row table-head">
@@ -604,14 +776,22 @@ onMounted(async () => {
             <span>状态</span>
             <span>交付</span>
           </div>
-          <div v-for="order in dashboard?.outsource_orders ?? []" :key="order.order_no" class="table-row">
+          <div v-for="order in pagedOutsourceOrders" :key="order.order_no" class="table-row">
             <span><strong>{{ order.order_no }}</strong><em v-if="order.is_urgent">加急</em></span>
             <span>{{ order.customer }} / {{ order.project_name }}</span>
             <span>{{ order.execution_mode }}</span>
             <span>{{ order.status }}</span>
             <span>{{ order.expected_delivery_date || '待确认' }}</span>
           </div>
-          <div v-if="(dashboard?.outsource_orders?.length ?? 0) === 0" class="empty-row">当前没有委外试验订单。</div>
+          <div v-if="filteredOutsourceOrders.length === 0" class="empty-row">当前没有匹配的委外试验订单。</div>
+        </div>
+        <div class="pagination-bar">
+          <span>{{ listRangeText('outsource', filteredOutsourceOrders.length) }}</span>
+          <div>
+            <button type="button" :disabled="listPage.outsource <= 1" @click="previousListPage('outsource')">上一页</button>
+            <strong>{{ Math.min(listPage.outsource, listTotalPages('outsource', filteredOutsourceOrders.length)) }} / {{ listTotalPages('outsource', filteredOutsourceOrders.length) }}</strong>
+            <button type="button" :disabled="listPage.outsource >= listTotalPages('outsource', filteredOutsourceOrders.length)" @click="nextListPage('outsource', filteredOutsourceOrders.length)">下一页</button>
+          </div>
         </div>
       </section>
 
@@ -620,8 +800,27 @@ onMounted(async () => {
           <h2>当前待审核报告</h2>
           <p>按当前登录角色显示需要处理的报告；没有待办时显示 0 条。</p>
         </div>
+        <div class="list-controls">
+          <label class="search-control">
+            <span>搜索报告</span>
+            <input
+              v-model="listSearch.reports"
+              type="search"
+              placeholder="报告号、订单号、客户、项目、状态"
+              @input="resetList('reports')"
+            >
+          </label>
+          <label class="page-size-control">
+            <span>每页显示</span>
+            <select v-model.number="listPageSize.reports" @change="resetList('reports')">
+              <option :value="10">10 条</option>
+              <option :value="15">15 条</option>
+              <option :value="20">20 条</option>
+            </select>
+          </label>
+        </div>
         <div class="report-list">
-          <article v-for="report in dashboard?.pending_reports" :key="report.report_no">
+          <article v-for="report in pagedPendingReports" :key="report.report_no">
             <div>
               <strong>{{ report.report_no }}</strong>
               <span>{{ report.status }}</span>
@@ -631,7 +830,15 @@ onMounted(async () => {
             <p>{{ report.conclusion || '暂无报告结论' }}</p>
             <small>出具人：{{ report.quality_user || '未记录' }} · 重制次数：{{ report.remake_count }}</small>
           </article>
-          <div v-if="(dashboard?.pending_reports?.length ?? 0) === 0" class="empty-row">当前登录角色暂无待审核报告。</div>
+          <div v-if="filteredPendingReports.length === 0" class="empty-row">当前没有匹配的待审核报告。</div>
+        </div>
+        <div class="pagination-bar">
+          <span>{{ listRangeText('reports', filteredPendingReports.length) }}</span>
+          <div>
+            <button type="button" :disabled="listPage.reports <= 1" @click="previousListPage('reports')">上一页</button>
+            <strong>{{ Math.min(listPage.reports, listTotalPages('reports', filteredPendingReports.length)) }} / {{ listTotalPages('reports', filteredPendingReports.length) }}</strong>
+            <button type="button" :disabled="listPage.reports >= listTotalPages('reports', filteredPendingReports.length)" @click="nextListPage('reports', filteredPendingReports.length)">下一页</button>
+          </div>
         </div>
       </section>
 
