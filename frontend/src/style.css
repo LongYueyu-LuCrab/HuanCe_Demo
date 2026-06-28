@@ -284,9 +284,6 @@ select {
 }
 
 .command-panel {
-  display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(420px, 0.9fr);
-  gap: 18px;
   border: 1px solid #d8e4f2;
   border-radius: 16px;
   padding: 22px;
@@ -306,49 +303,6 @@ select {
   margin: 0;
   color: var(--hc-muted);
   line-height: 1.7;
-}
-
-.signal-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.signal-card {
-  border: 1px solid var(--hc-border);
-  border-radius: 12px;
-  padding: 14px;
-  background: rgba(255, 255, 255, 0.74);
-}
-
-.signal-card span {
-  display: block;
-  color: var(--hc-muted);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.signal-card strong {
-  display: block;
-  margin-top: 12px;
-  color: #0f172a;
-  font-size: 28px;
-}
-
-.signal-card.primary {
-  border-color: #bfdbfe;
-}
-
-.signal-card.success {
-  border-color: #bbf7d0;
-}
-
-.signal-card.warning {
-  border-color: #fed7aa;
-}
-
-.signal-card.danger {
-  border-color: #fecaca;
 }
 
 .metric-grid {
@@ -389,45 +343,6 @@ select {
   color: #0f172a;
   font-size: 34px;
   line-height: 1;
-}
-
-.workflow-strip {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
-  border: 1px solid var(--hc-border);
-  border-radius: 14px;
-  padding: 12px;
-  background: #fff;
-}
-
-.flow-node {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 52px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px;
-  background: #f8fafc;
-}
-
-.flow-node i {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  color: #1d4ed8;
-  background: #dbeafe;
-  font-style: normal;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.flow-node span {
-  color: #334155;
-  font-weight: 900;
 }
 
 .table-search {
@@ -554,12 +469,7 @@ select {
 @media (max-width: 1100px) {
   .metric-grid,
   .device-grid,
-  .command-panel,
-  .workflow-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .signal-grid {
+  .command-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -580,9 +490,7 @@ select {
   .metric-grid,
   .device-grid,
   .form-grid,
-  .command-panel,
-  .signal-grid,
-  .workflow-strip {
+  .command-panel {
     grid-template-columns: 1fr;
   }
 
