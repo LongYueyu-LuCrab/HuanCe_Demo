@@ -48,6 +48,11 @@ def _roles(user):
     return list(user.groups.values_list('name', flat=True))
 
 
+def _can_view_finance(user):
+    roles = set(_roles(user))
+    return bool(_is_chairman(user) or ROLE_GENERAL_MANAGER in roles or ROLE_ACCOUNTING in roles)
+
+
 def _user_payload(user):
     if not user.is_authenticated:
         return {'authenticated': False}
@@ -73,10 +78,7 @@ def _orders_for_user(user):
     roles = set(_roles(user))
     query = Q()
     if ROLE_SALES in roles:
-        query |= Q(sale_user=user) | Q(order_status__in=[
-            LabOrder.Status.REVIEW_REJECTED,
-            LabOrder.Status.REPORT_REVIEW,
-        ])
+        query |= Q(sale_user=user)
     if ROLE_BUSINESS in roles or ROLE_TECH in roles:
         query |= Q(order_status__in=[LabOrder.Status.PENDING_REVIEW, LabOrder.Status.SCHEDULING])
     if ROLE_QUALITY in roles:
@@ -86,15 +88,16 @@ def _orders_for_user(user):
             LabOrder.Status.REPORT_REVIEW,
         ])
     if ROLE_SUZHOU_LAB in roles:
-        query |= Q(execution_mode__in=[LabOrder.ExecutionMode.SUZHOU, LabOrder.ExecutionMode.MIXED])
+        query |= Q(schedules__test_type=SchedulePlan.TestType.SUZHOU, schedules__lab_manager=user)
     if ROLE_JIANGYIN_LAB in roles:
-        query |= Q(execution_mode__in=[LabOrder.ExecutionMode.JIANGYIN, LabOrder.ExecutionMode.MIXED])
+        query |= Q(schedules__test_type=SchedulePlan.TestType.JIANGYIN, schedules__lab_manager=user)
     if ROLE_OUTSOURCE in roles:
         query |= Q(execution_mode__in=[LabOrder.ExecutionMode.OUTSOURCE, LabOrder.ExecutionMode.MIXED])
     if ROLE_GENERAL_MANAGER in roles:
-        query |= Q(order_status=LabOrder.Status.REPORT_REVIEW)
+        query |= Q()
+        return orders
     if ROLE_ACCOUNTING in roles:
-        query |= Q(order_status__in=[LabOrder.Status.REPORT_REVIEW, LabOrder.Status.INVOICED_CLOSED])
+        query |= Q(reports__report_status=TestReport.Status.APPROVED) | Q(invoices__isnull=False)
 
     if not query:
         return orders.none()
@@ -195,8 +198,21 @@ def _schedule_payload(schedule):
     }
 
 
-def _lab_payload(test_type, name):
+def _lab_payload(test_type, name, related_orders=None, user=None):
     schedules = SchedulePlan.objects.select_related('order').filter(test_type=test_type).order_by('plan_start_time')
+    if related_orders is not None:
+        schedules = schedules.filter(order__in=related_orders)
+    if user is not None and not _is_chairman(user):
+        roles = set(_roles(user))
+        can_view_lab = ROLE_QUALITY in roles or ROLE_GENERAL_MANAGER in roles
+        if ROLE_SUZHOU_LAB in roles and test_type == SchedulePlan.TestType.SUZHOU:
+            can_view_lab = True
+            schedules = schedules.filter(lab_manager=user)
+        elif ROLE_JIANGYIN_LAB in roles and test_type == SchedulePlan.TestType.JIANGYIN:
+            can_view_lab = True
+            schedules = schedules.filter(lab_manager=user)
+        if not can_view_lab:
+            schedules = schedules.none()
     active_statuses = [SchedulePlan.Status.RUNNING, SchedulePlan.Status.CHANGE_PENDING]
     active_schedules = schedules.filter(schedule_status__in=active_statuses)
     future_schedules = schedules.exclude(schedule_status=SchedulePlan.Status.FINISHED)
@@ -454,6 +470,22 @@ def lims_dashboard(request):
         _order_payload(order)
         for order in related_orders.filter(id__in=change_order_ids).order_by('-create_time')
     ]
+    can_view_finance = _can_view_finance(request.user)
+    finance_order_ids = []
+    if can_view_finance:
+        finance_order_ids = list(
+            TestReport.objects.filter(
+                order__in=related_orders,
+                report_status=TestReport.Status.APPROVED,
+                invoices__isnull=True,
+            ).values_list('order_id', flat=True)
+        ) + list(
+            Invoice.objects.filter(order__in=related_orders).values_list('order_id', flat=True)
+        )
+    finance_orders = [
+        _order_payload(order)
+        for order in related_orders.filter(id__in=finance_order_ids).distinct().order_by('-create_time')
+    ]
     pending_reports = _pending_reports_for_user(request.user, related_orders)
     outsource_orders = [
         _order_payload(order)
@@ -462,14 +494,17 @@ def lims_dashboard(request):
             | Q(schedules__test_type=SchedulePlan.TestType.OUTSOURCE)
         ).distinct().order_by('-create_time')
     ]
-    pending_invoice_reports = TestReport.objects.select_related('order').filter(
-        order__in=related_orders,
-        report_status=TestReport.Status.APPROVED,
-        invoices__isnull=True,
-    ).order_by('-create_time')
-    invoices = Invoice.objects.select_related('order', 'report', 'finance_user').filter(
-        order__in=related_orders,
-    ).order_by('-invoice_date', '-create_time')
+    pending_invoice_reports = TestReport.objects.none()
+    invoices = Invoice.objects.none()
+    if can_view_finance:
+        pending_invoice_reports = TestReport.objects.select_related('order').filter(
+            order__in=related_orders,
+            report_status=TestReport.Status.APPROVED,
+            invoices__isnull=True,
+        ).order_by('-create_time')
+        invoices = Invoice.objects.select_related('order', 'report', 'finance_user').filter(
+            order__in=related_orders,
+        ).order_by('-invoice_date', '-create_time')
 
     data = {
         'company': '苏州环测检测技术有限公司',
@@ -498,10 +533,11 @@ def lims_dashboard(request):
             'running_experiments': running_orders,
             'pending_reports': report_orders,
             'change_requests': change_orders,
+            'finance_orders': finance_orders,
         },
         'labs': {
-            'suzhou': _lab_payload(SchedulePlan.TestType.SUZHOU, '苏州实验室'),
-            'jiangyin': _lab_payload(SchedulePlan.TestType.JIANGYIN, '江阴实验室'),
+            'suzhou': _lab_payload(SchedulePlan.TestType.SUZHOU, '苏州实验室', related_orders, request.user),
+            'jiangyin': _lab_payload(SchedulePlan.TestType.JIANGYIN, '江阴实验室', related_orders, request.user),
         },
         'outsource_orders': outsource_orders,
         'pending_reports': [_report_payload(report) for report in pending_reports.order_by('-create_time')],
@@ -509,17 +545,6 @@ def lims_dashboard(request):
             'pending_invoices': [_pending_invoice_payload(report) for report in pending_invoice_reports],
             'issued_invoices': [_invoice_payload(invoice) for invoice in invoices],
         },
-        'roles': [
-            ROLE_SALES,
-            ROLE_BUSINESS,
-            ROLE_TECH,
-            ROLE_QUALITY,
-            ROLE_SUZHOU_LAB,
-            ROLE_JIANGYIN_LAB,
-            ROLE_OUTSOURCE,
-            ROLE_GENERAL_MANAGER,
-            ROLE_ACCOUNTING,
-            ROLE_CHAIRMAN,
-        ],
+        'roles': _roles(request.user),
     }
     return JsonResponse(data, json_dumps_params={'ensure_ascii': False})

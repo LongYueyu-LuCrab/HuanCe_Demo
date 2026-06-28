@@ -175,42 +175,197 @@ const canCreateOrder = computed(() => {
   return Boolean(user.value.is_chairman || roles.includes('销售'))
 })
 
-const menuGroups = computed(() => [
-  {
-    title: '工作台',
-    items: [
-      { key: 'dashboard', label: '业务总览' },
-      { key: 'orders', label: '订单管理' },
-      { key: 'schedule', label: '排期管理' },
-      { key: 'samples', label: '样品台账' },
-    ],
-  },
-  {
-    title: '实验室',
-    items: [
-      { key: 'suzhou', label: '苏州实验室' },
-      { key: 'jiangyin', label: '江阴实验室' },
-      { key: 'outsource', label: '委外试验' },
-      { key: 'reports', label: '报告审核' },
-    ],
-  },
-  {
-    title: '财务与系统',
-    items: [
-      { key: 'invoice', label: '财务开票' },
-      { key: 'audit', label: '流程日志' },
-      ...(user.value.is_chairman ? [{ key: 'employees', label: '添加员工' }] : []),
-    ],
-  },
-])
+const userRoles = computed(() => new Set(user.value.roles || []))
+const hasRole = (role: string) => userRoles.value.has(role)
+const canSeeAllBusiness = computed(() => Boolean(user.value.is_chairman || hasRole('总经理')))
+
+type MenuItem = { key: string; label: string }
+type MenuGroup = { title: string; items: MenuItem[] }
+
+function group(title: string, items: MenuItem[]): MenuGroup | null {
+  return items.length ? { title, items } : null
+}
+
+const menuGroups = computed(() => {
+  if (user.value.is_chairman) {
+    return [
+      group('工作台', [
+        { key: 'dashboard', label: '业务总览' },
+        { key: 'orders', label: '订单管理' },
+        { key: 'schedule', label: '排期管理' },
+        { key: 'samples', label: '样品台账' },
+      ]),
+      group('实验室', [
+        { key: 'suzhou', label: '苏州实验室' },
+        { key: 'jiangyin', label: '江阴实验室' },
+        { key: 'outsource', label: '委外试验' },
+        { key: 'reports', label: '报告审核' },
+      ]),
+      group('财务与系统', [
+        { key: 'invoice', label: '财务开票' },
+        { key: 'audit', label: '流程日志' },
+        { key: 'employees', label: '添加员工' },
+      ]),
+    ].filter(Boolean) as MenuGroup[]
+  }
+
+  if (hasRole('销售')) {
+    return [
+      group('销售工作台', [
+        { key: 'dashboard', label: '我的看板' },
+        { key: 'orders', label: '我的订单' },
+        { key: 'reports', label: '报告初审' },
+      ]),
+      group('追溯', [{ key: 'audit', label: '订单档案' }]),
+    ].filter(Boolean) as MenuGroup[]
+  }
+
+  if (hasRole('商务')) {
+    return [
+      group('商务工作台', [
+        { key: 'dashboard', label: '评审看板' },
+        { key: 'orders', label: '订单评审中心' },
+        { key: 'audit', label: '报价与评审台账' },
+      ]),
+    ].filter(Boolean) as MenuGroup[]
+  }
+
+  if (hasRole('技术')) {
+    return [
+      group('技术工作台', [
+        { key: 'dashboard', label: '技术看板' },
+        { key: 'orders', label: '技术评审工作台' },
+        { key: 'audit', label: '检测标准与记录' },
+      ]),
+    ].filter(Boolean) as MenuGroup[]
+  }
+
+  if (hasRole('质量部')) {
+    return [
+      group('质量调度', [
+        { key: 'dashboard', label: '质量看板' },
+        { key: 'orders', label: '全订单档案' },
+        { key: 'schedule', label: '排期调度' },
+        { key: 'samples', label: '样品管理' },
+      ]),
+      group('执行与报告', [
+        { key: 'suzhou', label: '苏州实验室' },
+        { key: 'jiangyin', label: '江阴实验室' },
+        { key: 'outsource', label: '委外试验' },
+        { key: 'reports', label: '报告制作' },
+        { key: 'audit', label: '变更与流程日志' },
+      ]),
+    ].filter(Boolean) as MenuGroup[]
+  }
+
+  if (hasRole('苏州实验室')) {
+    return [
+      group('苏州实验室', [
+        { key: 'dashboard', label: '我的试验看板' },
+        { key: 'suzhou', label: '我的试验任务' },
+        { key: 'audit', label: '相关变更记录' },
+      ]),
+    ].filter(Boolean) as MenuGroup[]
+  }
+
+  if (hasRole('江阴实验室')) {
+    return [
+      group('江阴实验室', [
+        { key: 'dashboard', label: '我的试验看板' },
+        { key: 'jiangyin', label: '我的试验任务' },
+        { key: 'audit', label: '相关变更记录' },
+      ]),
+    ].filter(Boolean) as MenuGroup[]
+  }
+
+  if (hasRole('总经理')) {
+    return [
+      group('经营总览', [
+        { key: 'dashboard', label: '全局看板' },
+        { key: 'orders', label: '全局订单查询' },
+        { key: 'suzhou', label: '苏州负荷' },
+        { key: 'jiangyin', label: '江阴负荷' },
+        { key: 'outsource', label: '委外占比' },
+      ]),
+      group('审批与财务', [
+        { key: 'reports', label: '报告终审' },
+        { key: 'invoice', label: '财务台账' },
+        { key: 'audit', label: '全链路档案' },
+      ]),
+    ].filter(Boolean) as MenuGroup[]
+  }
+
+  if (hasRole('会计')) {
+    return [
+      group('财务工作台', [
+        { key: 'dashboard', label: '财务看板' },
+        { key: 'invoice', label: '财务开票' },
+        { key: 'orders', label: '订单核对' },
+        { key: 'reports', label: '报告核对' },
+      ]),
+    ].filter(Boolean) as MenuGroup[]
+  }
+
+  return [group('工作台', [{ key: 'dashboard', label: '业务总览' }])].filter(Boolean) as MenuGroup[]
+})
+
+const visibleMenuKeys = computed(() => new Set(menuGroups.value.flatMap((menuGroup) => menuGroup.items.map((item) => item.key))))
+
+function ensureVisibleWorkspace() {
+  if (!visibleMenuKeys.value.has(activeMenu.value)) {
+    activeMenu.value = menuGroups.value[0]?.items[0]?.key || 'dashboard'
+  }
+  if (!metricCards.value.some((item) => item.key === activeMetric.value)) {
+    activeMetric.value = metricCards.value[0]?.key || 'orders'
+  }
+}
 
 const metricCards = computed(() => {
   const metrics = dashboard.value?.metrics
+  if (hasRole('销售') && !canSeeAllBusiness.value) {
+    return [
+      { key: 'orders', label: '我的客户订单', value: metrics?.orders ?? 0 },
+      { key: 'active_orders', label: '我的进行中订单', value: metrics?.active_orders ?? 0 },
+      { key: 'pending_reports', label: '待我初审报告', value: metrics?.pending_reports ?? 0 },
+      { key: 'change_requests', label: '我的变更待确认', value: metrics?.change_requests ?? 0 },
+    ]
+  }
+  if ((hasRole('商务') || hasRole('技术')) && !canSeeAllBusiness.value) {
+    return [
+      { key: 'orders', label: '待评审订单', value: metrics?.orders ?? 0 },
+      { key: 'active_orders', label: '评审中订单', value: metrics?.active_orders ?? 0 },
+      { key: 'change_requests', label: '评审驳回/变更', value: metrics?.change_requests ?? 0 },
+    ]
+  }
+  if (hasRole('质量部') && !canSeeAllBusiness.value) {
+    return [
+      { key: 'active_orders', label: '待排期/试验订单', value: metrics?.active_orders ?? 0 },
+      { key: 'running_experiments', label: '试验中订单', value: metrics?.running_experiments ?? 0 },
+      { key: 'pending_reports', label: '待制作/重制报告', value: metrics?.pending_reports ?? 0 },
+      { key: 'change_requests', label: '变更待调整排期', value: metrics?.change_requests ?? 0 },
+    ]
+  }
+  if ((hasRole('苏州实验室') || hasRole('江阴实验室')) && !canSeeAllBusiness.value) {
+    return [
+      { key: 'orders', label: '分配给我的试验单', value: metrics?.orders ?? 0 },
+      { key: 'running_experiments', label: '我的试验执行中', value: metrics?.running_experiments ?? 0 },
+      { key: 'change_requests', label: '试验变更提醒', value: metrics?.change_requests ?? 0 },
+    ]
+  }
+  if (hasRole('会计') && !canSeeAllBusiness.value) {
+    const pendingInvoices = dashboard.value?.finance?.pending_invoices?.length ?? 0
+    const issuedInvoices = dashboard.value?.finance?.issued_invoices?.length ?? 0
+    return [
+      { key: 'finance_orders', label: '待/已开票订单', value: pendingInvoices + issuedInvoices },
+      { key: 'finance_orders', label: '待开票订单', value: pendingInvoices },
+      { key: 'finance_orders', label: '已开票记录', value: issuedInvoices },
+    ]
+  }
   return [
-    { key: 'orders', label: '相关订单', value: metrics?.orders ?? 0 },
+    { key: 'orders', label: '全局订单', value: metrics?.orders ?? 0 },
     { key: 'active_orders', label: '进行中订单', value: metrics?.active_orders ?? 0 },
     { key: 'running_experiments', label: '试验执行中', value: metrics?.running_experiments ?? 0 },
-    { key: 'pending_reports', label: '待处理报告', value: metrics?.pending_reports ?? 0 },
+    { key: 'pending_reports', label: '待审核报告', value: metrics?.pending_reports ?? 0 },
     { key: 'change_requests', label: '变更待闭环', value: metrics?.change_requests ?? 0 },
   ]
 })
@@ -417,7 +572,10 @@ async function loadMe() {
 
 async function loadDashboard() {
   const response = await fetch('/api/lims/dashboard/', { credentials: 'include' })
-  if (response.ok) dashboard.value = await response.json()
+  if (response.ok) {
+    dashboard.value = await response.json()
+    ensureVisibleWorkspace()
+  }
 }
 
 async function loginSubmit() {
@@ -564,7 +722,7 @@ onMounted(async () => {
           <p>苏州环测检测技术有限公司</p>
           <h1>实验室管理（LIMS）系统</h1>
         </div>
-        <a href="/admin/">进入 Django 后台</a>
+        <a v-if="user.is_chairman || hasRole('总经理')" href="/admin/">进入 Django 后台</a>
       </header>
 
       <section v-if="activeMenu === 'dashboard'" class="content-panel">
