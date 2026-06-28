@@ -742,6 +742,21 @@ button {
   grid-template-columns: 0.95fr 1.4fr 1.1fr 1fr 0.95fr;
 }
 
+.invoice-table .table-row {
+  grid-template-columns: 1.05fr 1.55fr 0.75fr 1fr 0.75fr;
+}
+
+.invoice-table small {
+  display: block;
+  margin-top: 4px;
+  color: #667286;
+  font-size: 12px;
+}
+
+.section-gap {
+  margin-top: 26px;
+}
+
 .panel-section-title.first {
   margin-top: 0;
 }

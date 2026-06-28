@@ -10,7 +10,7 @@ from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseNotFou
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import ChangeRequest, Experiment, LabOrder, ReportAudit, SchedulePlan, TestReport, WorkflowEvent
+from .models import ChangeRequest, Experiment, Invoice, LabOrder, ReportAudit, SchedulePlan, TestReport, WorkflowEvent
 
 
 ROLE_SALES = '销售'
@@ -94,7 +94,7 @@ def _orders_for_user(user):
     if ROLE_GENERAL_MANAGER in roles:
         query |= Q(order_status=LabOrder.Status.REPORT_REVIEW)
     if ROLE_ACCOUNTING in roles:
-        query |= Q(order_status=LabOrder.Status.REPORT_REVIEW)
+        query |= Q(order_status__in=[LabOrder.Status.REPORT_REVIEW, LabOrder.Status.INVOICED_CLOSED])
 
     if not query:
         return orders.none()
@@ -141,6 +141,42 @@ def _report_payload(report):
         'quality_user': report.create_quality_user.first_name or report.create_quality_user.username
         if report.create_quality_user
         else '',
+    }
+
+
+def _invoice_payload(invoice):
+    order = invoice.order
+    report = invoice.report
+    return {
+        'invoice_no': invoice.invoice_no,
+        'order_no': order.order_no,
+        'report_no': report.report_no if report else '',
+        'customer': order.customer_name,
+        'project_name': order.project_name,
+        'invoice_amount': str(invoice.invoice_amount),
+        'invoice_type': invoice.invoice_type,
+        'invoice_date': invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '',
+        'pay_status': invoice.get_pay_status_display(),
+        'finish_status': invoice.get_order_finish_flag_display(),
+        'finance_user': invoice.finance_user.first_name or invoice.finance_user.username
+        if invoice.finance_user
+        else '',
+    }
+
+
+def _pending_invoice_payload(report):
+    order = report.order
+    return {
+        'report_no': report.report_no,
+        'order_no': order.order_no,
+        'customer': order.customer_name,
+        'project_name': order.project_name,
+        'invoice_amount': str(order.total_quote),
+        'invoice_type': '待确认',
+        'invoice_date': '',
+        'pay_status': '待开票',
+        'finish_status': order.get_order_status_display(),
+        'finance_user': '',
     }
 
 
@@ -426,6 +462,14 @@ def lims_dashboard(request):
             | Q(schedules__test_type=SchedulePlan.TestType.OUTSOURCE)
         ).distinct().order_by('-create_time')
     ]
+    pending_invoice_reports = TestReport.objects.select_related('order').filter(
+        order__in=related_orders,
+        report_status=TestReport.Status.APPROVED,
+        invoices__isnull=True,
+    ).order_by('-create_time')
+    invoices = Invoice.objects.select_related('order', 'report', 'finance_user').filter(
+        order__in=related_orders,
+    ).order_by('-invoice_date', '-create_time')
 
     data = {
         'company': '苏州环测检测技术有限公司',
@@ -461,6 +505,10 @@ def lims_dashboard(request):
         },
         'outsource_orders': outsource_orders,
         'pending_reports': [_report_payload(report) for report in pending_reports.order_by('-create_time')],
+        'finance': {
+            'pending_invoices': [_pending_invoice_payload(report) for report in pending_invoice_reports],
+            'issued_invoices': [_invoice_payload(invoice) for invoice in invoices],
+        },
         'roles': [
             ROLE_SALES,
             ROLE_BUSINESS,

@@ -68,7 +68,21 @@ type ReportItem = {
   quality_user: string
 }
 
-type ListKey = 'orders' | 'suzhou' | 'jiangyin' | 'outsource' | 'reports'
+type InvoiceItem = {
+  invoice_no?: string
+  order_no: string
+  report_no: string
+  customer: string
+  project_name: string
+  invoice_amount: string
+  invoice_type: string
+  invoice_date: string
+  pay_status: string
+  finish_status: string
+  finance_user: string
+}
+
+type ListKey = 'orders' | 'suzhou' | 'jiangyin' | 'outsource' | 'reports' | 'pendingInvoices' | 'issuedInvoices'
 type LabKey = 'suzhou' | 'jiangyin'
 
 type Dashboard = {
@@ -84,6 +98,10 @@ type Dashboard = {
   }
   outsource_orders: OrderItem[]
   pending_reports: ReportItem[]
+  finance: {
+    pending_invoices: InvoiceItem[]
+    issued_invoices: InvoiceItem[]
+  }
 }
 
 const user = ref<User>({ authenticated: false })
@@ -125,6 +143,8 @@ const listSearch = reactive<Record<ListKey, string>>({
   jiangyin: '',
   outsource: '',
   reports: '',
+  pendingInvoices: '',
+  issuedInvoices: '',
 })
 const listPageSize = reactive<Record<ListKey, number>>({
   orders: 10,
@@ -132,6 +152,8 @@ const listPageSize = reactive<Record<ListKey, number>>({
   jiangyin: 10,
   outsource: 10,
   reports: 10,
+  pendingInvoices: 10,
+  issuedInvoices: 10,
 })
 const listPage = reactive<Record<ListKey, number>>({
   orders: 1,
@@ -139,6 +161,8 @@ const listPage = reactive<Record<ListKey, number>>({
   jiangyin: 1,
   outsource: 1,
   reports: 1,
+  pendingInvoices: 1,
+  issuedInvoices: 1,
 })
 
 
@@ -261,6 +285,12 @@ const filteredPendingReports = computed(() => {
   )
 })
 const pagedPendingReports = computed(() => paginateItems(filteredPendingReports.value, 'reports'))
+const pendingInvoices = computed(() => dashboard.value?.finance?.pending_invoices ?? [])
+const issuedInvoices = computed(() => dashboard.value?.finance?.issued_invoices ?? [])
+const filteredPendingInvoices = computed(() => filterInvoices(pendingInvoices.value, listSearch.pendingInvoices))
+const filteredIssuedInvoices = computed(() => filterInvoices(issuedInvoices.value, listSearch.issuedInvoices))
+const pagedPendingInvoices = computed(() => paginateItems(filteredPendingInvoices.value, 'pendingInvoices'))
+const pagedIssuedInvoices = computed(() => paginateItems(filteredIssuedInvoices.value, 'issuedInvoices'))
 
 function filterOrders(source: OrderItem[], keywordValue: string) {
   const keyword = keywordValue.trim().toLowerCase()
@@ -277,6 +307,30 @@ function filterOrders(source: OrderItem[], keywordValue: string) {
       order.execution_mode,
       order.expected_delivery_date,
       order.sales_owner,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(keyword),
+  )
+}
+
+function filterInvoices(source: InvoiceItem[], keywordValue: string) {
+  const keyword = keywordValue.trim().toLowerCase()
+  if (!keyword) return source
+  return source.filter((invoice) =>
+    [
+      invoice.invoice_no,
+      invoice.order_no,
+      invoice.report_no,
+      invoice.customer,
+      invoice.project_name,
+      invoice.invoice_amount,
+      invoice.invoice_type,
+      invoice.invoice_date,
+      invoice.pay_status,
+      invoice.finish_status,
+      invoice.finance_user,
     ]
       .filter(Boolean)
       .join(' ')
@@ -838,6 +892,115 @@ onMounted(async () => {
             <button type="button" :disabled="listPage.reports <= 1" @click="previousListPage('reports')">上一页</button>
             <strong>{{ Math.min(listPage.reports, listTotalPages('reports', filteredPendingReports.length)) }} / {{ listTotalPages('reports', filteredPendingReports.length) }}</strong>
             <button type="button" :disabled="listPage.reports >= listTotalPages('reports', filteredPendingReports.length)" @click="nextListPage('reports', filteredPendingReports.length)">下一页</button>
+          </div>
+        </div>
+      </section>
+
+      <section v-else-if="activeMenu === 'invoice'" class="content-panel">
+        <div class="panel-section-title first">
+          <h2>财务开票</h2>
+          <p>上半部分显示终审通过后等待会计开票的报告，下半部分显示已经开票办结的财务记录。</p>
+        </div>
+
+        <div class="panel-toolbar">
+          <div>
+            <h2>待开票订单</h2>
+            <p>报告审核通过后进入这里，后续会接入正式开票操作表单。</p>
+          </div>
+        </div>
+        <div class="list-controls">
+          <label class="search-control">
+            <span>搜索待开票</span>
+            <input
+              v-model="listSearch.pendingInvoices"
+              type="search"
+              placeholder="订单号、报告号、客户、项目"
+              @input="resetList('pendingInvoices')"
+            >
+          </label>
+          <label class="page-size-control">
+            <span>每页显示</span>
+            <select v-model.number="listPageSize.pendingInvoices" @change="resetList('pendingInvoices')">
+              <option :value="10">10 条</option>
+              <option :value="15">15 条</option>
+              <option :value="20">20 条</option>
+            </select>
+          </label>
+        </div>
+        <div class="orders-table invoice-table">
+          <div class="table-row table-head">
+            <span>订单 / 报告</span>
+            <span>客户 / 项目</span>
+            <span>金额</span>
+            <span>状态</span>
+            <span>操作人</span>
+          </div>
+          <div v-for="invoice in pagedPendingInvoices" :key="`${invoice.order_no}-${invoice.report_no}`" class="table-row">
+            <span><strong>{{ invoice.order_no }}</strong><small>{{ invoice.report_no }}</small></span>
+            <span>{{ invoice.customer }} / {{ invoice.project_name }}</span>
+            <span>{{ invoice.invoice_amount }}</span>
+            <span>{{ invoice.pay_status }} / {{ invoice.finish_status }}</span>
+            <span>{{ invoice.finance_user || '待会计处理' }}</span>
+          </div>
+          <div v-if="filteredPendingInvoices.length === 0" class="empty-row">当前没有匹配的待开票订单。</div>
+        </div>
+        <div class="pagination-bar">
+          <span>{{ listRangeText('pendingInvoices', filteredPendingInvoices.length) }}</span>
+          <div>
+            <button type="button" :disabled="listPage.pendingInvoices <= 1" @click="previousListPage('pendingInvoices')">上一页</button>
+            <strong>{{ Math.min(listPage.pendingInvoices, listTotalPages('pendingInvoices', filteredPendingInvoices.length)) }} / {{ listTotalPages('pendingInvoices', filteredPendingInvoices.length) }}</strong>
+            <button type="button" :disabled="listPage.pendingInvoices >= listTotalPages('pendingInvoices', filteredPendingInvoices.length)" @click="nextListPage('pendingInvoices', filteredPendingInvoices.length)">下一页</button>
+          </div>
+        </div>
+
+        <div class="panel-toolbar section-gap">
+          <div>
+            <h2>已开票记录</h2>
+            <p>用于追溯发票号码、金额、回款状态和办结状态。</p>
+          </div>
+        </div>
+        <div class="list-controls">
+          <label class="search-control">
+            <span>搜索发票</span>
+            <input
+              v-model="listSearch.issuedInvoices"
+              type="search"
+              placeholder="发票号、订单号、客户、项目、回款状态"
+              @input="resetList('issuedInvoices')"
+            >
+          </label>
+          <label class="page-size-control">
+            <span>每页显示</span>
+            <select v-model.number="listPageSize.issuedInvoices" @change="resetList('issuedInvoices')">
+              <option :value="10">10 条</option>
+              <option :value="15">15 条</option>
+              <option :value="20">20 条</option>
+            </select>
+          </label>
+        </div>
+        <div class="orders-table invoice-table">
+          <div class="table-row table-head">
+            <span>发票 / 订单</span>
+            <span>客户 / 项目</span>
+            <span>金额</span>
+            <span>状态</span>
+            <span>操作人</span>
+          </div>
+          <div v-for="invoice in pagedIssuedInvoices" :key="invoice.invoice_no" class="table-row">
+            <span><strong>{{ invoice.invoice_no }}</strong><small>{{ invoice.order_no }} / {{ invoice.report_no }}</small></span>
+            <span>{{ invoice.customer }} / {{ invoice.project_name }}</span>
+            <span>{{ invoice.invoice_amount }} · {{ invoice.invoice_type }}</span>
+            <span>{{ invoice.pay_status }} / {{ invoice.finish_status }}<small>{{ invoice.invoice_date || '未登记日期' }}</small></span>
+            <span>{{ invoice.finance_user || '未记录' }}</span>
+          </div>
+          <div v-if="filteredIssuedInvoices.length === 0" class="empty-row">当前没有匹配的已开票记录。</div>
+        </div>
+        <div class="pagination-bar">
+          <span>{{ listRangeText('issuedInvoices', filteredIssuedInvoices.length) }}</span>
+          <div>
+            <button type="button" :disabled="listPage.issuedInvoices <= 1" @click="previousListPage('issuedInvoices')">上一页</button>
+            <strong>{{ Math.min(listPage.issuedInvoices, listTotalPages('issuedInvoices', filteredIssuedInvoices.length)) }} / {{ listTotalPages('issuedInvoices', filteredIssuedInvoices.length) }}</strong>
+            <button type="button" :disabled="listPage.issuedInvoices >= listTotalPages('issuedInvoices', filteredIssuedInvoices.length)" @click="nextListPage('issuedInvoices', filteredIssuedInvoices.length)">下一页</button>
           </div>
         </div>
       </section>
