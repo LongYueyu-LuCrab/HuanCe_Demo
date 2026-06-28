@@ -8,6 +8,9 @@ const props = defineProps<{
   subtitle: string
   pending?: boolean
 }>()
+const emit = defineEmits<{
+  workflow: [action: string, invoice: InvoiceItem]
+}>()
 
 const keyword = ref('')
 const page = ref(1)
@@ -76,6 +79,12 @@ const pagedInvoices = computed(() => {
       </el-table-column>
       <el-table-column prop="invoice_date" label="开票日期" min-width="120" />
       <el-table-column prop="finance_user" label="操作人" min-width="120" />
+      <el-table-column label="财务操作" fixed="right" min-width="150">
+        <template #default="{ row }">
+          <el-button v-if="pending" size="small" type="primary" plain @click="emit('workflow', 'invoice_create', row)">开票办结</el-button>
+          <el-button v-else size="small" type="success" plain @click="emit('workflow', 'invoice_pay', row)">更新回款</el-button>
+        </template>
+      </el-table-column>
     </el-table>
     <div class="table-footer">
       <span>共 {{ filteredInvoices.length }} 条</span>

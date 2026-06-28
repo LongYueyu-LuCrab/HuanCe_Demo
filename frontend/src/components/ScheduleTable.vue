@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { ScheduleItem } from '../types'
+import type { ScheduleItem, User } from '../types'
 
 const props = defineProps<{
   orders: ScheduleItem[]
+  user?: User
+}>()
+const emit = defineEmits<{
+  workflow: [action: string, orderNo: string]
 }>()
 
 const keyword = ref('')
@@ -26,6 +30,10 @@ const pagedOrders = computed(() => {
   const start = (page.value - 1) * pageSize.value
   return filteredOrders.value.slice(start, start + pageSize.value)
 })
+
+const roleSet = computed(() => new Set(props.user?.roles || []))
+const isChairman = computed(() => Boolean(props.user?.is_chairman))
+const canLabOperate = computed(() => isChairman.value || roleSet.value.has('苏州实验室') || roleSet.value.has('江阴实验室'))
 </script>
 
 <template>
@@ -55,6 +63,15 @@ const pagedOrders = computed(() => {
         <template #default="{ row }">
           <el-tag effect="plain">{{ row.status }}</el-tag>
           <span class="cell-sub block">{{ row.schedule_status }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column v-if="canLabOperate" label="试验操作" fixed="right" min-width="240">
+        <template #default="{ row }">
+          <div class="row-actions">
+            <el-button size="small" type="primary" plain @click="emit('workflow', 'start_test', row.order_no)">开始试验</el-button>
+            <el-button size="small" type="success" plain @click="emit('workflow', 'submit_test', row.order_no)">提交结果</el-button>
+            <el-button size="small" type="warning" plain @click="emit('workflow', 'create_change', row.order_no)">试验中变更</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>

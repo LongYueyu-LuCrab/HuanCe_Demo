@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { ReportItem } from '../types'
+import type { ReportItem, User } from '../types'
 
-const props = defineProps<{ reports: ReportItem[] }>()
+const props = defineProps<{ reports: ReportItem[]; user?: User }>()
+const emit = defineEmits<{
+  workflow: [action: string, report: ReportItem]
+}>()
 
 const keyword = ref('')
 const page = ref(1)
@@ -24,6 +27,26 @@ const pagedReports = computed(() => {
   const start = (page.value - 1) * pageSize.value
   return filteredReports.value.slice(start, start + pageSize.value)
 })
+
+const roleSet = computed(() => new Set(props.user?.roles || []))
+const isChairman = computed(() => Boolean(props.user?.is_chairman))
+
+function hasRole(role: string) {
+  return isChairman.value || roleSet.value.has(role)
+}
+
+function actionsFor(report: ReportItem) {
+  const actions: Array<{ key: string; label: string; type?: 'primary' | 'danger' | 'success' }> = []
+  if (report.status_key === 2 && hasRole('销售')) {
+    actions.push({ key: 'report_sales_pass', label: '初审通过', type: 'success' })
+    actions.push({ key: 'report_sales_reject', label: '初审驳回', type: 'danger' })
+  }
+  if (report.status_key === 3 && hasRole('总经理')) {
+    actions.push({ key: 'report_gm_pass', label: '终审通过', type: 'success' })
+    actions.push({ key: 'report_gm_reject', label: '终审驳回', type: 'danger' })
+  }
+  return actions
+}
 </script>
 
 <template>
@@ -51,6 +74,23 @@ const pagedReports = computed(() => {
       </el-table-column>
       <el-table-column prop="remake_count" label="重制次数" width="100" />
       <el-table-column prop="quality_user" label="出具人" min-width="120" />
+      <el-table-column label="审核操作" fixed="right" min-width="190">
+        <template #default="{ row }">
+          <div class="row-actions">
+            <el-button
+              v-for="action in actionsFor(row)"
+              :key="action.key"
+              size="small"
+              :type="action.type || 'primary'"
+              plain
+              @click="emit('workflow', action.key, row)"
+            >
+              {{ action.label }}
+            </el-button>
+            <span v-if="actionsFor(row).length === 0" class="cell-sub">无可操作</span>
+          </div>
+        </template>
+      </el-table-column>
     </el-table>
     <div class="table-footer">
       <span>共 {{ filteredReports.length }} 条</span>

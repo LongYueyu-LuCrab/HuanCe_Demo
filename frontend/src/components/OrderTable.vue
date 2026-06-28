@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { OrderItem } from '../types'
+import type { OrderItem, User } from '../types'
 
 const props = defineProps<{
   orders: OrderItem[]
   title?: string
   subtitle?: string
+  user?: User
+}>()
+
+const emit = defineEmits<{
+  workflow: [action: string, order: OrderItem]
 }>()
 
 const keyword = ref('')
@@ -50,6 +55,43 @@ function openOrder(order: OrderItem) {
   selectedOrder.value = order
   drawerVisible.value = true
 }
+
+const roleSet = computed(() => new Set(props.user?.roles || []))
+const isChairman = computed(() => Boolean(props.user?.is_chairman))
+
+function hasRole(role: string) {
+  return isChairman.value || roleSet.value.has(role)
+}
+
+function actionsFor(order: OrderItem) {
+  const actions: Array<{ key: string; label: string; type?: 'primary' | 'danger' | 'warning' | 'success' }> = []
+  if (order.status_key === 1 && (hasRole('商务') || hasRole('技术'))) {
+    actions.push({ key: 'review_pass', label: '评审通过', type: 'success' })
+    actions.push({ key: 'review_reject', label: '评审驳回', type: 'danger' })
+  }
+  if ([1, 2].includes(order.status_key) && hasRole('销售')) {
+    actions.push({ key: 'order_update', label: '修改重提', type: 'primary' })
+    actions.push({ key: 'order_cancel', label: '退单', type: 'danger' })
+  }
+  if (order.status_key === 3 && hasRole('销售')) {
+    actions.push({ key: 'sales_confirm', label: '确认无变更', type: 'success' })
+    actions.push({ key: 'create_change', label: '填写更改单', type: 'warning' })
+  }
+  if ([3, 4].includes(order.status_key) && hasRole('质量部')) {
+    actions.push({ key: 'schedule_assign', label: '排期分配', type: 'primary' })
+    actions.push({ key: 'process_change', label: '处理变更', type: 'warning' })
+    actions.push({ key: 'register_sample', label: '样品登记', type: 'success' })
+  }
+  if ([4, 5].includes(order.status_key) && hasRole('质量部')) {
+    actions.push({ key: 'issue_report', label: '出具报告', type: 'primary' })
+  }
+  if ([3, 4].includes(order.status_key) && (hasRole('苏州实验室') || hasRole('江阴实验室'))) {
+    actions.push({ key: 'start_test', label: '开始试验', type: 'primary' })
+    actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
+    actions.push({ key: 'create_change', label: '试验中变更', type: 'warning' })
+  }
+  return actions
+}
 </script>
 
 <template>
@@ -91,6 +133,23 @@ function openOrder(order: OrderItem) {
       </el-table-column>
       <el-table-column prop="expected_delivery_date" label="交付" min-width="120" />
       <el-table-column prop="sales_owner" label="销售" min-width="120" />
+      <el-table-column label="流程操作" fixed="right" min-width="220">
+        <template #default="{ row }">
+          <div class="row-actions">
+            <el-button
+              v-for="action in actionsFor(row)"
+              :key="action.key"
+              size="small"
+              :type="action.type || 'primary'"
+              plain
+              @click.stop="emit('workflow', action.key, row)"
+            >
+              {{ action.label }}
+            </el-button>
+            <span v-if="actionsFor(row).length === 0" class="cell-sub">无可操作</span>
+          </div>
+        </template>
+      </el-table-column>
     </el-table>
 
     <div class="table-footer">

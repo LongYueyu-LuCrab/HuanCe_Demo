@@ -54,6 +54,24 @@ export async function createOrder(payload: CreateOrderPayload) {
   return parseJson(response)
 }
 
+export type WorkflowActionPayload = {
+  action: string
+  order_no?: string
+  report_no?: string
+  invoice_no?: string
+  [key: string]: unknown
+}
+
+export async function workflowAction(payload: WorkflowActionPayload) {
+  const response = await fetch('/api/lims/action/', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return parseJson(response)
+}
+
 export type AddEmployeePayload = {
   username: string
   password: string

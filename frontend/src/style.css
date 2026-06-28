@@ -397,6 +397,20 @@ select {
   margin-left: 8px;
 }
 
+.mt-16 {
+  margin-top: 16px;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.action-form {
+  margin-top: 16px;
+}
+
 .device-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(220px, 1fr));
