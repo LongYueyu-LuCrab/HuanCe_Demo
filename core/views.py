@@ -24,6 +24,18 @@ ROLE_OUTSOURCE = '委外供应商'
 ROLE_GENERAL_MANAGER = '总经理'
 ROLE_ACCOUNTING = '会计'
 ROLE_CHAIRMAN = '董事长'
+VALID_ROLES = [
+    ROLE_SALES,
+    ROLE_BUSINESS,
+    ROLE_TECH,
+    ROLE_QUALITY,
+    ROLE_SUZHOU_LAB,
+    ROLE_JIANGYIN_LAB,
+    ROLE_OUTSOURCE,
+    ROLE_GENERAL_MANAGER,
+    ROLE_ACCOUNTING,
+    ROLE_CHAIRMAN,
+]
 
 
 def frontend(request):
@@ -46,7 +58,15 @@ def _is_chairman(user):
 def _roles(user):
     if not user.is_authenticated:
         return []
-    return list(user.groups.values_list('name', flat=True))
+    valid_role_set = set(VALID_ROLES)
+    roles = [
+        name
+        for name in user.groups.values_list('name', flat=True)
+        if name in valid_role_set
+    ]
+    if _is_chairman(user) and ROLE_CHAIRMAN not in roles:
+        roles.insert(0, ROLE_CHAIRMAN)
+    return roles
 
 
 def _display_user(user):

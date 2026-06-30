@@ -166,6 +166,16 @@ class Command(BaseCommand):
             user.groups.clear()
             user.groups.add(group)
             users[username] = user
+        legacy_chairman = user_model.objects.filter(username='LuCrab').first()
+        if legacy_chairman:
+            chairman_group, _ = Group.objects.get_or_create(name='董事长')
+            legacy_chairman.first_name = '龙老大'
+            legacy_chairman.is_staff = True
+            legacy_chairman.is_superuser = True
+            legacy_chairman.is_active = True
+            legacy_chairman.save()
+            legacy_chairman.groups.clear()
+            legacy_chairman.groups.add(chairman_group)
         return users
 
     def build_scenarios(self):
