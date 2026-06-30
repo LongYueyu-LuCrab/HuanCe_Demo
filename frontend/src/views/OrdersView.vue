@@ -40,6 +40,7 @@ const actionTitleMap: Record<string, string> = {
   register_sample: '样品登记',
   start_test: '开始试验',
   submit_test: '提交试验结果',
+  outsource_result: '委外试验结果回传',
   issue_report: '出具检测报告',
 }
 
@@ -75,6 +76,8 @@ function openWorkflow(action: string, order: OrderItem) {
     test_standard: '',
     test_raw_data: '',
     test_conclusion_temp: '',
+    test_start_time: '',
+    test_end_time: '',
     report_no: '',
     final_conclusion: '',
   })
@@ -227,6 +230,15 @@ async function submit() {
         <template v-else-if="activeAction === 'submit_test'">
           <el-form-item label="原始检测数据" class="form-wide"><el-input v-model="actionForm.test_raw_data" type="textarea" :rows="4" /></el-form-item>
           <el-form-item label="临时结论" class="form-wide"><el-input v-model="actionForm.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
+        </template>
+
+        <template v-else-if="activeAction === 'outsource_result'">
+          <el-form-item label="委外试验项目" class="form-wide"><el-input v-model="actionForm.test_item_list" type="textarea" :rows="3" /></el-form-item>
+          <el-form-item label="执行标准"><el-input v-model="actionForm.test_standard" placeholder="例如：委外厂家报告编号 / 执行标准" /></el-form-item>
+          <el-form-item label="委外开始时间"><el-date-picker v-model="actionForm.test_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+          <el-form-item label="委外完成时间"><el-date-picker v-model="actionForm.test_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+          <el-form-item label="委外原始数据 / 回传摘要" class="form-wide"><el-input v-model="actionForm.test_raw_data" type="textarea" :rows="4" /></el-form-item>
+          <el-form-item label="委外临时结论" class="form-wide"><el-input v-model="actionForm.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
         </template>
 
         <template v-else-if="activeAction === 'issue_report'">

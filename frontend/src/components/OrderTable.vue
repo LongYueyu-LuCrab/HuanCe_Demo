@@ -81,6 +81,9 @@ function actionsFor(order: OrderItem) {
     actions.push({ key: 'schedule_assign', label: '排期分配', type: 'primary' })
     actions.push({ key: 'process_change', label: '处理变更', type: 'warning' })
     actions.push({ key: 'register_sample', label: '样品登记', type: 'success' })
+    if (order.execution_mode.includes('委外')) {
+      actions.push({ key: 'outsource_result', label: '委外结果回传', type: 'success' })
+    }
   }
   if ([4, 5].includes(order.status_key) && hasRole('质量部')) {
     actions.push({ key: 'issue_report', label: '出具报告', type: 'primary' })

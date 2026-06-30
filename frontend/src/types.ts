@@ -143,6 +143,11 @@ export type Dashboard = {
   company: string
   system: string
   metrics: Record<string, number>
+  payload_limits?: {
+    list_limit: number
+    workflow_events: number
+    note: string
+  }
   roles: string[]
   recent_orders: OrderItem[]
   order_groups: Record<string, OrderItem[]>

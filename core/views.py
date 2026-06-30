@@ -299,6 +299,15 @@ def _standard_payload(standard):
     }
 
 
+def _limit_queryset(queryset, limit=50):
+    try:
+        limit_value = int(limit)
+    except (TypeError, ValueError):
+        limit_value = 50
+    limit_value = max(1, min(limit_value, 200))
+    return queryset[:limit_value]
+
+
 def _lab_payload(test_type, name, related_orders=None, user=None):
     schedules = SchedulePlan.objects.select_related('order').filter(test_type=test_type).order_by('plan_start_time')
     if related_orders is not None:
@@ -340,7 +349,7 @@ def _lab_payload(test_type, name, related_orders=None, user=None):
     return {
         'name': name,
         'devices': devices,
-        'orders': [_schedule_payload(item) for item in schedules],
+        'orders': [_schedule_payload(item) for item in _limit_queryset(schedules, 80)],
     }
 
 
@@ -638,6 +647,7 @@ def lims_action(request):
         'process_change': _action_process_change,
         'register_sample': _action_register_sample,
         'start_test': _action_start_test,
+        'outsource_result': _action_outsource_result,
         'submit_test': _action_submit_test,
         'issue_report': _action_issue_report,
         'report_sales_pass': _action_report_sales_pass,
@@ -663,17 +673,26 @@ def _action_review_pass(request, payload):
         return error
     if order.order_status != LabOrder.Status.PENDING_REVIEW:
         return JsonResponse({'ok': False, 'error': '只有待评审订单可以评审通过'}, status=400, json_dumps_params={'ensure_ascii': False})
+    roles = set(_roles(request.user))
+    is_business = ROLE_BUSINESS in roles
+    is_tech = ROLE_TECH in roles
     BusinessReview.objects.create(
         order=order,
-        biz_review_user=request.user if ROLE_BUSINESS in _roles(request.user) else _first_user_in_group(ROLE_BUSINESS),
-        tech_review_user=request.user if ROLE_TECH in _roles(request.user) else _first_user_in_group(ROLE_TECH),
+        biz_review_user=request.user if is_business else None,
+        tech_review_user=request.user if is_tech else None,
         biz_quote_detail=payload.get('biz_quote_detail') or '商务技术联合评审通过。',
         tech_feasible=True,
         review_result=True,
         review_time=timezone.now(),
     )
-    order.mark_status(LabOrder.Status.SCHEDULING, request.user, '商务技术评审通过，进入商务任务分配与质量部排期')
-    return _status_response('评审通过，订单已进入排期', order)
+    has_business_pass = order.reviews.filter(review_result=True, biz_review_user__isnull=False).exists()
+    has_tech_pass = order.reviews.filter(review_result=True, tech_review_user__isnull=False).exists()
+    if has_business_pass and has_tech_pass:
+        order.mark_status(LabOrder.Status.SCHEDULING, request.user, '商务与技术双评审均已通过，进入商务任务分配与质量部排期')
+        return _status_response('商务与技术均已评审通过，订单已进入排期', order)
+    waiting_for = '技术评审' if has_business_pass else '商务评审'
+    _event(order, request.user, f'当前评审通过，等待{waiting_for}完成后进入排期', event_type=WorkflowEvent.EventType.REVIEW)
+    return _status_response(f'当前评审已通过，订单仍在待评审，等待{waiting_for}', order)
 
 
 def _action_review_reject(request, payload):
@@ -939,6 +958,48 @@ def _action_standard_create(request, payload):
     )
 
 
+def _action_outsource_result(request, payload):
+    role_error = _require_role(request.user, ROLE_QUALITY)
+    if role_error:
+        return role_error
+    order, error = _get_order(payload)
+    if error:
+        return error
+    schedule = order.schedules.filter(test_type=SchedulePlan.TestType.OUTSOURCE).order_by('-create_time').first()
+    if not schedule:
+        return JsonResponse({'ok': False, 'error': '该订单没有委外排期'}, status=400, json_dumps_params={'ensure_ascii': False})
+    sample = order.samples.filter(schedule=schedule).first() or order.samples.first()
+    if not sample:
+        return JsonResponse({'ok': False, 'error': '请先登记委外样品'}, status=400, json_dumps_params={'ensure_ascii': False})
+    experiment, _ = Experiment.objects.get_or_create(
+        order=order,
+        schedule=schedule,
+        sample=sample,
+        defaults={
+            'test_item_list': payload.get('test_item_list') or schedule.remark or order.test_demand,
+            'test_standard': payload.get('test_standard') or '委外厂家回传标准',
+            'test_start_time': _parse_datetime(payload.get('test_start_time')) or schedule.plan_start_time or timezone.now(),
+            'test_type': SchedulePlan.TestType.OUTSOURCE,
+        },
+    )
+    experiment.test_item_list = payload.get('test_item_list') or experiment.test_item_list or schedule.remark or order.test_demand
+    experiment.test_standard = payload.get('test_standard') or experiment.test_standard or '委外厂家回传标准'
+    experiment.test_raw_data = payload.get('test_raw_data') or experiment.test_raw_data or '委外厂家已回传原始试验数据'
+    experiment.test_conclusion_temp = payload.get('test_conclusion_temp') or experiment.test_conclusion_temp or '委外试验完成，等待质量部出具报告'
+    experiment.test_start_time = experiment.test_start_time or schedule.plan_start_time or timezone.now()
+    experiment.test_end_time = _parse_datetime(payload.get('test_end_time')) or timezone.now()
+    experiment.test_operator = request.user
+    experiment.test_status = Experiment.Status.FINISHED
+    experiment.test_type = SchedulePlan.TestType.OUTSOURCE
+    experiment.save()
+    sample.sample_status = Sample.Status.FINISHED
+    sample.save(update_fields=['sample_status', 'update_time'])
+    schedule.schedule_status = SchedulePlan.Status.FINISHED
+    schedule.save(update_fields=['schedule_status', 'update_time'])
+    order.mark_status(LabOrder.Status.TESTING, request.user, '质量部录入委外试验结果回传，委外试验已完成')
+    return _status_response('委外试验结果已回传，可出具报告', order)
+
+
 def _action_submit_test(request, payload):
     role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB)
     if role_error:
@@ -1087,6 +1148,11 @@ def lims_dashboard(request):
     active_related_orders = related_orders.exclude(
         order_status__in=[LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]
     )
+    try:
+        list_limit = int(request.GET.get('limit', 50))
+    except (TypeError, ValueError):
+        list_limit = 50
+    list_limit = max(10, min(list_limit, 100))
     recent_orders = [
         _order_payload(order)
         for order in related_orders.order_by('-create_time')[:10]
@@ -1153,7 +1219,7 @@ def lims_dashboard(request):
     ).order_by('-review_time', '-create_time')
     workflow_events = WorkflowEvent.objects.select_related('order', 'actor').filter(
         order__in=related_orders
-    ).order_by('-create_time')[:500]
+    ).order_by('-create_time')[:120]
     test_standards = TestStandard.objects.filter(is_active=True).order_by('industry', 'standard_code')
     pending_invoice_reports = TestReport.objects.none()
     invoices = Invoice.objects.none()
@@ -1179,6 +1245,11 @@ def lims_dashboard(request):
                 change_status=ChangeRequest.Status.APPLIED
             ).count(),
         },
+        'payload_limits': {
+            'list_limit': list_limit,
+            'workflow_events': 120,
+            'note': 'Dashboard returns limited recent rows; use dedicated paginated APIs for full history in future iterations.',
+        },
         'status_counts': {
             item['order_status']: item['count']
             for item in related_orders.values('order_status').annotate(count=Count('id'))
@@ -1189,28 +1260,28 @@ def lims_dashboard(request):
         },
         'recent_orders': recent_orders,
         'order_groups': {
-            'orders': all_orders,
-            'active_orders': active_orders,
-            'running_experiments': running_orders,
-            'pending_reports': report_orders,
-            'change_requests': change_orders,
-            'finance_orders': finance_orders,
+            'orders': all_orders[:list_limit],
+            'active_orders': active_orders[:list_limit],
+            'running_experiments': running_orders[:list_limit],
+            'pending_reports': report_orders[:list_limit],
+            'change_requests': change_orders[:list_limit],
+            'finance_orders': finance_orders[:list_limit],
         },
         'labs': {
             'suzhou': _lab_payload(SchedulePlan.TestType.SUZHOU, '苏州实验室', related_orders, request.user),
             'jiangyin': _lab_payload(SchedulePlan.TestType.JIANGYIN, '江阴实验室', related_orders, request.user),
         },
-        'outsource_orders': outsource_orders,
-        'schedules': [_schedule_payload(schedule) for schedule in schedules],
-        'samples': [_sample_payload(sample) for sample in samples],
-        'changes': [_change_payload(change) for change in changes],
-        'reviews': [_review_payload(review) for review in reviews],
+        'outsource_orders': outsource_orders[:list_limit],
+        'schedules': [_schedule_payload(schedule) for schedule in _limit_queryset(schedules, list_limit)],
+        'samples': [_sample_payload(sample) for sample in _limit_queryset(samples, list_limit)],
+        'changes': [_change_payload(change) for change in _limit_queryset(changes, list_limit)],
+        'reviews': [_review_payload(review) for review in _limit_queryset(reviews, list_limit)],
         'workflow_events': [_workflow_payload(event) for event in workflow_events],
         'test_standards': [_standard_payload(standard) for standard in test_standards],
-        'pending_reports': [_report_payload(report) for report in pending_reports.order_by('-create_time')],
+        'pending_reports': [_report_payload(report) for report in _limit_queryset(pending_reports.order_by('-create_time'), list_limit)],
         'finance': {
-            'pending_invoices': [_pending_invoice_payload(report) for report in pending_invoice_reports],
-            'issued_invoices': [_invoice_payload(invoice) for invoice in invoices],
+            'pending_invoices': [_pending_invoice_payload(report) for report in _limit_queryset(pending_invoice_reports, list_limit)],
+            'issued_invoices': [_invoice_payload(invoice) for invoice in _limit_queryset(invoices, list_limit)],
         },
         'roles': _roles(request.user),
     }

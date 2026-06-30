@@ -235,7 +235,7 @@ The frontend sends:
 Implemented action names:
 
 ```text
-review_pass              商务/技术评审通过
+review_pass              商务/技术评审通过；必须商务和技术两方都通过后才进入排期
 review_reject            商务/技术评审驳回
 order_update             销售修改订单并重提
 order_cancel             销售退单
@@ -246,6 +246,7 @@ process_change           质量部处理变更并闭环
 register_sample          质量部样品登记
 start_test               苏州/江阴实验室开始试验
 submit_test              苏州/江阴实验室提交试验结果
+outsource_result         质量部录入委外试验结果回传，生成委外试验记录
 issue_report             质量部出具报告
 report_sales_pass        销售初审通过
 report_sales_reject      销售初审驳回
