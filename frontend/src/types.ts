@@ -39,6 +39,15 @@ export type ScheduleItem = {
   remark: string
 }
 
+export type TestStandardItem = {
+  id: number
+  industry: string
+  standard_code: string
+  standard_name: string
+  description: string
+  is_active: boolean
+}
+
 export type SampleItem = {
   sample_no: string
   order_no: string
@@ -147,6 +156,7 @@ export type Dashboard = {
   changes: ChangeItem[]
   reviews: ReviewItem[]
   workflow_events: WorkflowEventItem[]
+  test_standards: TestStandardItem[]
   pending_reports: ReportItem[]
   finance: {
     pending_invoices: InvoiceItem[]

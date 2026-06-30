@@ -369,6 +369,24 @@ class Invoice(TimeStampedModel):
         return self.invoice_no
 
 
+class TestStandard(TimeStampedModel):
+    industry = models.CharField('行业分类', max_length=64)
+    standard_code = models.CharField('标准编号', max_length=100)
+    standard_name = models.CharField('标准名称', max_length=200)
+    description = models.CharField('说明', max_length=500, blank=True)
+    is_active = models.BooleanField('启用', default=True)
+
+    class Meta:
+        db_table = 'lims_test_standard'
+        verbose_name = '试验标准'
+        verbose_name_plural = '试验标准'
+        ordering = ['industry', 'standard_code']
+        unique_together = ('industry', 'standard_code')
+
+    def __str__(self):
+        return f'{self.industry} - {self.standard_code}'
+
+
 class WorkflowEvent(TimeStampedModel):
     class EventType(models.TextChoices):
         STATUS = 'status', '状态流转'

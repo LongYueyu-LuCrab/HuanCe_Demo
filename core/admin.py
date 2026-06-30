@@ -9,6 +9,7 @@ from .models import (
     ReportAudit,
     Sample,
     SchedulePlan,
+    TestStandard,
     TestReport,
     WorkflowEvent,
 )
@@ -206,6 +207,13 @@ class InvoiceAdmin(admin.ModelAdmin):
     list_display = ('invoice_no', 'order', 'report', 'invoice_amount', 'invoice_type', 'pay_status', 'order_finish_flag')
     list_filter = ('invoice_type', 'pay_status', 'order_finish_flag')
     search_fields = ('invoice_no', 'order__order_no', 'report__report_no')
+
+
+@admin.register(TestStandard)
+class TestStandardAdmin(admin.ModelAdmin):
+    list_display = ('industry', 'standard_code', 'standard_name', 'is_active')
+    list_filter = ('industry', 'is_active')
+    search_fields = ('industry', 'standard_code', 'standard_name', 'description')
 
 
 @admin.register(WorkflowEvent)

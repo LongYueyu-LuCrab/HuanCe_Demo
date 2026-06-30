@@ -10,7 +10,7 @@ This document is the development baseline for the Suzhou HuanCe LIMS project. Fu
 - Domain: aroundtest.com / www.aroundtest.com
 - Production server: 119.45.220.99
 - Git remote: git@github.com:LongYueyu-LuCrab/HuanCe_Demo.git
-- Current verified commit: 0f62c8f Implement LIMS workflow actions
+- Current verified commit: pending current local changes
 
 ## 2. Architecture
 
@@ -88,7 +88,7 @@ Note: `static/frontend/` contains built assets needed by Django. It may be gener
 
 ## 4. Database Baseline
 
-The LIMS business schema uses 9 core business tables plus 1 workflow log table.
+The LIMS business schema uses 9 core workflow business tables plus supporting reference tables and 1 workflow log table.
 
 Core business tables:
 
@@ -110,7 +110,13 @@ Workflow log:
 lims_workflow_event
 ```
 
-All business records attach to `lims_sales_order` through order relations. Keep future schema changes aligned with this 9+1 table design unless the user explicitly approves a redesign.
+Supporting reference tables:
+
+```text
+lims_test_standard        industry/category based test standard library
+```
+
+All workflow business records attach to `lims_sales_order` through order relations. Keep future schema changes aligned with this 9 core table design unless the user explicitly approves a redesign. Reference tables such as `lims_test_standard` may be added when they reduce repeated manual entry and keep workflow data consistent.
 
 Production database is PostgreSQL. Environment variables are loaded from `/opt/huance/.env`:
 
@@ -247,6 +253,7 @@ report_gm_pass           总经理终审通过
 report_gm_reject         总经理终审驳回
 invoice_create           会计开票办结
 invoice_pay              会计更新回款状态
+standard_create          实验室/质量部/董事长新增或更新试验标准
 ```
 
 Each action should:

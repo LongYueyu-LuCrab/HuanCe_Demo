@@ -7,7 +7,7 @@ const props = defineProps<{
   user?: User
 }>()
 const emit = defineEmits<{
-  workflow: [action: string, orderNo: string]
+  workflow: [action: string, schedule: ScheduleItem]
 }>()
 
 const keyword = ref('')
@@ -68,9 +68,9 @@ const canLabOperate = computed(() => isChairman.value || roleSet.value.has('苏�
       <el-table-column v-if="canLabOperate" label="试验操作" fixed="right" min-width="240">
         <template #default="{ row }">
           <div class="row-actions">
-            <el-button size="small" type="primary" plain @click="emit('workflow', 'start_test', row.order_no)">开始试验</el-button>
-            <el-button size="small" type="success" plain @click="emit('workflow', 'submit_test', row.order_no)">提交结果</el-button>
-            <el-button size="small" type="warning" plain @click="emit('workflow', 'create_change', row.order_no)">试验中变更</el-button>
+            <el-button size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
+            <el-button size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">提交结果</el-button>
+            <el-button size="small" type="warning" plain @click="emit('workflow', 'create_change', row)">试验中变更</el-button>
           </div>
         </template>
       </el-table-column>

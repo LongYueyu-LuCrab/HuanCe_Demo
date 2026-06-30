@@ -11,7 +11,7 @@ from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseNotFou
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabOrder, ReportAudit, Sample, SchedulePlan, TestReport, WorkflowEvent
+from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabOrder, ReportAudit, Sample, SchedulePlan, TestReport, TestStandard, WorkflowEvent
 
 
 ROLE_SALES = '销售'
@@ -285,6 +285,17 @@ def _workflow_payload(event):
         'to_status': event.to_status,
         'note': event.note,
         'create_time': event.create_time.strftime('%Y-%m-%d %H:%M') if event.create_time else '',
+    }
+
+
+def _standard_payload(standard):
+    return {
+        'id': standard.id,
+        'industry': standard.industry,
+        'standard_code': standard.standard_code,
+        'standard_name': standard.standard_name,
+        'description': standard.description,
+        'is_active': standard.is_active,
     }
 
 
@@ -635,6 +646,7 @@ def lims_action(request):
         'report_gm_reject': _action_report_gm_reject,
         'invoice_create': _action_invoice_create,
         'invoice_pay': _action_invoice_pay,
+        'standard_create': _action_standard_create,
     }
     handler = handlers.get(action)
     if not handler:
@@ -874,12 +886,12 @@ def _action_start_test(request, payload):
     sample.save(update_fields=['sample_status', 'update_time'])
     schedule.schedule_status = SchedulePlan.Status.RUNNING
     schedule.save(update_fields=['schedule_status', 'update_time'])
-    Experiment.objects.get_or_create(
+    experiment, _ = Experiment.objects.get_or_create(
         order=order,
         schedule=schedule,
         sample=sample,
         defaults={
-            'test_item_list': payload.get('test_item_list') or schedule.remark or order.test_demand,
+            'test_item_list': schedule.remark or payload.get('test_item_list') or order.test_demand,
             'test_standard': payload.get('test_standard') or '待录入',
             'test_start_time': timezone.now(),
             'test_operator': request.user,
@@ -887,8 +899,44 @@ def _action_start_test(request, payload):
             'test_type': schedule.test_type,
         },
     )
+    experiment.test_item_list = schedule.remark or payload.get('test_item_list') or order.test_demand
+    experiment.test_standard = payload.get('test_standard') or experiment.test_standard or '待录入'
+    experiment.test_start_time = experiment.test_start_time or timezone.now()
+    experiment.test_operator = request.user
+    experiment.test_status = Experiment.Status.RUNNING
+    experiment.test_type = schedule.test_type
+    experiment.save()
     order.mark_status(LabOrder.Status.TESTING, request.user, '实验室开始试验')
     return _status_response('试验已开始', order)
+
+
+def _action_standard_create(request, payload):
+    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_QUALITY)
+    if role_error:
+        return role_error
+    industry = (payload.get('industry') or '').strip()
+    standard_code = (payload.get('standard_code') or '').strip()
+    standard_name = (payload.get('standard_name') or '').strip()
+    description = (payload.get('description') or '').strip()
+    if not industry or not standard_code or not standard_name:
+        return JsonResponse({'ok': False, 'error': '行业、标准编号、标准名称必填'}, status=400, json_dumps_params={'ensure_ascii': False})
+    standard, created = TestStandard.objects.update_or_create(
+        industry=industry,
+        standard_code=standard_code,
+        defaults={
+            'standard_name': standard_name,
+            'description': description,
+            'is_active': True,
+        },
+    )
+    return JsonResponse(
+        {
+            'ok': True,
+            'message': '试验标准已添加' if created else '试验标准已更新',
+            'standard': _standard_payload(standard),
+        },
+        json_dumps_params={'ensure_ascii': False},
+    )
 
 
 def _action_submit_test(request, payload):
@@ -1106,6 +1154,7 @@ def lims_dashboard(request):
     workflow_events = WorkflowEvent.objects.select_related('order', 'actor').filter(
         order__in=related_orders
     ).order_by('-create_time')[:500]
+    test_standards = TestStandard.objects.filter(is_active=True).order_by('industry', 'standard_code')
     pending_invoice_reports = TestReport.objects.none()
     invoices = Invoice.objects.none()
     if can_view_finance:
@@ -1157,6 +1206,7 @@ def lims_dashboard(request):
         'changes': [_change_payload(change) for change in changes],
         'reviews': [_review_payload(review) for review in reviews],
         'workflow_events': [_workflow_payload(event) for event in workflow_events],
+        'test_standards': [_standard_payload(standard) for standard in test_standards],
         'pending_reports': [_report_payload(report) for report in pending_reports.order_by('-create_time')],
         'finance': {
             'pending_invoices': [_pending_invoice_payload(report) for report in pending_invoice_reports],
