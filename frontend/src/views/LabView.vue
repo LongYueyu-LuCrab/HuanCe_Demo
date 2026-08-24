@@ -3,9 +3,10 @@ import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRoute } from 'vue-router'
 import ScheduleTable from '../components/ScheduleTable.vue'
-import { workflowAction } from '../services/api'
+import OrderSnapshot from '../components/OrderSnapshot.vue'
+import { fetchOrderDetail, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
-import type { ScheduleItem } from '../types'
+import type { OrderItem, ScheduleItem } from '../types'
 
 const route = useRoute()
 const session = useSession()
@@ -16,6 +17,9 @@ const submitting = ref(false)
 const activeAction = ref('')
 const activeOrderNo = ref('')
 const activeSchedule = ref<ScheduleItem | null>(null)
+const activeOrder = ref<OrderItem | null>(null)
+const orderLoading = ref(false)
+const detailDrawerVisible = ref(false)
 const standardDialogVisible = ref(false)
 const standardSubmitting = ref(false)
 const form = reactive({
@@ -45,6 +49,23 @@ const canManageStandards = computed(() => {
   return Boolean(session.state.user.is_chairman || roles.has('苏州实验室') || roles.has('江阴实验室') || roles.has('质量部'))
 })
 
+async function loadOrderContext(orderNo: string) {
+  activeOrder.value = null
+  orderLoading.value = true
+  try {
+    activeOrder.value = await fetchOrderDetail(orderNo)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '订单详情读取失败')
+  } finally {
+    orderLoading.value = false
+  }
+}
+
+function openOrderDetail(schedule: ScheduleItem) {
+  detailDrawerVisible.value = true
+  void loadOrderContext(schedule.order_no)
+}
+
 function openWorkflow(action: string, schedule: ScheduleItem) {
   activeAction.value = action
   activeSchedule.value = schedule
@@ -63,6 +84,7 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
     test_conclusion_temp: '',
   })
   dialogVisible.value = true
+  void loadOrderContext(schedule.order_no)
 }
 
 function handleIndustryChange() {
@@ -150,10 +172,15 @@ async function submitWorkflow() {
       </el-card>
     </div>
 
-    <ScheduleTable :orders="lab?.orders ?? []" :user="session.state.user" @workflow="openWorkflow" />
+    <ScheduleTable
+      :orders="lab?.orders ?? []"
+      :user="session.state.user"
+      @workflow="openWorkflow"
+      @detail="openOrderDetail"
+    />
 
-    <el-dialog v-model="dialogVisible" title="试验节点操作" width="720px">
-      <el-alert :title="activeOrderNo" type="info" show-icon :closable="false" />
+    <el-dialog v-model="dialogVisible" title="试验节点操作" width="min(960px, 94vw)">
+      <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="试验任务订单信息" />
       <el-form label-position="top" class="form-grid mt-16">
         <template v-if="activeAction === 'start_test'">
           <el-form-item label="试验项目" class="form-wide">
@@ -189,6 +216,10 @@ async function submitWorkflow() {
         <el-button type="primary" :loading="submitting" @click="submitWorkflow">确认提交</el-button>
       </template>
     </el-dialog>
+
+    <el-drawer v-model="detailDrawerVisible" title="订单详情" size="min(720px, 94vw)">
+      <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="实验室订单信息" />
+    </el-drawer>
 
     <el-dialog v-model="standardDialogVisible" title="添加试验标准" width="640px">
       <el-form label-position="top" class="form-grid">

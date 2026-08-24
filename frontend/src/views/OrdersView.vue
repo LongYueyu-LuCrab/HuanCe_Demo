@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import type { UploadFile, UploadFiles, UploadRawFile, UploadUserFile } from 'element-plus'
 import OrderTable from '../components/OrderTable.vue'
+import OrderSnapshot from '../components/OrderSnapshot.vue'
 import { createOrder, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
 import type { OrderItem } from '../types'
@@ -264,8 +265,11 @@ async function submit() {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="actionDialogVisible" :title="actionTitleMap[activeAction] || '流程操作'" width="760px">
-      <el-alert v-if="activeOrder" :title="`${activeOrder.order_no} / ${activeOrder.customer}`" type="info" show-icon :closable="false" />
+    <el-dialog v-model="actionDialogVisible" :title="actionTitleMap[activeAction] || '流程操作'" width="min(960px, 94vw)">
+      <OrderSnapshot
+        :order="activeOrder"
+        :title="activeAction === 'review_pass' || activeAction === 'review_reject' ? '待评审订单信息' : '流程订单信息'"
+      />
       <el-form label-position="top" class="form-grid action-form">
         <template v-if="activeAction === 'review_pass' || activeAction === 'review_reject'">
           <el-form-item label="商务报价/评审说明" class="form-wide"><el-input v-model="actionForm.biz_quote_detail" type="textarea" :rows="3" /></el-form-item>

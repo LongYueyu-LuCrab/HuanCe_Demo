@@ -2,9 +2,10 @@
 import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import ReportList from '../components/ReportList.vue'
-import { workflowAction } from '../services/api'
+import OrderSnapshot from '../components/OrderSnapshot.vue'
+import { fetchOrderDetail, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
-import type { ReportItem } from '../types'
+import type { OrderItem, ReportItem } from '../types'
 
 const session = useSession()
 const reports = computed(() => session.state.dashboard?.pending_reports ?? [])
@@ -12,6 +13,9 @@ const dialogVisible = ref(false)
 const submitting = ref(false)
 const activeAction = ref('')
 const activeReport = ref<ReportItem | null>(null)
+const activeOrder = ref<OrderItem | null>(null)
+const orderLoading = ref(false)
+const detailDrawerVisible = ref(false)
 const form = reactive({ audit_opinion: '' })
 
 const titleMap: Record<string, string> = {
@@ -26,6 +30,24 @@ function openWorkflow(action: string, report: ReportItem) {
   activeReport.value = report
   form.audit_opinion = ''
   dialogVisible.value = true
+  void loadOrderContext(report.order_no)
+}
+
+async function loadOrderContext(orderNo: string) {
+  activeOrder.value = null
+  orderLoading.value = true
+  try {
+    activeOrder.value = await fetchOrderDetail(orderNo)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '订单详情读取失败')
+  } finally {
+    orderLoading.value = false
+  }
+}
+
+function openOrderDetail(report: ReportItem) {
+  detailDrawerVisible.value = true
+  void loadOrderContext(report.order_no)
 }
 
 async function submitWorkflow() {
@@ -49,10 +71,15 @@ async function submitWorkflow() {
 </script>
 
 <template>
-  <ReportList :reports="reports" :user="session.state.user" @workflow="openWorkflow" />
+  <ReportList
+    :reports="reports"
+    :user="session.state.user"
+    @workflow="openWorkflow"
+    @detail="openOrderDetail"
+  />
 
-  <el-dialog v-model="dialogVisible" :title="titleMap[activeAction] || '报告审核'" width="620px">
-    <el-alert v-if="activeReport" :title="`${activeReport.report_no} / ${activeReport.order_no}`" type="info" show-icon :closable="false" />
+  <el-dialog v-model="dialogVisible" :title="titleMap[activeAction] || '报告审核'" width="min(960px, 94vw)">
+    <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="报告关联订单信息" />
     <el-form label-position="top" class="mt-16">
       <el-form-item label="审核意见">
         <el-input v-model="form.audit_opinion" type="textarea" :rows="4" placeholder="填写通过说明或驳回修改要求" />
@@ -63,4 +90,8 @@ async function submitWorkflow() {
       <el-button type="primary" :loading="submitting" @click="submitWorkflow">确认提交</el-button>
     </template>
   </el-dialog>
+
+  <el-drawer v-model="detailDrawerVisible" title="订单详情" size="min(720px, 94vw)">
+    <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="报告关联订单信息" />
+  </el-drawer>
 </template>

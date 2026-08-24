@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import OrderSnapshot from './OrderSnapshot.vue'
 import type { OrderItem, User } from '../types'
 
 const props = defineProps<{
@@ -57,11 +58,6 @@ function resetPage() {
 function openOrder(order: OrderItem) {
   selectedOrder.value = order
   drawerVisible.value = true
-}
-
-function formatFileSize(size: number) {
-  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
 }
 
 const roleSet = computed(() => new Set(props.user?.roles || []))
@@ -186,37 +182,6 @@ function actionsFor(order: OrderItem) {
   </el-card>
 
   <el-drawer v-model="drawerVisible" title="订单详情" size="520px">
-    <el-descriptions v-if="selectedOrder" :column="1" border>
-      <el-descriptions-item label="订单号">{{ selectedOrder.order_no }}</el-descriptions-item>
-      <el-descriptions-item label="客户">{{ selectedOrder.customer }}</el-descriptions-item>
-      <el-descriptions-item label="项目">{{ selectedOrder.project_name }}</el-descriptions-item>
-      <el-descriptions-item label="状态">{{ selectedOrder.status }}</el-descriptions-item>
-      <el-descriptions-item label="执行路径">{{ selectedOrder.execution_mode }}</el-descriptions-item>
-      <el-descriptions-item label="行业属性">{{ selectedOrder.industry_label || '其他' }}</el-descriptions-item>
-      <el-descriptions-item label="订单执行属性">
-        <el-space wrap>
-          <el-tag v-for="attribute in selectedOrder.execution_attributes" :key="attribute" effect="plain">{{ attribute }}</el-tag>
-        </el-space>
-      </el-descriptions-item>
-      <el-descriptions-item label="销售">{{ selectedOrder.sales_owner || '未记录' }}</el-descriptions-item>
-      <el-descriptions-item label="报价">{{ selectedOrder.total_quote || '0.00' }}</el-descriptions-item>
-      <el-descriptions-item label="交付">{{ selectedOrder.expected_delivery_date || '待确认' }}</el-descriptions-item>
-      <el-descriptions-item label="试验需求">{{ selectedOrder.test_demand || '未填写' }}</el-descriptions-item>
-      <el-descriptions-item label="合同与附件">
-        <div v-if="selectedOrder.documents?.length" class="document-list">
-          <a
-            v-for="document in selectedOrder.documents"
-            :key="document.id"
-            :href="document.download_url"
-            class="document-link"
-          >
-            <el-tag size="small" effect="plain">{{ document.type_label }}</el-tag>
-            <span>{{ document.name }}</span>
-            <small>{{ formatFileSize(document.size) }}</small>
-          </a>
-        </div>
-        <span v-else class="cell-sub">未上传文件</span>
-      </el-descriptions-item>
-    </el-descriptions>
+    <OrderSnapshot :order="selectedOrder" title="完整订单信息" />
   </el-drawer>
 </template>

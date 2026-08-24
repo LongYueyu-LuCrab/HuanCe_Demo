@@ -5,6 +5,7 @@ import type { ReportItem, User } from '../types'
 const props = defineProps<{ reports: ReportItem[]; user?: User }>()
 const emit = defineEmits<{
   workflow: [action: string, report: ReportItem]
+  detail: [report: ReportItem]
 }>()
 
 const keyword = ref('')
@@ -74,9 +75,10 @@ function actionsFor(report: ReportItem) {
       </el-table-column>
       <el-table-column prop="remake_count" label="重制次数" width="100" />
       <el-table-column prop="quality_user" label="出具人" min-width="120" />
-      <el-table-column label="审核操作" fixed="right" min-width="190">
+      <el-table-column label="订单信息 / 审核操作" fixed="right" min-width="260">
         <template #default="{ row }">
           <div class="row-actions">
+            <el-button size="small" plain @click="emit('detail', row)">订单详情</el-button>
             <el-button
               v-for="action in actionsFor(row)"
               :key="action.key"

@@ -10,6 +10,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   workflow: [action: string, invoice: InvoiceItem]
+  detail: [invoice: InvoiceItem]
 }>()
 
 const keyword = ref('')
@@ -79,10 +80,13 @@ const pagedInvoices = computed(() => {
       </el-table-column>
       <el-table-column prop="invoice_date" label="开票日期" min-width="120" />
       <el-table-column prop="finance_user" label="操作人" min-width="120" />
-      <el-table-column label="财务操作" fixed="right" min-width="150">
+      <el-table-column label="订单信息 / 财务操作" fixed="right" min-width="210">
         <template #default="{ row }">
-          <el-button v-if="pending" size="small" type="primary" plain @click="emit('workflow', 'invoice_create', row)">开票办结</el-button>
-          <el-button v-else size="small" type="success" plain @click="emit('workflow', 'invoice_pay', row)">更新回款</el-button>
+          <div class="row-actions">
+            <el-button size="small" plain @click="emit('detail', row)">订单详情</el-button>
+            <el-button v-if="pending" size="small" type="primary" plain @click="emit('workflow', 'invoice_create', row)">开票办结</el-button>
+            <el-button v-else size="small" type="success" plain @click="emit('workflow', 'invoice_pay', row)">更新回款</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>

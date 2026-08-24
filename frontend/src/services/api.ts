@@ -1,4 +1,4 @@
-import type { Dashboard, User } from '../types'
+import type { Dashboard, OrderItem, User } from '../types'
 
 async function parseJson<T>(response: Response): Promise<T> {
   const data = await response.json()
@@ -30,6 +30,12 @@ export async function logout(): Promise<void> {
 export async function fetchDashboard(): Promise<Dashboard> {
   const response = await fetch('/api/lims/dashboard/?limit=50', { credentials: 'include' })
   return parseJson(response)
+}
+
+export async function fetchOrderDetail(orderNo: string): Promise<OrderItem> {
+  const response = await fetch(`/api/orders/${encodeURIComponent(orderNo)}/`, { credentials: 'include' })
+  const data = await parseJson<{ ok: boolean; order: OrderItem }>(response)
+  return data.order
 }
 
 export type CreateOrderPayload = {

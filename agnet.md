@@ -593,3 +593,21 @@ The workflow action layer is functional but still a pragmatic first version. Imp
 - Never commit secrets, `.env`, virtual environments, database files, logs, or uploaded media.
 - Keep production commands loading `/opt/huance/.env`.
 - After deployment, verify service status and HTTP 200.
+
+## 18. Complete Order Context Across Workflow
+
+Sales-order fields are shared workflow context, not sales-only presentation data.
+
+- Use `GET /api/orders/<order_no>/` to load the complete order context on demand.
+- The endpoint must enforce the same row-level visibility rules as the current user's order list.
+- Use `OrderSnapshot.vue` as the shared frontend presentation component.
+- Business review, technical review, scheduling, sample registration, laboratory execution,
+  report review, outsourcing, and finance must expose the complete visible order context.
+- The context includes customer/contact details, project and test demand, quote, industry,
+  autonomous/outsourced attributes, dates, remarks, contracts, and attachments.
+- Contracts and attachments remain protected resources and must be downloaded through the
+  authenticated document endpoint; never expose their private storage path directly.
+- Load full details lazily when a user opens a workflow action or detail drawer so dashboard
+  payloads do not grow with document metadata.
+- When adding future sales-order fields, update `_order_payload`, `OrderItem`, `OrderSnapshot`,
+  relevant tests, and every downstream workflow view in the same change.

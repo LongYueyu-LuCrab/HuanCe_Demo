@@ -51,6 +51,40 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(len(data['recent_orders']), 1)
         self.assertEqual(data['recent_orders'][0]['order_no'], 'TEST-001')
 
+    def test_order_detail_returns_complete_visible_context(self):
+        self.order.industry_category = LabOrder.IndustryCategory.MILITARY
+        self.order.autonomous_execution = True
+        self.order.outsourced_execution = True
+        self.order.remark = '加急；完整信息测试'
+        self.order.save()
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('order_detail', kwargs={'order_no': self.order.order_no})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        order = response.json()['order']
+        self.assertEqual(order['industry_label'], '军工')
+        self.assertEqual(order['execution_attributes'], ['自主', '委外'])
+        self.assertEqual(order['contact'], self.order.customer_contact)
+        self.assertEqual(order['remark'], '加急；完整信息测试')
+        self.assertIn('documents', order)
+
+    def test_order_detail_respects_sales_row_permission(self):
+        other_user = get_user_model().objects.create_user(
+            username='other-sales',
+            password='password123',
+        )
+        other_user.groups.add(Group.objects.get(name='销售'))
+        self.client.force_login(other_user)
+
+        response = self.client.get(
+            reverse('order_detail', kwargs={'order_no': self.order.order_no})
+        )
+
+        self.assertEqual(response.status_code, 404)
+
     def test_mark_status_writes_workflow_event(self):
         self.order.mark_status(LabOrder.Status.REPORT_REVIEW, note='测试流转')
 

@@ -2,9 +2,10 @@
 import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import InvoiceTable from '../components/InvoiceTable.vue'
-import { workflowAction } from '../services/api'
+import OrderSnapshot from '../components/OrderSnapshot.vue'
+import { fetchOrderDetail, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
-import type { InvoiceItem } from '../types'
+import type { InvoiceItem, OrderItem } from '../types'
 
 const session = useSession()
 const pendingInvoices = computed(() => session.state.dashboard?.finance?.pending_invoices ?? [])
@@ -13,6 +14,9 @@ const dialogVisible = ref(false)
 const submitting = ref(false)
 const activeAction = ref('')
 const activeInvoice = ref<InvoiceItem | null>(null)
+const activeOrder = ref<OrderItem | null>(null)
+const orderLoading = ref(false)
+const detailDrawerVisible = ref(false)
 const form = reactive({
   invoice_no: '',
   invoice_amount: '',
@@ -32,6 +36,24 @@ function openWorkflow(action: string, invoice: InvoiceItem) {
     pay_status: 1,
   })
   dialogVisible.value = true
+  void loadOrderContext(invoice.order_no)
+}
+
+async function loadOrderContext(orderNo: string) {
+  activeOrder.value = null
+  orderLoading.value = true
+  try {
+    activeOrder.value = await fetchOrderDetail(orderNo)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '订单详情读取失败')
+  } finally {
+    orderLoading.value = false
+  }
+}
+
+function openOrderDetail(invoice: InvoiceItem) {
+  detailDrawerVisible.value = true
+  void loadOrderContext(invoice.order_no)
 }
 
 async function submitWorkflow() {
@@ -66,16 +88,18 @@ async function submitWorkflow() {
       subtitle="总经理终审通过后进入这里，供会计核对并开票。"
       :invoices="pendingInvoices"
       @workflow="openWorkflow"
+      @detail="openOrderDetail"
     />
     <InvoiceTable
       title="已开票记录"
       subtitle="追溯发票号码、金额、回款状态和流程办结状态。"
       :invoices="issuedInvoices"
       @workflow="openWorkflow"
+      @detail="openOrderDetail"
     />
 
-    <el-dialog v-model="dialogVisible" :title="activeAction === 'invoice_create' ? '开票办结' : '更新回款状态'" width="640px">
-      <el-alert v-if="activeInvoice" :title="`${activeInvoice.order_no} / ${activeInvoice.customer}`" type="info" show-icon :closable="false" />
+    <el-dialog v-model="dialogVisible" :title="activeAction === 'invoice_create' ? '开票办结' : '更新回款状态'" width="min(960px, 94vw)">
+      <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="开票关联订单信息" />
       <el-form label-position="top" class="form-grid mt-16">
         <template v-if="activeAction === 'invoice_create'">
           <el-form-item label="发票号"><el-input v-model="form.invoice_no" placeholder="留空自动生成" /></el-form-item>
@@ -95,5 +119,9 @@ async function submitWorkflow() {
         <el-button type="primary" :loading="submitting" @click="submitWorkflow">确认提交</el-button>
       </template>
     </el-dialog>
+
+    <el-drawer v-model="detailDrawerVisible" title="订单详情" size="min(720px, 94vw)">
+      <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="财务核对订单信息" />
+    </el-drawer>
   </div>
 </template>

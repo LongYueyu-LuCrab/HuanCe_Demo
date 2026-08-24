@@ -134,6 +134,8 @@ def _orders_for_user(user):
 
 
 def _order_payload(order):
+    sample_arrival = order.expect_sample_arrive
+    sample_arrival_value = sample_arrival.date().isoformat() if sample_arrival else ''
     delivery = order.expect_delivery_time
     if delivery:
         delivery_value = delivery.date().isoformat()
@@ -159,6 +161,7 @@ def _order_payload(order):
         'status_key': order.order_status,
         'execution_mode': order.get_execution_mode_display(),
         'execution_attributes': execution_attributes,
+        'expected_sample_arrival': sample_arrival_value,
         'expected_delivery_date': delivery_value,
         'total_quote': str(order.total_quote),
         'is_urgent': order.is_urgent,
@@ -166,6 +169,7 @@ def _order_payload(order):
         if order.sale_user
         else '',
         'created_at': order.create_time.strftime('%Y-%m-%d %H:%M') if order.create_time else '',
+        'remark': order.remark,
         'documents': [
             {
                 'id': document.id,
@@ -178,6 +182,23 @@ def _order_payload(order):
             for document in order.documents.all()
         ],
     }
+
+
+def order_detail(request, order_no):
+    if request.method != 'GET':
+        return HttpResponseNotAllowed(['GET'])
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False, 'error': '请先登录'}, status=401, json_dumps_params={'ensure_ascii': False})
+
+    try:
+        order = _orders_for_user(request.user).get(order_no=order_no)
+    except LabOrder.DoesNotExist:
+        return JsonResponse(
+            {'ok': False, 'error': '订单不存在或当前岗位无权查看'},
+            status=404,
+            json_dumps_params={'ensure_ascii': False},
+        )
+    return JsonResponse({'ok': True, 'order': _order_payload(order)}, json_dumps_params={'ensure_ascii': False})
 
 
 def _report_payload(report):

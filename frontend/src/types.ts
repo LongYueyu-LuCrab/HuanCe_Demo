@@ -23,11 +23,13 @@ export type OrderItem = {
   status_key: number
   execution_mode: string
   execution_attributes: string[]
+  expected_sample_arrival: string
   expected_delivery_date: string
   total_quote?: string
   is_urgent: boolean
   sales_owner?: string
   created_at?: string
+  remark?: string
   documents: OrderDocumentItem[]
 }
 
