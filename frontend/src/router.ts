@@ -15,6 +15,7 @@ export const router = createRouter({
         { path: 'orders', name: 'orders', component: () => import('./views/OrdersView.vue'), meta: { menuKey: 'orders' } },
         { path: 'schedule', name: 'schedule', component: () => import('./views/ScheduleView.vue'), meta: { menuKey: 'schedule' } },
         { path: 'samples', name: 'samples', component: () => import('./views/SamplesView.vue'), meta: { menuKey: 'samples' } },
+        { path: 'devices', name: 'devices', component: () => import('./views/DevicesView.vue'), meta: { menuKey: 'devices' } },
         { path: 'labs/:lab', name: 'lab', component: () => import('./views/LabView.vue') },
         { path: 'outsource', name: 'outsource', component: () => import('./views/OutsourceView.vue'), meta: { menuKey: 'outsource' } },
         { path: 'reports', name: 'reports', component: () => import('./views/ReportsView.vue'), meta: { menuKey: 'reports' } },

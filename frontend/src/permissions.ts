@@ -28,6 +28,7 @@ export function getMenuGroups(user: User): MenuGroup[] {
       group('实验室', [
         { key: 'suzhou', label: '苏州实验室', path: '/labs/suzhou', icon: 'Cpu' },
         { key: 'jiangyin', label: '江阴实验室', path: '/labs/jiangyin', icon: 'Operation' },
+        { key: 'devices', label: '设备管理', path: '/devices', icon: 'Tools' },
         { key: 'outsource', label: '委外试验', path: '/outsource', icon: 'Van' },
         { key: 'reports', label: '报告审核', path: '/reports', icon: 'DocumentChecked' },
       ]),
@@ -88,6 +89,7 @@ export function getMenuGroups(user: User): MenuGroup[] {
       { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataBoard' },
       { key: 'orders', label: '我的订单', path: '/orders', icon: 'Tickets' },
       { key: 'suzhou', label: '实验室任务', path: '/labs/suzhou', icon: 'Cpu' },
+      { key: 'devices', label: '设备管理', path: '/devices', icon: 'Tools' },
       { key: 'schedule', label: '我的排期', path: '/schedule', icon: 'Calendar' },
       { key: 'samples', label: '样品台账', path: '/samples', icon: 'Box' },
       { key: 'outsource', label: '我负责的委外', path: '/outsource', icon: 'Van' },
@@ -101,6 +103,7 @@ export function getMenuGroups(user: User): MenuGroup[] {
       { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataBoard' },
       { key: 'orders', label: '我的订单', path: '/orders', icon: 'Tickets' },
       { key: 'jiangyin', label: '实验室任务', path: '/labs/jiangyin', icon: 'Operation' },
+      { key: 'devices', label: '设备管理', path: '/devices', icon: 'Tools' },
       { key: 'schedule', label: '我的排期', path: '/schedule', icon: 'Calendar' },
       { key: 'samples', label: '样品台账', path: '/samples', icon: 'Box' },
       { key: 'outsource', label: '我负责的委外', path: '/outsource', icon: 'Van' },

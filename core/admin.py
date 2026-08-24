@@ -5,6 +5,7 @@ from .models import (
     ChangeRequest,
     Experiment,
     Invoice,
+    LabDevice,
     LabOrder,
     OrderDocument,
     ReportAudit,
@@ -35,6 +36,7 @@ class SchedulePlanInline(admin.TabularInline):
     fields = (
         'test_type',
         'lab_manager',
+        'device',
         'assigned_by',
         'outsource_factory',
         'outsource_price',
@@ -178,9 +180,16 @@ class BusinessReviewAdmin(admin.ModelAdmin):
 
 @admin.register(SchedulePlan)
 class SchedulePlanAdmin(admin.ModelAdmin):
-    list_display = ('order', 'test_type', 'lab_manager', 'outsource_factory', 'plan_start_time', 'plan_end_time', 'schedule_status')
+    list_display = ('order', 'test_type', 'lab_manager', 'device', 'outsource_factory', 'plan_start_time', 'plan_end_time', 'schedule_status')
     list_filter = ('test_type', 'schedule_status')
     search_fields = ('order__order_no', 'order__customer_name', 'outsource_factory', 'remark')
+
+
+@admin.register(LabDevice)
+class LabDeviceAdmin(admin.ModelAdmin):
+    list_display = ('device_code', 'device_name', 'lab_type', 'device_status', 'model_spec', 'update_time')
+    list_filter = ('lab_type', 'device_status')
+    search_fields = ('device_code', 'device_name', 'model_spec', 'capability', 'remark')
 
 
 @admin.register(ChangeRequest)

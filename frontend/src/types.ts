@@ -60,6 +60,9 @@ export type ScheduleItem = {
   end_time: string
   schedule_status: string
   lab_manager: string
+  device_id: number | null
+  device_code: string
+  device_name: string
   is_lead: boolean
   sample_registered: boolean
   experiment_status: string
@@ -127,8 +130,19 @@ export type WorkflowEventItem = {
 }
 
 export type LabDevice = {
+  id: number
+  device_code: string
   name: string
+  lab_type: number
+  lab_name: string
+  model_spec: string
+  capability: string
+  status_key: number
   status: string
+  configured_status: string
+  remark: string
+  available: boolean
+  unavailable_reason: string
   order_no: string
   project_name: string
   end_time: string

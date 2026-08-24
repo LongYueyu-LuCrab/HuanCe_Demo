@@ -3,9 +3,9 @@ import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import ScheduleTable from '../components/ScheduleTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
-import { fetchOrderDetail, workflowAction } from '../services/api'
+import { fetchAvailableDevices, fetchOrderDetail, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
-import type { OrderItem, ScheduleItem } from '../types'
+import type { LabDevice, OrderItem, ScheduleItem } from '../types'
 
 const session = useSession()
 const schedules = computed(() => session.state.dashboard?.schedules ?? [])
@@ -16,8 +16,11 @@ const submitting = ref(false)
 const selectedOrder = ref<OrderItem | null>(null)
 const activeSchedule = ref<ScheduleItem | null>(null)
 const activeAction = ref('')
+const availabilityLoading = ref(false)
+const availableDevices = ref<LabDevice[]>([])
 const form = reactive({
   plan_start_time: '', plan_end_time: '', outsource_factory: '', outsource_price: '', outsource_cycle: '',
+  device_id: undefined as number | undefined,
   sample_name: '', sample_spec: '', sample_count: 1, storage_condition: '常温',
   test_item_list: '', test_standard: '', test_raw_data: '', test_conclusion_temp: '',
   test_start_time: '', test_end_time: '', change_scene: 2, new_test_demand: '', change_content: '',
@@ -46,6 +49,7 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
   activeSchedule.value = schedule
   Object.assign(form, {
     plan_start_time: schedule.start_time || '', plan_end_time: schedule.end_time || '',
+    device_id: schedule.device_id || undefined,
     outsource_factory: '', outsource_price: '', outsource_cycle: '',
     sample_name: `${schedule.project_name} 样品`, sample_spec: '客户送检样品', sample_count: 1,
     storage_condition: '常温', test_item_list: schedule.remark || schedule.project_name,
@@ -54,6 +58,32 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
   })
   dialogVisible.value = true
   void loadOrder(schedule.order_no)
+  availableDevices.value = []
+  if ((action === 'schedule_assign' || action === 'process_change') && schedule.start_time && schedule.end_time && !schedule.test_type.includes('委外')) {
+    void queryAvailableDevices()
+  }
+}
+
+function resetDeviceSelection() {
+  availableDevices.value = []
+  form.device_id = undefined
+}
+
+async function queryAvailableDevices() {
+  if (!activeSchedule.value || !form.plan_start_time || !form.plan_end_time) {
+    ElMessage.warning('请先选择计划开始和结束日期')
+    return
+  }
+  availabilityLoading.value = true
+  try {
+    availableDevices.value = await fetchAvailableDevices(activeSchedule.value.id, form.plan_start_time, form.plan_end_time)
+    const selected = availableDevices.value.find((item) => item.id === form.device_id)
+    if (selected && !selected.available) form.device_id = undefined
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '设备可用性查询失败')
+  } finally {
+    availabilityLoading.value = false
+  }
 }
 
 async function submitWorkflow() {
@@ -81,12 +111,26 @@ async function submitWorkflow() {
       <OrderSnapshot :order="selectedOrder" :loading="loading" title="任务关联订单" />
       <el-form label-position="top" class="form-grid mt-16">
         <template v-if="activeAction === 'schedule_assign' || activeAction === 'process_change'">
-          <el-form-item label="计划开始"><el-date-picker v-model="form.plan_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
-          <el-form-item label="计划结束"><el-date-picker v-model="form.plan_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+          <el-form-item label="计划开始"><el-date-picker v-model="form.plan_start_time" value-format="YYYY-MM-DD" type="date" @change="resetDeviceSelection" /></el-form-item>
+          <el-form-item label="计划结束"><el-date-picker v-model="form.plan_end_time" value-format="YYYY-MM-DD" type="date" @change="resetDeviceSelection" /></el-form-item>
           <template v-if="activeAction === 'schedule_assign' && activeSchedule?.test_type.includes('委外')">
             <el-form-item label="委外厂家"><el-input v-model="form.outsource_factory" /></el-form-item>
             <el-form-item label="委外价格"><el-input v-model="form.outsource_price" type="number" /></el-form-item>
             <el-form-item label="委外周期/天"><el-input v-model="form.outsource_cycle" type="number" /></el-form-item>
+          </template>
+          <template v-else-if="!activeSchedule?.test_type.includes('委外')">
+            <el-form-item label="查询设备可用性"><el-button :loading="availabilityLoading" plain @click="queryAvailableDevices">查询所选日期的可用设备</el-button></el-form-item>
+            <el-form-item label="试验设备">
+              <el-select v-model="form.device_id" filterable placeholder="请先查询，再选择设备">
+                <el-option
+                  v-for="device in availableDevices"
+                  :key="device.id"
+                  :label="`${device.device_code} · ${device.name}${device.available ? '' : `（${device.unavailable_reason}）`}`"
+                  :value="device.id"
+                  :disabled="!device.available"
+                />
+              </el-select>
+            </el-form-item>
           </template>
         </template>
         <template v-else-if="activeAction === 'register_sample'">
@@ -97,7 +141,6 @@ async function submitWorkflow() {
         </template>
         <template v-else-if="activeAction === 'start_test'">
           <el-form-item label="试验项目" class="form-wide"><el-input v-model="form.test_item_list" disabled type="textarea" :rows="3" /></el-form-item>
-          <el-form-item label="执行标准" class="form-wide"><el-input v-model="form.test_standard" /></el-form-item>
         </template>
         <template v-else-if="activeAction === 'submit_test' || activeAction === 'outsource_result'">
           <el-form-item v-if="activeAction === 'outsource_result'" label="开始时间"><el-date-picker v-model="form.test_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>

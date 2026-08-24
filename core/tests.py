@@ -10,6 +10,7 @@ from .models import (
     ChangeRequest,
     Experiment,
     Invoice,
+    LabDevice,
     LabOrder,
     OrderDocument,
     ReportAudit,
@@ -466,6 +467,12 @@ class LimsV2DirectLabWorkflowTests(TestCase):
             sale_user=self.users['sales_v2'],
             workflow_version=LabOrder.WorkflowVersion.LAB_DIRECT,
         )
+        self.suzhou_device = LabDevice.objects.create(
+            device_code='TEST-SZ-001', device_name='苏州测试台', lab_type=LabDevice.LabType.SUZHOU,
+        )
+        self.jiangyin_device = LabDevice.objects.create(
+            device_code='TEST-JY-001', device_name='江阴测试台', lab_type=LabDevice.LabType.JIANGYIN,
+        )
 
     def action(self, user_key, action, **payload):
         self.client.force_login(self.users[user_key])
@@ -518,6 +525,11 @@ class LimsV2DirectLabWorkflowTests(TestCase):
                 self.action(
                     user_key, 'process_change', schedule_id=schedule.id,
                     plan_start_time='2026-08-29', plan_end_time='2026-08-31',
+                    device_id=(
+                        self.suzhou_device.id if schedule.test_type == SchedulePlan.TestType.SUZHOU
+                        else self.jiangyin_device.id if schedule.test_type == SchedulePlan.TestType.JIANGYIN
+                        else None
+                    ),
                 ).status_code,
                 200,
             )
@@ -539,6 +551,11 @@ class LimsV2DirectLabWorkflowTests(TestCase):
             schedule_response = self.action(
                 user_key, 'schedule_assign', schedule_id=schedule.id,
                 plan_start_time='2026-09-01', plan_end_time='2026-09-05',
+                device_id=(
+                    self.suzhou_device.id if schedule.test_type == SchedulePlan.TestType.SUZHOU
+                    else self.jiangyin_device.id if schedule.test_type == SchedulePlan.TestType.JIANGYIN
+                    else None
+                ),
                 outsource_factory='委外测试机构' if schedule.test_type == SchedulePlan.TestType.OUTSOURCE else '',
             )
             self.assertEqual(schedule_response.status_code, 200)
@@ -550,9 +567,10 @@ class LimsV2DirectLabWorkflowTests(TestCase):
 
         for user_key, schedule in (('suzhou_v2', suzhou_schedule), ('jiangyin_v2', jiangyin_schedule)):
             self.assertEqual(
-                self.action(user_key, 'start_test', schedule_id=schedule.id, test_standard='GB/T 2423').status_code,
+                self.action(user_key, 'start_test', schedule_id=schedule.id, test_standard='此值应被后端忽略').status_code,
                 200,
             )
+            self.assertEqual(schedule.experiments.get().test_standard, 'GB/T 2423')
             self.assertEqual(
                 self.action(user_key, 'submit_test', test_raw_data='原始数据完整', test_conclusion_temp='合格').status_code,
                 200,
@@ -572,3 +590,91 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         self.order.refresh_from_db()
         self.assertEqual(self.order.order_status, LabOrder.Status.REPORT_REVIEW)
         self.assertEqual(self.order.reports.get().create_quality_user, self.users['suzhou_v2'])
+
+
+class LabDeviceSchedulingTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        group = Group.objects.create(name='苏州实验室')
+        self.manager = user_model.objects.create_user(username='device_manager', password='password123')
+        self.manager.groups.add(group)
+        self.device = LabDevice.objects.create(
+            device_code='DEVICE-SZ-001', device_name='冲突验证台', lab_type=LabDevice.LabType.SUZHOU,
+        )
+        self.order = LabOrder.objects.create(
+            order_no='DEVICE-ORDER-001', customer_name='设备排期客户', project_name='设备排期验证',
+            test_demand='振动耐久试验', test_standard='GB/T 2423.10', total_quote='10000.00',
+            order_status=LabOrder.Status.SCHEDULING, workflow_version=LabOrder.WorkflowVersion.LAB_DIRECT,
+            lead_lab_manager=self.manager, sales_confirmed_at=timezone.now(),
+        )
+        self.schedule = SchedulePlan.objects.create(
+            order=self.order, test_type=SchedulePlan.TestType.SUZHOU, lab_manager=self.manager,
+            quality_user=self.manager, remark='振动耐久试验',
+        )
+
+    def action(self, action, **payload):
+        self.client.force_login(self.manager)
+        return self.client.post(
+            reverse('lims_action'),
+            data={'action': action, 'order_no': self.order.order_no, 'schedule_id': self.schedule.id, **payload},
+            content_type='application/json',
+        )
+
+    def test_device_availability_and_conflict_are_enforced(self):
+        self.client.force_login(self.manager)
+        available = self.client.get(reverse('lab_device_availability'), {
+            'schedule_id': self.schedule.id, 'start_date': '2026-09-01', 'end_date': '2026-09-05',
+        })
+        self.assertEqual(available.status_code, 200)
+        selected = next(item for item in available.json()['devices'] if item['id'] == self.device.id)
+        self.assertTrue(selected['available'])
+
+        first = self.action(
+            'schedule_assign', device_id=self.device.id,
+            plan_start_time='2026-09-01', plan_end_time='2026-09-05',
+        )
+        self.assertEqual(first.status_code, 200)
+
+        other_order = LabOrder.objects.create(
+            order_no='DEVICE-ORDER-002', customer_name='冲突客户', project_name='冲突订单',
+            test_demand='同台试验', total_quote='8000.00', order_status=LabOrder.Status.SCHEDULING,
+            workflow_version=LabOrder.WorkflowVersion.LAB_DIRECT, lead_lab_manager=self.manager,
+        )
+        other_schedule = SchedulePlan.objects.create(
+            order=other_order, test_type=SchedulePlan.TestType.SUZHOU, lab_manager=self.manager,
+            quality_user=self.manager, remark='同台试验',
+        )
+        conflict = self.client.post(
+            reverse('lims_action'),
+            data={
+                'action': 'schedule_assign', 'order_no': other_order.order_no, 'schedule_id': other_schedule.id,
+                'device_id': self.device.id, 'plan_start_time': '2026-09-04', 'plan_end_time': '2026-09-08',
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(conflict.status_code, 400)
+        self.assertIn('排期冲突', conflict.json()['error'])
+
+    def test_device_crud_and_historical_delete_protection(self):
+        self.client.force_login(self.manager)
+        created = self.client.post(
+            reverse('lab_devices'),
+            data={'device_code': 'DEVICE-SZ-NEW', 'device_name': '新设备', 'model_spec': 'TEST'},
+            content_type='application/json',
+        )
+        self.assertEqual(created.status_code, 201)
+        device_id = created.json()['device']['id']
+        updated = self.client.patch(
+            reverse('lab_device_detail', args=[device_id]),
+            data={'device_name': '新设备（已维护）', 'device_status': LabDevice.Status.MAINTENANCE},
+            content_type='application/json',
+        )
+        self.assertEqual(updated.status_code, 200)
+        self.assertEqual(updated.json()['device']['status'], '维修中')
+        self.assertEqual(self.client.delete(reverse('lab_device_detail', args=[device_id])).status_code, 200)
+
+        self.schedule.device = self.device
+        self.schedule.save(update_fields=['device', 'update_time'])
+        protected = self.client.delete(reverse('lab_device_detail', args=[self.device.id]))
+        self.assertEqual(protected.status_code, 400)
+        self.assertIn('不能删除', protected.json()['error'])

@@ -412,8 +412,7 @@ async function submit() {
         </template>
 
         <template v-else-if="activeAction === 'start_test'">
-          <el-form-item label="试验项目" class="form-wide"><el-input v-model="actionForm.test_item_list" type="textarea" :rows="3" /></el-form-item>
-          <el-form-item label="检测标准"><el-input v-model="actionForm.test_standard" /></el-form-item>
+          <el-form-item label="试验项目" class="form-wide"><el-input v-model="actionForm.test_item_list" disabled type="textarea" :rows="3" /></el-form-item>
         </template>
 
         <template v-else-if="activeAction === 'submit_test'">

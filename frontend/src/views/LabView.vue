@@ -4,9 +4,9 @@ import { ElMessage } from 'element-plus'
 import { useRoute } from 'vue-router'
 import ScheduleTable from '../components/ScheduleTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
-import { fetchOrderDetail, workflowAction } from '../services/api'
+import { fetchAvailableDevices, fetchOrderDetail, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
-import type { OrderItem, ScheduleItem } from '../types'
+import type { LabDevice, OrderItem, ScheduleItem } from '../types'
 
 const route = useRoute()
 const session = useSession()
@@ -20,16 +20,14 @@ const activeSchedule = ref<ScheduleItem | null>(null)
 const activeOrder = ref<OrderItem | null>(null)
 const orderLoading = ref(false)
 const detailDrawerVisible = ref(false)
-const standardDialogVisible = ref(false)
-const standardSubmitting = ref(false)
+const availabilityLoading = ref(false)
+const availableDevices = ref<LabDevice[]>([])
 const form = reactive({
   change_scene: 2,
   change_content: '',
   new_test_demand: '',
   test_item_list: '',
-  standard_industry: '',
-  standard_id: undefined as number | undefined,
-  test_standard: '',
+  device_id: undefined as number | undefined,
   test_raw_data: '',
   test_conclusion_temp: '',
   plan_start_time: '',
@@ -46,22 +44,6 @@ const form = reactive({
   report_no: '',
   final_conclusion: '',
 })
-const standardForm = reactive({
-  industry: '',
-  standard_code: '',
-  standard_name: '',
-  description: '',
-})
-
-const standards = computed(() => session.state.dashboard?.test_standards ?? [])
-const standardIndustries = computed(() => Array.from(new Set(standards.value.map((item) => item.industry))).filter(Boolean))
-const standardOptions = computed(() => standards.value.filter((item) => item.industry === form.standard_industry))
-
-const canManageStandards = computed(() => {
-  const roles = new Set(session.state.user.roles || [])
-  return Boolean(session.state.user.is_chairman || roles.has('苏州实验室') || roles.has('江阴实验室') || roles.has('质量部'))
-})
-
 async function loadOrderContext(orderNo: string) {
   activeOrder.value = null
   orderLoading.value = true
@@ -83,16 +65,13 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
   activeAction.value = action
   activeSchedule.value = schedule
   activeOrderNo.value = schedule.order_no
-  const firstIndustry = standardIndustries.value[0] || ''
-  const firstStandard = standards.value.find((item) => item.industry === firstIndustry)
+  availableDevices.value = []
   Object.assign(form, {
     change_scene: 2,
     change_content: '',
     new_test_demand: '',
     test_item_list: schedule.remark || schedule.project_name,
-    standard_industry: firstIndustry,
-    standard_id: firstStandard?.id,
-    test_standard: firstStandard ? `${firstStandard.standard_code} ${firstStandard.standard_name}` : '',
+    device_id: schedule.device_id || undefined,
     test_raw_data: '',
     test_conclusion_temp: '',
     plan_start_time: schedule.start_time || '',
@@ -111,50 +90,42 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
   })
   dialogVisible.value = true
   void loadOrderContext(schedule.order_no)
-}
-
-function handleIndustryChange() {
-  form.standard_id = standardOptions.value[0]?.id
-}
-
-function openStandardDialog() {
-  Object.assign(standardForm, {
-    industry: '',
-    standard_code: '',
-    standard_name: '',
-    description: '',
-  })
-  standardDialogVisible.value = true
-}
-
-async function submitStandard() {
-  standardSubmitting.value = true
-  try {
-    await workflowAction({ action: 'standard_create', ...standardForm })
-    ElMessage.success('试验标准已保存')
-    standardDialogVisible.value = false
-    await session.refreshDashboard()
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '保存失败')
-  } finally {
-    standardSubmitting.value = false
+  if ((action === 'schedule_assign' || action === 'process_change') && schedule.start_time && schedule.end_time && !schedule.test_type.includes('委外')) {
+    void queryAvailableDevices()
   }
+}
+
+async function queryAvailableDevices() {
+  if (!activeSchedule.value || !form.plan_start_time || !form.plan_end_time) {
+    ElMessage.warning('请先选择计划开始和结束日期')
+    return
+  }
+  availabilityLoading.value = true
+  try {
+    availableDevices.value = await fetchAvailableDevices(activeSchedule.value.id, form.plan_start_time, form.plan_end_time)
+    const selected = availableDevices.value.find((item) => item.id === form.device_id)
+    if (selected && !selected.available) form.device_id = undefined
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '设备可用性查询失败')
+  } finally {
+    availabilityLoading.value = false
+  }
+}
+
+function resetDeviceSelection() {
+  availableDevices.value = []
+  form.device_id = undefined
 }
 
 async function submitWorkflow() {
   submitting.value = true
   try {
-    const selectedStandard = standards.value.find((item) => item.id === form.standard_id)
-    const testStandard = selectedStandard
-      ? `${selectedStandard.standard_code} ${selectedStandard.standard_name}`
-      : form.test_standard
     await workflowAction({
       action: activeAction.value,
       order_no: activeOrderNo.value,
       schedule_id: activeSchedule.value?.id,
       ...form,
       test_item_list: activeSchedule.value?.remark || form.test_item_list,
-      test_standard: testStandard,
     })
     ElMessage.success('试验节点操作已完成')
     dialogVisible.value = false
@@ -174,14 +145,13 @@ async function submitWorkflow() {
         <h2>{{ lab?.name }}</h2>
         <p>上半部分显示设备状态和未来排期，下半部分筛选本实验室订单。</p>
       </div>
-      <el-button v-if="canManageStandards" type="primary" @click="openStandardDialog">添加试验标准</el-button>
     </div>
 
     <div class="device-grid">
       <el-card v-for="device in lab?.devices ?? []" :key="device.name" shadow="never" class="device-card">
         <div class="device-head">
           <h3>{{ device.name }}</h3>
-          <el-tag :type="device.status.includes('运行') ? 'success' : 'info'" effect="plain">{{ device.status }}</el-tag>
+          <el-tag :type="device.status === '实验中' || device.status === '设备正常' ? 'success' : device.status === '维修中' ? 'warning' : 'danger'" effect="plain">{{ device.status }}</el-tag>
         </div>
         <p v-if="device.order_no" class="device-current">
           {{ device.order_no }} / {{ device.project_name }}
@@ -209,18 +179,34 @@ async function submitWorkflow() {
     <el-dialog v-model="dialogVisible" title="实验室任务操作" width="min(960px, 94vw)">
       <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="试验任务订单信息" />
       <el-form label-position="top" class="form-grid mt-16">
-        <template v-if="activeAction === 'schedule_assign'">
-          <el-form-item label="计划开始"><el-date-picker v-model="form.plan_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
-          <el-form-item label="计划结束"><el-date-picker v-model="form.plan_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
-          <template v-if="activeSchedule?.test_type.includes('委外')">
+        <template v-if="activeAction === 'schedule_assign' || activeAction === 'process_change'">
+          <el-form-item :label="activeAction === 'process_change' ? '调整后开始' : '计划开始'">
+            <el-date-picker v-model="form.plan_start_time" value-format="YYYY-MM-DD" type="date" @change="resetDeviceSelection" />
+          </el-form-item>
+          <el-form-item :label="activeAction === 'process_change' ? '调整后结束' : '计划结束'">
+            <el-date-picker v-model="form.plan_end_time" value-format="YYYY-MM-DD" type="date" @change="resetDeviceSelection" />
+          </el-form-item>
+          <template v-if="activeSchedule?.test_type.includes('委外') && activeAction === 'schedule_assign'">
             <el-form-item label="委外厂家"><el-input v-model="form.outsource_factory" /></el-form-item>
             <el-form-item label="委外价格"><el-input v-model="form.outsource_price" type="number" /></el-form-item>
             <el-form-item label="委外周期/天"><el-input v-model="form.outsource_cycle" type="number" /></el-form-item>
           </template>
-        </template>
-        <template v-else-if="activeAction === 'process_change'">
-          <el-form-item label="调整后开始"><el-date-picker v-model="form.plan_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
-          <el-form-item label="调整后结束"><el-date-picker v-model="form.plan_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+          <template v-else-if="!activeSchedule?.test_type.includes('委外')">
+            <el-form-item label="查询设备可用性">
+              <el-button :loading="availabilityLoading" plain @click="queryAvailableDevices">查询所选日期的可用设备</el-button>
+            </el-form-item>
+            <el-form-item label="试验设备">
+              <el-select v-model="form.device_id" filterable placeholder="请先查询，再选择设备">
+                <el-option
+                  v-for="device in availableDevices"
+                  :key="device.id"
+                  :label="`${device.device_code} · ${device.name}${device.available ? '' : `（${device.unavailable_reason}）`}`"
+                  :value="device.id"
+                  :disabled="!device.available"
+                />
+              </el-select>
+            </el-form-item>
+          </template>
         </template>
         <template v-else-if="activeAction === 'register_sample'">
           <el-form-item label="样品名称"><el-input v-model="form.sample_name" /></el-form-item>
@@ -231,21 +217,6 @@ async function submitWorkflow() {
         <template v-else-if="activeAction === 'start_test'">
           <el-form-item label="试验项目" class="form-wide">
             <el-input v-model="form.test_item_list" disabled type="textarea" :rows="3" />
-          </el-form-item>
-          <el-form-item label="行业">
-            <el-select v-model="form.standard_industry" placeholder="选择行业" @change="handleIndustryChange">
-              <el-option v-for="industry in standardIndustries" :key="industry" :label="industry" :value="industry" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="检测标准">
-            <el-select v-model="form.standard_id" filterable placeholder="选择标准">
-              <el-option
-                v-for="standard in standardOptions"
-                :key="standard.id"
-                :label="`${standard.standard_code} ${standard.standard_name}`"
-                :value="standard.id"
-              />
-            </el-select>
           </el-form-item>
         </template>
         <template v-else-if="activeAction === 'submit_test'">
@@ -277,17 +248,5 @@ async function submitWorkflow() {
       <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="实验室订单信息" />
     </el-drawer>
 
-    <el-dialog v-model="standardDialogVisible" title="添加试验标准" width="640px">
-      <el-form label-position="top" class="form-grid">
-        <el-form-item label="行业"><el-input v-model="standardForm.industry" placeholder="例如：振动、汽车、环境" /></el-form-item>
-        <el-form-item label="标准编号"><el-input v-model="standardForm.standard_code" placeholder="例如：GB/T 2423.10" /></el-form-item>
-        <el-form-item label="标准名称" class="form-wide"><el-input v-model="standardForm.standard_name" /></el-form-item>
-        <el-form-item label="说明" class="form-wide"><el-input v-model="standardForm.description" type="textarea" :rows="3" /></el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="standardDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="standardSubmitting" @click="submitStandard">保存标准</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>

@@ -115,6 +115,7 @@ Supporting reference tables:
 ```text
 lims_test_standard        industry/category based test standard library
 lims_order_document       protected sales-order contracts and attachments
+lims_lab_device           Suzhou/Jiangyin laboratory equipment registry
 ```
 
 Sales-order extension fields:
@@ -582,7 +583,7 @@ The workflow action layer is functional but still a pragmatic first version. Imp
 ## 17. Development Rules
 
 - Treat this `agnet.md` as the baseline for future development.
-- Preserve the 9+1 LIMS table architecture unless the user approves a migration plan.
+- Preserve the 9 core workflow tables, workflow log, and approved supporting reference tables unless the user approves a migration plan.
 - Do not break role-based menu and row-level permissions.
 - Every workflow action must write `WorkflowEvent`.
 - Every new workflow button must have backend permission checks.
@@ -677,3 +678,25 @@ Every workflow change must preserve both test paths:
 - Quality role receives HTTP 403 for V2 operational actions.
 - Non-assigned laboratory managers cannot operate another manager's route.
 - Non-lead laboratory managers cannot issue the final report.
+
+## 20. Laboratory Equipment And Scheduling Baseline
+
+Migration `0006` introduces formal equipment scheduling for internal laboratory routes.
+
+- `LabDevice` is stored in `lims_lab_device` and belongs to either Suzhou or Jiangyin.
+- Configured equipment states are `设备正常`, `维修中`, and `设备停用`.
+- `实验中` is a derived display state when a linked schedule is running; never persist it manually.
+- `SchedulePlan.device` links an internal route to its selected test bench. Historical schedules may remain null.
+- Every new V2 internal schedule and every V2 schedule change must include a device.
+- The selected device must belong to the schedule's laboratory and be in normal state.
+- Two non-finished schedules cannot overlap on the same device. The authoritative overlap rule is
+  `existing.start < requested.end AND existing.end > requested.start`.
+- Availability shown by the frontend is advisory; `_action_schedule_assign` and
+  `_action_process_change` must always validate again inside a database transaction.
+- A device with any schedule history cannot be deleted. Managers must set it to `设备停用` instead.
+- A running device cannot be changed directly to maintenance or disabled.
+- Suzhou/Jiangyin managers can manage only their own laboratory's devices; the chairman can manage both.
+- Starting a test uses the route task and the sales/technical order standard automatically. Laboratory
+  users do not choose industry or test standard in the start-test dialog.
+- The equipment management page and laboratory overview must show real current/future schedule data,
+  never synthesized placeholder devices or mock bookings.

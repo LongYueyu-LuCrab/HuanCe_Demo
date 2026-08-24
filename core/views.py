@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabOrder, OrderDocument, ReportAudit, Sample, SchedulePlan, TestReport, TestStandard, WorkflowEvent
+from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabDevice, LabOrder, OrderDocument, ReportAudit, Sample, SchedulePlan, TestReport, TestStandard, WorkflowEvent
 
 
 ROLE_SALES = '销售'
@@ -274,6 +274,9 @@ def _schedule_payload(schedule):
         'end_time': schedule.plan_end_time.strftime('%Y-%m-%d') if schedule.plan_end_time else '',
         'schedule_status': schedule.get_schedule_status_display(),
         'lab_manager': _display_user(schedule.lab_manager),
+        'device_id': schedule.device_id,
+        'device_code': schedule.device.device_code if schedule.device else '',
+        'device_name': schedule.device.device_name if schedule.device else '',
         'is_lead': bool(order.lead_lab_manager_id and order.lead_lab_manager_id == schedule.lab_manager_id),
         'sample_registered': schedule.samples.exists(),
         'experiment_status': schedule.experiments.first().get_test_status_display() if schedule.experiments.exists() else '',
@@ -374,8 +377,65 @@ def _limit_queryset(queryset, limit=50):
     return queryset[:limit_value]
 
 
+def _device_booking_queryset(device, exclude_schedule_id=None):
+    bookings = device.schedules.select_related('order', 'lab_manager', 'device').exclude(
+        schedule_status=SchedulePlan.Status.FINISHED,
+    ).exclude(
+        order__order_status__in=[LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED],
+    )
+    if exclude_schedule_id:
+        bookings = bookings.exclude(id=exclude_schedule_id)
+    return bookings
+
+
+def _device_conflict(device, start_time, end_time, exclude_schedule_id=None):
+    return _device_booking_queryset(device, exclude_schedule_id).filter(
+        plan_start_time__lt=end_time,
+        plan_end_time__gt=start_time,
+    ).order_by('plan_start_time').first()
+
+
+def _device_payload(device, start_time=None, end_time=None, exclude_schedule_id=None):
+    now = timezone.now()
+    bookings = _device_booking_queryset(device).order_by('plan_start_time', 'id')
+    running = bookings.filter(schedule_status=SchedulePlan.Status.RUNNING).first()
+    future = bookings.filter(plan_end_time__gte=now)
+    if running:
+        future = future.exclude(id=running.id)
+    future = future[:8]
+    conflict = None
+    available = device.device_status == LabDevice.Status.NORMAL
+    reason = ''
+    if not available:
+        reason = device.get_device_status_display()
+    elif start_time and end_time:
+        conflict = _device_conflict(device, start_time, end_time, exclude_schedule_id)
+        if conflict:
+            available = False
+            reason = f'与 {conflict.order.order_no} 排期冲突'
+    return {
+        'id': device.id,
+        'device_code': device.device_code,
+        'name': device.device_name,
+        'lab_type': device.lab_type,
+        'lab_name': device.get_lab_type_display(),
+        'model_spec': device.model_spec,
+        'capability': device.capability,
+        'status_key': device.device_status,
+        'status': '实验中' if running else device.get_device_status_display(),
+        'configured_status': device.get_device_status_display(),
+        'remark': device.remark,
+        'available': available,
+        'unavailable_reason': reason,
+        'order_no': running.order.order_no if running else '',
+        'project_name': running.order.project_name if running else '',
+        'end_time': running.plan_end_time.strftime('%Y-%m-%d') if running and running.plan_end_time else '',
+        'future_orders': [_schedule_payload(item) for item in future],
+    }
+
+
 def _lab_payload(test_type, name, related_orders=None, user=None):
-    schedules = SchedulePlan.objects.select_related('order').filter(test_type=test_type).order_by('plan_start_time')
+    schedules = SchedulePlan.objects.select_related('order', 'device').filter(test_type=test_type).order_by('plan_start_time')
     if related_orders is not None:
         schedules = schedules.filter(order__in=related_orders)
     if user is not None and not _is_chairman(user):
@@ -389,32 +449,11 @@ def _lab_payload(test_type, name, related_orders=None, user=None):
             schedules = schedules.filter(lab_manager=user)
         if not can_view_lab:
             schedules = schedules.none()
-    active_statuses = [SchedulePlan.Status.RUNNING, SchedulePlan.Status.CHANGE_PENDING]
-    active_schedules = schedules.filter(schedule_status__in=active_statuses)
-    future_schedules = schedules.exclude(schedule_status=SchedulePlan.Status.FINISHED)
-
-    device_names = {
-        SchedulePlan.TestType.SUZHOU: ['20吨台', '50吨台', '三综合试验箱'],
-        SchedulePlan.TestType.JIANGYIN: ['振动台', '盐雾试验箱', '高低温湿热箱'],
-    }[test_type]
-    active_list = list(active_schedules[:3])
-    future_list = list(future_schedules[3:9])
-
-    devices = []
-    for index, device_name in enumerate(device_names):
-        schedule = active_list[index] if index < len(active_list) else None
-        devices.append({
-            'name': device_name,
-            'status': '运行中' if schedule else '空闲',
-            'order_no': schedule.order.order_no if schedule else '',
-            'project_name': schedule.order.project_name if schedule else '',
-            'end_time': schedule.plan_end_time.strftime('%Y-%m-%d') if schedule and schedule.plan_end_time else '',
-            'future_orders': [_schedule_payload(item) for item in future_list[index::len(device_names)][:3]],
-        })
+    devices = LabDevice.objects.filter(lab_type=test_type).order_by('device_code')
 
     return {
         'name': name,
-        'devices': devices,
+        'devices': [_device_payload(device) for device in devices],
         'orders': [_schedule_payload(item) for item in _limit_queryset(schedules, 80)],
     }
 
@@ -470,6 +509,44 @@ def _parse_datetime(value):
     if timezone.is_naive(parsed):
         return timezone.make_aware(parsed)
     return parsed
+
+
+def _parse_plan_range(start_value, end_value):
+    start_time = _parse_datetime(start_value)
+    end_time = _parse_datetime(end_value)
+    if end_time and isinstance(end_value, str) and len(end_value.strip()) == 10:
+        end_date = date.fromisoformat(end_value.strip())
+        end_time = timezone.make_aware(datetime.combine(end_date, time.max))
+    if not start_time or not end_time:
+        return None, None, '计划开始和结束日期必填'
+    if end_time <= start_time:
+        return None, None, '计划结束日期必须晚于或等于开始日期'
+    return start_time, end_time, ''
+
+
+def _assign_schedule_device(schedule, payload, start_time, end_time):
+    if schedule.test_type == SchedulePlan.TestType.OUTSOURCE:
+        schedule.device = None
+        return ''
+    try:
+        device_id = int(payload.get('device_id') or schedule.device_id or 0)
+    except (TypeError, ValueError):
+        device_id = 0
+    if not device_id:
+        return '内部实验室排期必须选择试验设备'
+    device = LabDevice.objects.select_for_update().filter(id=device_id).first()
+    if not device:
+        return '选择的试验设备不存在'
+    if device.lab_type != schedule.test_type:
+        return '试验设备不属于当前实验室'
+    if device.device_status != LabDevice.Status.NORMAL:
+        return f'设备当前为“{device.get_device_status_display()}”，不可排期'
+    conflict = _device_conflict(device, start_time, end_time, schedule.id)
+    if conflict:
+        conflict_end = conflict.plan_end_time.strftime('%Y-%m-%d') if conflict.plan_end_time else '待定'
+        return f'设备与订单 {conflict.order.order_no} 的排期冲突（至 {conflict_end}）'
+    schedule.device = device
+    return ''
 
 
 def _json_payload(request):
@@ -707,6 +784,145 @@ def add_employee(request):
                 'email': employee.email,
                 'role': role,
             },
+        },
+        json_dumps_params={'ensure_ascii': False},
+    )
+
+
+def _device_lab_types_for_user(user, include_read_only=False):
+    if _is_chairman(user) or (include_read_only and ROLE_GENERAL_MANAGER in _roles(user)):
+        return [LabDevice.LabType.SUZHOU, LabDevice.LabType.JIANGYIN]
+    roles = set(_roles(user))
+    lab_types = []
+    if ROLE_SUZHOU_LAB in roles:
+        lab_types.append(LabDevice.LabType.SUZHOU)
+    if ROLE_JIANGYIN_LAB in roles:
+        lab_types.append(LabDevice.LabType.JIANGYIN)
+    return lab_types
+
+
+@csrf_exempt
+@transaction.atomic
+def lab_devices(request):
+    auth_error = _require_auth(request)
+    if auth_error:
+        return auth_error
+    allowed_types = _device_lab_types_for_user(request.user, include_read_only=request.method == 'GET')
+    if not allowed_types:
+        return JsonResponse({'ok': False, 'error': '当前岗位无权访问设备管理'}, status=403, json_dumps_params={'ensure_ascii': False})
+    if request.method == 'GET':
+        devices = LabDevice.objects.filter(lab_type__in=allowed_types).order_by('lab_type', 'device_code')
+        return JsonResponse(
+            {'ok': True, 'devices': [_device_payload(device) for device in devices]},
+            json_dumps_params={'ensure_ascii': False},
+        )
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['GET', 'POST'])
+    payload, parse_error = _json_payload(request)
+    if parse_error:
+        return parse_error
+    try:
+        lab_type = int(payload.get('lab_type') or (allowed_types[0] if len(allowed_types) == 1 else 0))
+    except (TypeError, ValueError):
+        lab_type = 0
+    if lab_type not in allowed_types:
+        return JsonResponse({'ok': False, 'error': '不能在其他实验室新增设备'}, status=403, json_dumps_params={'ensure_ascii': False})
+    device_code = str(payload.get('device_code') or '').strip()
+    device_name = str(payload.get('device_name') or '').strip()
+    if not device_code or not device_name:
+        return JsonResponse({'ok': False, 'error': '设备编号和设备名称必填'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if LabDevice.objects.filter(device_code=device_code).exists():
+        return JsonResponse({'ok': False, 'error': '设备编号已存在'}, status=400, json_dumps_params={'ensure_ascii': False})
+    device = LabDevice.objects.create(
+        device_code=device_code,
+        device_name=device_name,
+        lab_type=lab_type,
+        model_spec=str(payload.get('model_spec') or '').strip(),
+        capability=str(payload.get('capability') or '').strip(),
+        device_status=LabDevice.Status.NORMAL,
+        remark=str(payload.get('remark') or '').strip(),
+        created_by=request.user,
+    )
+    return JsonResponse(
+        {'ok': True, 'message': '设备已新增', 'device': _device_payload(device)},
+        status=201,
+        json_dumps_params={'ensure_ascii': False},
+    )
+
+
+@csrf_exempt
+@transaction.atomic
+def lab_device_detail(request, device_id):
+    auth_error = _require_auth(request)
+    if auth_error:
+        return auth_error
+    allowed_types = _device_lab_types_for_user(request.user)
+    device = get_object_or_404(LabDevice.objects.select_for_update(), id=device_id)
+    if device.lab_type not in allowed_types:
+        return JsonResponse({'ok': False, 'error': '无权管理该实验室设备'}, status=403, json_dumps_params={'ensure_ascii': False})
+    if request.method == 'DELETE':
+        if device.schedules.exists():
+            return JsonResponse(
+                {'ok': False, 'error': '设备已有排期或历史记录，不能删除；请改为“设备停用”'},
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            )
+        device.delete()
+        return JsonResponse({'ok': True, 'message': '设备已删除'}, json_dumps_params={'ensure_ascii': False})
+    if request.method != 'PATCH':
+        return HttpResponseNotAllowed(['PATCH', 'DELETE'])
+    payload, parse_error = _json_payload(request)
+    if parse_error:
+        return parse_error
+    try:
+        status_value = int(payload.get('device_status') or device.device_status)
+    except (TypeError, ValueError):
+        status_value = 0
+    if status_value not in LabDevice.Status.values:
+        return JsonResponse({'ok': False, 'error': '设备状态无效'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if status_value != LabDevice.Status.NORMAL and device.schedules.filter(
+        schedule_status=SchedulePlan.Status.RUNNING
+    ).exists():
+        return JsonResponse({'ok': False, 'error': '设备正在执行试验，不能直接维修或停用'}, status=400, json_dumps_params={'ensure_ascii': False})
+    device.device_name = str(payload.get('device_name') or device.device_name).strip()
+    device.model_spec = str(payload.get('model_spec') if payload.get('model_spec') is not None else device.model_spec).strip()
+    device.capability = str(payload.get('capability') if payload.get('capability') is not None else device.capability).strip()
+    device.remark = str(payload.get('remark') if payload.get('remark') is not None else device.remark).strip()
+    device.device_status = status_value
+    device.save()
+    return JsonResponse(
+        {'ok': True, 'message': '设备信息已更新', 'device': _device_payload(device)},
+        json_dumps_params={'ensure_ascii': False},
+    )
+
+
+def lab_device_availability(request):
+    auth_error = _require_auth(request)
+    if auth_error:
+        return auth_error
+    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB)
+    if role_error:
+        return role_error
+    try:
+        schedule_id = int(request.GET.get('schedule_id') or 0)
+    except (TypeError, ValueError):
+        schedule_id = 0
+    schedule = SchedulePlan.objects.select_related('order').filter(id=schedule_id).first()
+    if not schedule or schedule.test_type == SchedulePlan.TestType.OUTSOURCE:
+        return JsonResponse({'ok': False, 'error': '内部实验室排期不存在'}, status=404, json_dumps_params={'ensure_ascii': False})
+    if not _is_chairman(request.user) and schedule.lab_manager_id != request.user.id:
+        return JsonResponse({'ok': False, 'error': '无权查询该排期设备'}, status=403, json_dumps_params={'ensure_ascii': False})
+    start_time, end_time, range_error = _parse_plan_range(
+        request.GET.get('start_date'), request.GET.get('end_date')
+    )
+    if range_error:
+        return JsonResponse({'ok': False, 'error': range_error}, status=400, json_dumps_params={'ensure_ascii': False})
+    devices = LabDevice.objects.filter(lab_type=schedule.test_type).order_by('device_code')
+    return JsonResponse(
+        {
+            'ok': True,
+            'schedule_id': schedule.id,
+            'devices': [_device_payload(device, start_time, end_time, schedule.id) for device in devices],
         },
         json_dumps_params={'ensure_ascii': False},
     )
@@ -1123,10 +1339,16 @@ def _action_schedule_assign(request, payload):
         schedule = _schedule_for_actor(order, payload, request.user)
         if not schedule:
             return JsonResponse({'ok': False, 'error': '没有分配给当前负责人的任务'}, status=403, json_dumps_params={'ensure_ascii': False})
-        schedule.plan_start_time = _parse_datetime(payload.get('plan_start_time')) or schedule.plan_start_time
-        schedule.plan_end_time = _parse_datetime(payload.get('plan_end_time')) or schedule.plan_end_time
-        if not schedule.plan_start_time or not schedule.plan_end_time:
-            return JsonResponse({'ok': False, 'error': '计划开始和结束时间必填'}, status=400, json_dumps_params={'ensure_ascii': False})
+        start_time, end_time, range_error = _parse_plan_range(
+            payload.get('plan_start_time'), payload.get('plan_end_time')
+        )
+        if range_error:
+            return JsonResponse({'ok': False, 'error': range_error}, status=400, json_dumps_params={'ensure_ascii': False})
+        device_error = _assign_schedule_device(schedule, payload, start_time, end_time)
+        if device_error:
+            return JsonResponse({'ok': False, 'error': device_error}, status=400, json_dumps_params={'ensure_ascii': False})
+        schedule.plan_start_time = start_time
+        schedule.plan_end_time = end_time
         if schedule.test_type == SchedulePlan.TestType.OUTSOURCE:
             schedule.outsource_factory = payload.get('outsource_factory') or schedule.outsource_factory
             schedule.outsource_price = Decimal(str(payload.get('outsource_price') or schedule.outsource_price or '0'))
@@ -1177,14 +1399,24 @@ def _action_process_change(request, payload):
     if role_error:
         return role_error
     pending_changes = order.change_requests.exclude(change_status=ChangeRequest.Status.APPLIED)
+    if payload.get('schedule_id'):
+        pending_changes = pending_changes.filter(schedule_id=payload.get('schedule_id'))
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not _is_chairman(request.user):
         pending_changes = pending_changes.filter(schedule__lab_manager=request.user)
     change = pending_changes.first()
     if not change:
         return JsonResponse({'ok': False, 'error': '没有待处理变更单'}, status=400, json_dumps_params={'ensure_ascii': False})
     if change.schedule:
-        change.schedule.plan_start_time = _parse_datetime(payload.get('plan_start_time')) or change.schedule.plan_start_time
-        change.schedule.plan_end_time = _parse_datetime(payload.get('plan_end_time')) or change.schedule.plan_end_time
+        start_time, end_time, range_error = _parse_plan_range(
+            payload.get('plan_start_time'), payload.get('plan_end_time')
+        )
+        if range_error:
+            return JsonResponse({'ok': False, 'error': range_error}, status=400, json_dumps_params={'ensure_ascii': False})
+        device_error = _assign_schedule_device(change.schedule, payload, start_time, end_time)
+        if device_error:
+            return JsonResponse({'ok': False, 'error': device_error}, status=400, json_dumps_params={'ensure_ascii': False})
+        change.schedule.plan_start_time = start_time
+        change.schedule.plan_end_time = end_time
         change.schedule.schedule_status = SchedulePlan.Status.NEW
         change.schedule.save()
     change.change_status = ChangeRequest.Status.APPLIED
@@ -1238,6 +1470,15 @@ def _action_start_test(request, payload):
     schedule = order.schedules.filter(test_type=allowed_type, lab_manager=request.user).first()
     if not schedule:
         return JsonResponse({'ok': False, 'error': '没有分配给当前实验室负责人的排期'}, status=403, json_dumps_params={'ensure_ascii': False})
+    if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
+        if not schedule.device:
+            return JsonResponse({'ok': False, 'error': '请先完成设备排台'}, status=400, json_dumps_params={'ensure_ascii': False})
+        if schedule.device.device_status != LabDevice.Status.NORMAL:
+            return JsonResponse(
+                {'ok': False, 'error': f'设备当前为“{schedule.device.get_device_status_display()}”，不能开始试验'},
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            )
     sample = order.samples.filter(schedule=schedule).first()
     if not sample:
         return JsonResponse({'ok': False, 'error': '请先登记当前任务样品'}, status=400, json_dumps_params={'ensure_ascii': False})
@@ -1251,7 +1492,7 @@ def _action_start_test(request, payload):
         sample=sample,
         defaults={
             'test_item_list': schedule.remark or payload.get('test_item_list') or order.test_demand,
-            'test_standard': payload.get('test_standard') or order.test_standard or '待录入',
+            'test_standard': order.test_standard or '订单未指定',
             'test_start_time': timezone.now(),
             'test_operator': request.user,
             'test_status': Experiment.Status.RUNNING,
@@ -1259,7 +1500,7 @@ def _action_start_test(request, payload):
         },
     )
     experiment.test_item_list = schedule.remark or payload.get('test_item_list') or order.test_demand
-    experiment.test_standard = payload.get('test_standard') or experiment.test_standard or order.test_standard or '待录入'
+    experiment.test_standard = order.test_standard or '订单未指定'
     experiment.test_start_time = experiment.test_start_time or timezone.now()
     experiment.test_operator = request.user
     experiment.test_status = Experiment.Status.RUNNING
@@ -1571,7 +1812,7 @@ def lims_dashboard(request):
             | Q(schedules__test_type=SchedulePlan.TestType.OUTSOURCE)
         ).distinct().order_by('-create_time')
     ]
-    schedules = SchedulePlan.objects.select_related('order', 'lab_manager', 'quality_user').filter(
+    schedules = SchedulePlan.objects.select_related('order', 'lab_manager', 'quality_user', 'device').filter(
         order__in=related_orders
     ).order_by('-plan_start_time', '-create_time')
     samples = Sample.objects.select_related('order', 'schedule', 'quality_user').filter(

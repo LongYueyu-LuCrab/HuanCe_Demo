@@ -196,6 +196,42 @@ class BusinessReview(TimeStampedModel):
         return f'{self.order.order_no} 评审'
 
 
+class LabDevice(TimeStampedModel):
+    class LabType(models.IntegerChoices):
+        SUZHOU = 1, '苏州实验室'
+        JIANGYIN = 2, '江阴实验室'
+
+    class Status(models.IntegerChoices):
+        NORMAL = 1, '设备正常'
+        MAINTENANCE = 2, '维修中'
+        DISABLED = 3, '设备停用'
+
+    device_code = models.CharField('设备编号', max_length=64, unique=True)
+    device_name = models.CharField('设备名称', max_length=100)
+    lab_type = models.PositiveSmallIntegerField('所属实验室', choices=LabType.choices)
+    model_spec = models.CharField('规格型号', max_length=200, blank=True)
+    capability = models.CharField('试验能力', max_length=500, blank=True)
+    device_status = models.PositiveSmallIntegerField('设备状态', choices=Status.choices, default=Status.NORMAL)
+    remark = models.CharField('设备备注', max_length=500, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='创建人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_created_devices',
+    )
+
+    class Meta:
+        db_table = 'lims_lab_device'
+        verbose_name = '实验室设备'
+        verbose_name_plural = '实验室设备'
+        ordering = ['lab_type', 'device_code']
+
+    def __str__(self):
+        return f'{self.device_code} {self.device_name}'
+
+
 class SchedulePlan(TimeStampedModel):
     class TestType(models.IntegerChoices):
         SUZHOU = 1, '苏州内部实验室'
@@ -217,6 +253,14 @@ class SchedulePlan(TimeStampedModel):
         null=True,
         blank=True,
         related_name='lims_lab_schedules',
+    )
+    device = models.ForeignKey(
+        LabDevice,
+        verbose_name='试验设备',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='schedules',
     )
     outsource_factory = models.CharField('委外厂家名称', max_length=100, blank=True)
     outsource_price = models.DecimalField('委外试验单价', max_digits=12, decimal_places=2, default=0)

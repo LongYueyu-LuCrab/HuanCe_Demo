@@ -1,4 +1,4 @@
-import type { Dashboard, OrderItem, User } from '../types'
+import type { Dashboard, LabDevice, OrderItem, User } from '../types'
 
 async function parseJson<T>(response: Response): Promise<T> {
   const data = await response.json()
@@ -95,6 +95,50 @@ export async function workflowAction(payload: WorkflowActionPayload) {
     body: JSON.stringify(payload),
   })
   return parseJson(response)
+}
+
+export async function fetchLabDevices(): Promise<LabDevice[]> {
+  const response = await fetch('/api/labs/devices/', { credentials: 'include' })
+  const data = await parseJson<{ ok: boolean; devices: LabDevice[] }>(response)
+  return data.devices
+}
+
+export async function fetchAvailableDevices(scheduleId: number, startDate: string, endDate: string): Promise<LabDevice[]> {
+  const params = new URLSearchParams({ schedule_id: String(scheduleId), start_date: startDate, end_date: endDate })
+  const response = await fetch(`/api/labs/devices/availability/?${params}`, { credentials: 'include' })
+  const data = await parseJson<{ ok: boolean; devices: LabDevice[] }>(response)
+  return data.devices
+}
+
+export type LabDevicePayload = {
+  device_code?: string
+  device_name: string
+  lab_type?: number
+  model_spec?: string
+  capability?: string
+  device_status?: number
+  remark?: string
+}
+
+export async function createLabDevice(payload: LabDevicePayload): Promise<LabDevice> {
+  const response = await fetch('/api/labs/devices/', {
+    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  })
+  const data = await parseJson<{ ok: boolean; device: LabDevice }>(response)
+  return data.device
+}
+
+export async function updateLabDevice(deviceId: number, payload: LabDevicePayload): Promise<LabDevice> {
+  const response = await fetch(`/api/labs/devices/${deviceId}/`, {
+    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  })
+  const data = await parseJson<{ ok: boolean; device: LabDevice }>(response)
+  return data.device
+}
+
+export async function deleteLabDevice(deviceId: number): Promise<void> {
+  const response = await fetch(`/api/labs/devices/${deviceId}/`, { method: 'DELETE', credentials: 'include' })
+  await parseJson(response)
 }
 
 export type AddEmployeePayload = {
