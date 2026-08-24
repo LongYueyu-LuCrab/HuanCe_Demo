@@ -604,7 +604,8 @@ Sales-order fields are shared workflow context, not sales-only presentation data
 - Business review, technical review, scheduling, sample registration, laboratory execution,
   report review, outsourcing, and finance must expose the complete visible order context.
 - The context includes customer/contact details, project and test demand, quote, industry,
-  autonomous/outsourced attributes, dates, remarks, contracts, and attachments.
+  test method, test standard, autonomous/outsourced attributes, dates, remarks, contracts,
+  and attachments.
 - Contracts and attachments remain protected resources and must be downloaded through the
   authenticated document endpoint; never expose their private storage path directly.
 - Load full details lazily when a user opens a workflow action or detail drawer so dashboard

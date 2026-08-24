@@ -57,6 +57,12 @@ function formatQuote(value?: string) {
       <el-descriptions-item label="试验需求" :span="2">
         <div class="snapshot-long-text">{{ order.test_demand || '未填写' }}</div>
       </el-descriptions-item>
+      <el-descriptions-item label="测试方法" :span="2">
+        <div class="snapshot-long-text">{{ order.test_method || '未填写' }}</div>
+      </el-descriptions-item>
+      <el-descriptions-item label="测试标准" :span="2">
+        <div class="snapshot-long-text">{{ order.test_standard || '未填写' }}</div>
+      </el-descriptions-item>
       <el-descriptions-item label="订单备注" :span="2">
         <div class="snapshot-long-text">{{ order.remark || '无' }}</div>
       </el-descriptions-item>

@@ -19,6 +19,8 @@ export type OrderItem = {
   industry_category: 'automotive' | 'military' | 'other'
   industry_label: string
   test_demand?: string
+  test_method?: string
+  test_standard?: string
   status: string
   status_key: number
   execution_mode: string

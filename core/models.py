@@ -48,6 +48,8 @@ class LabOrder(TimeStampedModel):
         default=IndustryCategory.OTHER,
     )
     test_demand = models.TextField('详细试验需求、检测标准、检测项目清单')
+    test_method = models.TextField('测试方法', blank=True)
+    test_standard = models.TextField('测试标准', blank=True)
     total_quote = models.DecimalField('订单总报价金额', max_digits=12, decimal_places=2, default=0)
     expect_sample_arrive = models.DateTimeField('预估样品送达时间', null=True, blank=True)
     expect_delivery_time = models.DateTimeField('预估交付时间', null=True, blank=True)

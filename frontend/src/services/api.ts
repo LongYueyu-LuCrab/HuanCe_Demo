@@ -44,6 +44,8 @@ export type CreateOrderPayload = {
   phone: string
   project_name: string
   test_requirements: string
+  test_method: string
+  test_standard: string
   expected_sample_arrival: string
   expected_delivery_date: string
   quoted_amount: string

@@ -97,7 +97,10 @@ class LabOrderAdmin(admin.ModelAdmin):
         'sale_user',
     )
     list_filter = ('order_status', 'execution_mode', 'industry_category', 'autonomous_execution', 'outsourced_execution')
-    search_fields = ('order_no', 'customer_name', 'customer_contact', 'customer_phone', 'project_name', 'test_demand')
+    search_fields = (
+        'order_no', 'customer_name', 'customer_contact', 'customer_phone', 'project_name',
+        'test_demand', 'test_method', 'test_standard',
+    )
     date_hierarchy = 'create_time'
     readonly_fields = ('create_time', 'update_time')
     fieldsets = (
@@ -108,6 +111,8 @@ class LabOrderAdmin(admin.ModelAdmin):
                 'project_name',
                 'industry_category',
                 'test_demand',
+                'test_method',
+                'test_standard',
                 'total_quote',
                 'sale_user',
             )

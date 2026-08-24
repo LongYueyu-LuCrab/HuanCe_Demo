@@ -35,6 +35,8 @@ class LimsDashboardTests(TestCase):
             customer_phone='13800000000',
             project_name='测试订单',
             test_demand='测试需求',
+            test_method='振动扫频后进行定频耐久试验',
+            test_standard='GB/T 2423.10-2019',
             sale_user=self.user,
             order_status=LabOrder.Status.TESTING,
         )
@@ -68,6 +70,8 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(order['industry_label'], '军工')
         self.assertEqual(order['execution_attributes'], ['自主', '委外'])
         self.assertEqual(order['contact'], self.order.customer_contact)
+        self.assertEqual(order['test_method'], '振动扫频后进行定频耐久试验')
+        self.assertEqual(order['test_standard'], 'GB/T 2423.10-2019')
         self.assertEqual(order['remark'], '加急；完整信息测试')
         self.assertIn('documents', order)
 
@@ -84,6 +88,37 @@ class LimsDashboardTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    def test_technical_reviewer_sees_methods_standards_documents_and_execution_attributes(self):
+        technical_user = get_user_model().objects.create_user(
+            username='technical-reviewer',
+            password='password123',
+        )
+        technical_user.groups.add(Group.objects.create(name='技术'))
+        self.order.order_status = LabOrder.Status.PENDING_REVIEW
+        self.order.autonomous_execution = True
+        self.order.outsourced_execution = True
+        self.order.save()
+        OrderDocument.objects.create(
+            order=self.order,
+            document_type=OrderDocument.DocumentType.ATTACHMENT,
+            file=SimpleUploadedFile('技术要求.pdf', b'%PDF-1.4 technical'),
+            original_name='技术要求.pdf',
+            file_size=18,
+            uploaded_by=self.user,
+        )
+        self.client.force_login(technical_user)
+
+        response = self.client.get(
+            reverse('order_detail', kwargs={'order_no': self.order.order_no})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        order = response.json()['order']
+        self.assertEqual(order['test_method'], self.order.test_method)
+        self.assertEqual(order['test_standard'], self.order.test_standard)
+        self.assertEqual(order['execution_attributes'], ['自主', '委外'])
+        self.assertEqual(order['documents'][0]['name'], '技术要求.pdf')
 
     def test_mark_status_writes_workflow_event(self):
         self.order.mark_status(LabOrder.Status.REPORT_REVIEW, note='测试流转')
@@ -109,6 +144,8 @@ class LimsDashboardTests(TestCase):
                 'phone': '13800000000',
                 'project_name': '新项目',
                 'test_requirements': '完成可靠性检测。',
+                'test_method': '按规定载荷完成振动耐久试验。',
+                'test_standard': 'GB/T 2423.10-2019',
                 'expected_sample_arrival': '2026-07-01',
                 'expected_delivery_date': '2026-07-15',
                 'quoted_amount': '12000.50',
@@ -127,6 +164,8 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(created.order_status, LabOrder.Status.PENDING_REVIEW)
         self.assertEqual(created.customer_name, '新客户')
         self.assertEqual(created.industry_category, LabOrder.IndustryCategory.AUTOMOTIVE)
+        self.assertEqual(created.test_method, '按规定载荷完成振动耐久试验。')
+        self.assertEqual(created.test_standard, 'GB/T 2423.10-2019')
         self.assertTrue(created.autonomous_execution)
         self.assertTrue(created.outsourced_execution)
 

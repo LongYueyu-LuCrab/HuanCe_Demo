@@ -25,6 +25,8 @@ const form = reactive({
   phone: '',
   project_name: '',
   test_requirements: '',
+  test_method: '',
+  test_standard: '',
   expected_sample_arrival: '',
   expected_delivery_date: '',
   quoted_amount: '',
@@ -90,6 +92,8 @@ function openWorkflow(action: string, order: OrderItem) {
     phone: order.phone || '',
     project_name: order.project_name,
     test_demand: order.test_demand || '',
+    test_method: order.test_method || '',
+    test_standard: order.test_standard || '',
     quoted_amount: order.total_quote || '',
     reason: '',
     reject_reason: '',
@@ -168,6 +172,8 @@ async function submit() {
       phone: '',
       project_name: '',
       test_requirements: '',
+      test_method: '',
+      test_standard: '',
       expected_sample_arrival: '',
       expected_delivery_date: '',
       quoted_amount: '',
@@ -223,6 +229,12 @@ async function submit() {
           <div class="field-help">可单选，也可同时选择自主与委外。</div>
         </el-form-item>
         <el-form-item label="试验需求" class="form-wide"><el-input v-model="form.test_requirements" type="textarea" :rows="4" /></el-form-item>
+        <el-form-item label="测试方法" class="form-wide">
+          <el-input v-model="form.test_method" type="textarea" :rows="3" placeholder="填写客户指定的试验方法、实施步骤或方法文件编号" />
+        </el-form-item>
+        <el-form-item label="测试标准" class="form-wide">
+          <el-input v-model="form.test_standard" type="textarea" :rows="3" placeholder="填写适用的国标、行标、企标或客户标准编号" />
+        </el-form-item>
         <div class="form-wide order-upload-grid">
           <div class="order-upload-panel">
             <div class="upload-panel-heading">
@@ -283,6 +295,8 @@ async function submit() {
           <el-form-item label="项目名称"><el-input v-model="actionForm.project_name" /></el-form-item>
           <el-form-item label="报价"><el-input v-model="actionForm.quoted_amount" type="number" /></el-form-item>
           <el-form-item label="试验需求" class="form-wide"><el-input v-model="actionForm.test_demand" type="textarea" :rows="4" /></el-form-item>
+          <el-form-item label="测试方法" class="form-wide"><el-input v-model="actionForm.test_method" type="textarea" :rows="3" /></el-form-item>
+          <el-form-item label="测试标准" class="form-wide"><el-input v-model="actionForm.test_standard" type="textarea" :rows="3" /></el-form-item>
         </template>
 
         <template v-else-if="activeAction === 'order_cancel'">

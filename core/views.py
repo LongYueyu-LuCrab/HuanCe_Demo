@@ -157,6 +157,8 @@ def _order_payload(order):
         'industry_category': order.industry_category,
         'industry_label': order.get_industry_category_display(),
         'test_demand': order.test_demand,
+        'test_method': order.test_method,
+        'test_standard': order.test_standard,
         'status': order.get_order_status_display(),
         'status_key': order.order_status,
         'execution_mode': order.get_execution_mode_display(),
@@ -656,6 +658,8 @@ def create_order(request):
     customer_name = payload.get('customer_name', '').strip()
     project_name = payload.get('project_name', '').strip()
     test_demand = payload.get('test_requirements', '').strip()
+    test_method = payload.get('test_method', '').strip()
+    test_standard = payload.get('test_standard', '').strip()
     customer_contact = payload.get('contact_name', '').strip()
     customer_phone = payload.get('phone', '').strip()
     expect_sample_arrive = _parse_datetime(payload.get('expected_sample_arrival'))
@@ -719,6 +723,8 @@ def create_order(request):
         project_name=project_name,
         industry_category=industry_category,
         test_demand=test_demand,
+        test_method=test_method,
+        test_standard=test_standard,
         sale_user=request.user,
         order_status=LabOrder.Status.PENDING_REVIEW,
         expect_sample_arrive=expect_sample_arrive,
@@ -883,6 +889,10 @@ def _action_order_update(request, payload):
     order.customer_phone = payload.get('phone') or order.customer_phone
     order.project_name = payload.get('project_name') or order.project_name
     order.test_demand = payload.get('test_demand') or payload.get('test_requirements') or order.test_demand
+    if payload.get('test_method') is not None:
+        order.test_method = str(payload.get('test_method')).strip()
+    if payload.get('test_standard') is not None:
+        order.test_standard = str(payload.get('test_standard')).strip()
     if payload.get('quoted_amount') not in [None, '']:
         order.total_quote = Decimal(str(payload.get('quoted_amount')))
     order.expect_sample_arrive = _parse_datetime(payload.get('expected_sample_arrival')) or order.expect_sample_arrive

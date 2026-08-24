@@ -78,6 +78,8 @@ class Command(BaseCommand):
                 customer_phone=phone,
                 project_name=f'{project_name}-{index:03d}',
                 test_demand=f'{demand}。执行标准：{standards[index % len(standards)]}。',
+                test_method=f'按项目方案完成{demand}，记录原始数据并依据判定条件出具结论。',
+                test_standard=standards[index % len(standards)],
                 total_quote=quote,
                 expect_sample_arrive=created_at + timezone.timedelta(days=2),
                 expect_delivery_time=created_at + timezone.timedelta(days=12 + index % 10),
