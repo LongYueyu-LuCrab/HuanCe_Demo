@@ -10,7 +10,7 @@ This document is the development baseline for the Suzhou HuanCe LIMS project. Fu
 - Domain: aroundtest.com / www.aroundtest.com
 - Production server: 119.45.220.99
 - Git remote: git@github.com:LongYueyu-LuCrab/HuanCe_Demo.git
-- Current verified commit: pending current local changes
+- Current verified sales-order upgrade commit: `4b7d6f0`
 
 ## 2. Architecture
 
@@ -518,10 +518,10 @@ When deploying:
 
 ## 15. Verification Snapshot
 
-Latest verified code commit:
+Latest verified sales-order upgrade commit:
 
 ```text
-0f62c8f Implement LIMS workflow actions
+4b7d6f0 Upgrade sales order intake and document uploads
 ```
 
 Recent verification completed:
