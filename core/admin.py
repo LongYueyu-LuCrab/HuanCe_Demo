@@ -6,6 +6,7 @@ from .models import (
     Experiment,
     Invoice,
     LabOrder,
+    OrderDocument,
     ReportAudit,
     Sample,
     SchedulePlan,
@@ -75,19 +76,27 @@ class WorkflowEventInline(admin.TabularInline):
     readonly_fields = ('create_time',)
 
 
+class OrderDocumentInline(admin.TabularInline):
+    model = OrderDocument
+    extra = 0
+    fields = ('document_type', 'original_name', 'file', 'file_size', 'uploaded_by', 'create_time')
+    readonly_fields = ('original_name', 'file_size', 'uploaded_by', 'create_time')
+
+
 @admin.register(LabOrder)
 class LabOrderAdmin(admin.ModelAdmin):
     list_display = (
         'order_no',
         'customer_name',
         'project_name',
+        'industry_category',
         'order_status',
         'execution_mode',
         'expect_sample_arrive',
         'total_quote',
         'sale_user',
     )
-    list_filter = ('order_status', 'execution_mode')
+    list_filter = ('order_status', 'execution_mode', 'industry_category', 'autonomous_execution', 'outsourced_execution')
     search_fields = ('order_no', 'customer_name', 'customer_contact', 'customer_phone', 'project_name', 'test_demand')
     date_hierarchy = 'create_time'
     readonly_fields = ('create_time', 'update_time')
@@ -97,6 +106,7 @@ class LabOrderAdmin(admin.ModelAdmin):
                 'order_no',
                 ('customer_name', 'customer_contact', 'customer_phone'),
                 'project_name',
+                'industry_category',
                 'test_demand',
                 'total_quote',
                 'sale_user',
@@ -106,6 +116,7 @@ class LabOrderAdmin(admin.ModelAdmin):
             'fields': (
                 'order_status',
                 'execution_mode',
+                ('autonomous_execution', 'outsourced_execution'),
                 'expect_sample_arrive',
                 'expect_delivery_time',
             )
@@ -122,6 +133,7 @@ class LabOrderAdmin(admin.ModelAdmin):
         ExperimentInline,
         TestReportInline,
         WorkflowEventInline,
+        OrderDocumentInline,
     ]
     actions = ('send_to_scheduling', 'send_to_testing', 'send_to_report_review', 'close_orders')
 

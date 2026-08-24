@@ -114,7 +114,18 @@ Supporting reference tables:
 
 ```text
 lims_test_standard        industry/category based test standard library
+lims_order_document       protected sales-order contracts and attachments
 ```
+
+Sales-order extension fields:
+
+```text
+industry_category        automotive / military / other
+autonomous_execution     order includes in-house testing
+outsourced_execution     order includes outsourced testing
+```
+
+`autonomous_execution` and `outsourced_execution` are independent booleans, so an order may select either one or both. Order files are stored under `MEDIA_ROOT/private_order_documents/` and must be downloaded through the authenticated permission-checked API.
 
 All workflow business records attach to `lims_sales_order` through order relations. Keep future schema changes aligned with this 9 core table design unless the user explicitly approves a redesign. Reference tables such as `lims_test_standard` may be added when they reduce repeated manual entry and keep workflow data consistent.
 
@@ -372,6 +383,7 @@ LIMS:
 GET  /api/lims/dashboard/
 POST /api/lims/action/
 POST /api/orders/create/
+GET  /api/orders/documents/<id>/download/
 POST /api/employees/add/
 ```
 

@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -10,6 +11,7 @@ from .models import (
     Experiment,
     Invoice,
     LabOrder,
+    OrderDocument,
     ReportAudit,
     Sample,
     SchedulePlan,
@@ -77,6 +79,8 @@ class LimsDashboardTests(TestCase):
                 'expected_delivery_date': '2026-07-15',
                 'quoted_amount': '12000.50',
                 'is_urgent': True,
+                'industry_category': 'automotive',
+                'execution_attributes': ['autonomous', 'outsource'],
             },
             content_type='application/json',
         )
@@ -88,6 +92,58 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(created.sale_user, self.user)
         self.assertEqual(created.order_status, LabOrder.Status.PENDING_REVIEW)
         self.assertEqual(created.customer_name, '新客户')
+        self.assertEqual(created.industry_category, LabOrder.IndustryCategory.AUTOMOTIVE)
+        self.assertTrue(created.autonomous_execution)
+        self.assertTrue(created.outsourced_execution)
+
+    def test_sales_can_upload_contract_and_attachment(self):
+        self.client.force_login(self.user)
+        contract = SimpleUploadedFile('合同.pdf', b'%PDF-1.4 demo', content_type='application/pdf')
+        attachment = SimpleUploadedFile('需求说明.docx', b'word-demo', content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+        response = self.client.post(
+            reverse('create_order'),
+            data={
+                'customer_name': '附件测试客户',
+                'project_name': '文件上传测试',
+                'test_requirements': '验证合同与附件上传。',
+                'industry_category': 'military',
+                'execution_attributes': ['autonomous'],
+                'contract_files': contract,
+                'attachment_files': attachment,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        order = LabOrder.objects.get(order_no=response.json()['order']['order_no'])
+        self.assertEqual(order.documents.count(), 2)
+        contract_record = order.documents.get(document_type=OrderDocument.DocumentType.CONTRACT)
+        self.assertEqual(contract_record.original_name, '合同.pdf')
+
+        download = self.client.get(
+            reverse('download_order_document', kwargs={'document_id': contract_record.id})
+        )
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(download['Content-Disposition'], "attachment; filename*=utf-8''%E5%90%88%E5%90%8C.pdf")
+
+    def test_order_upload_rejects_unsupported_file_type(self):
+        self.client.force_login(self.user)
+        unsafe_file = SimpleUploadedFile('程序.exe', b'not-allowed')
+
+        response = self.client.post(
+            reverse('create_order'),
+            data={
+                'customer_name': '非法文件客户',
+                'project_name': '非法文件测试',
+                'test_requirements': '验证上传格式限制。',
+                'industry_category': 'other',
+                'execution_attributes': ['outsource'],
+                'attachment_files': unsafe_file,
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('格式不支持', response.json()['error'])
 
 
 class LimsFullRoleWorkflowTests(TestCase):

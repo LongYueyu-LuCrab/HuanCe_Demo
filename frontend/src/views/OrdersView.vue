@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { UploadFilled } from '@element-plus/icons-vue'
+import type { UploadFile, UploadFiles, UploadRawFile, UploadUserFile } from 'element-plus'
 import OrderTable from '../components/OrderTable.vue'
 import { createOrder, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
@@ -14,6 +16,8 @@ const actionSubmitting = ref(false)
 const activeAction = ref('')
 const activeOrder = ref<OrderItem | null>(null)
 const actionForm = reactive<Record<string, unknown>>({})
+const contractFileList = ref<UploadUserFile[]>([])
+const attachmentFileList = ref<UploadUserFile[]>([])
 const form = reactive({
   customer_name: '',
   contact_name: '',
@@ -24,7 +28,38 @@ const form = reactive({
   expected_delivery_date: '',
   quoted_amount: '',
   is_urgent: false,
+  industry_category: 'other' as 'automotive' | 'military' | 'other',
+  execution_attributes: ['autonomous'] as Array<'autonomous' | 'outsource'>,
 })
+
+const acceptedFilePattern = /\.(doc|docx|pdf|jpe?g|png)$/i
+const maxFileSize = 20 * 1024 * 1024
+const maxTotalFileSize = 40 * 1024 * 1024
+
+function validateSelectedFile(file: UploadFile) {
+  const raw = file.raw
+  if (!raw || !acceptedFilePattern.test(file.name)) {
+    ElMessage.error(`${file.name} 格式不支持，仅允许 Word、PDF、JPG、PNG`)
+    return false
+  }
+  if (raw.size > maxFileSize) {
+    ElMessage.error(`${file.name} 超过 20MB，请压缩后重新上传`)
+    return false
+  }
+  return true
+}
+
+function handleContractChange(file: UploadFile, files: UploadFiles) {
+  contractFileList.value = validateSelectedFile(file) ? files : files.filter((item) => item.uid !== file.uid)
+}
+
+function handleAttachmentChange(file: UploadFile, files: UploadFiles) {
+  attachmentFileList.value = validateSelectedFile(file) ? files : files.filter((item) => item.uid !== file.uid)
+}
+
+function rawFiles(files: UploadUserFile[]) {
+  return files.map((file) => file.raw).filter((file): file is UploadRawFile => Boolean(file))
+}
 
 const orders = computed(() => session.state.dashboard?.order_groups?.orders ?? session.state.dashboard?.recent_orders ?? [])
 
@@ -104,9 +139,26 @@ async function submitWorkflow() {
 }
 
 async function submit() {
+  if (!form.customer_name.trim() || !form.project_name.trim() || !form.test_requirements.trim()) {
+    ElMessage.warning('请填写客户名称、项目名称和试验需求')
+    return
+  }
+  if (form.execution_attributes.length === 0) {
+    ElMessage.warning('订单执行属性至少选择“自主”或“委外”之一')
+    return
+  }
+  const selectedFiles = [...rawFiles(contractFileList.value), ...rawFiles(attachmentFileList.value)]
+  if (selectedFiles.reduce((total, file) => total + file.size, 0) > maxTotalFileSize) {
+    ElMessage.warning('合同与附件总大小不能超过 40MB')
+    return
+  }
   submitting.value = true
   try {
-    await createOrder(form)
+    await createOrder({
+      ...form,
+      contract_files: rawFiles(contractFileList.value),
+      attachment_files: rawFiles(attachmentFileList.value),
+    })
     ElMessage.success('订单已提交，等待商务技术评审')
     dialogVisible.value = false
     Object.assign(form, {
@@ -119,7 +171,11 @@ async function submit() {
       expected_delivery_date: '',
       quoted_amount: '',
       is_urgent: false,
+      industry_category: 'other',
+      execution_attributes: ['autonomous'],
     })
+    contractFileList.value = []
+    attachmentFileList.value = []
     await session.refreshDashboard()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '提交失败')
@@ -150,8 +206,57 @@ async function submit() {
         <el-form-item label="预计样品到达"><el-date-picker v-model="form.expected_sample_arrival" value-format="YYYY-MM-DD" type="date" /></el-form-item>
         <el-form-item label="预计交付日期"><el-date-picker v-model="form.expected_delivery_date" value-format="YYYY-MM-DD" type="date" /></el-form-item>
         <el-form-item label="报价金额"><el-input v-model="form.quoted_amount" type="number" /></el-form-item>
+        <el-form-item label="行业属性">
+          <el-select v-model="form.industry_category" placeholder="请选择行业属性">
+            <el-option label="汽车" value="automotive" />
+            <el-option label="军工" value="military" />
+            <el-option label="其他" value="other" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="加急"><el-switch v-model="form.is_urgent" /></el-form-item>
+        <el-form-item label="订单执行属性">
+          <el-checkbox-group v-model="form.execution_attributes">
+            <el-checkbox value="autonomous">自主</el-checkbox>
+            <el-checkbox value="outsource">委外</el-checkbox>
+          </el-checkbox-group>
+          <div class="field-help">可单选，也可同时选择自主与委外。</div>
+        </el-form-item>
         <el-form-item label="试验需求" class="form-wide"><el-input v-model="form.test_requirements" type="textarea" :rows="4" /></el-form-item>
+        <div class="form-wide order-upload-grid">
+          <div class="order-upload-panel">
+            <div class="upload-panel-heading">
+              <strong>合同文件</strong>
+              <span>最多 1 份</span>
+            </div>
+            <el-upload
+              v-model:file-list="contractFileList"
+              :auto-upload="false"
+              :limit="1"
+              accept=".doc,.docx,.pdf,.jpg,.jpeg,.png"
+              :on-change="handleContractChange"
+            >
+              <el-button :icon="UploadFilled">上传合同</el-button>
+              <template #tip><div class="el-upload__tip">支持 Word、PDF、JPG、PNG，单文件不超过 20MB</div></template>
+            </el-upload>
+          </div>
+          <div class="order-upload-panel">
+            <div class="upload-panel-heading">
+              <strong>业务附件</strong>
+              <span>最多 10 份</span>
+            </div>
+            <el-upload
+              v-model:file-list="attachmentFileList"
+              :auto-upload="false"
+              :limit="10"
+              multiple
+              accept=".doc,.docx,.pdf,.jpg,.jpeg,.png"
+              :on-change="handleAttachmentChange"
+            >
+              <el-button :icon="UploadFilled">上传附件</el-button>
+              <template #tip><div class="el-upload__tip">支持 Word、PDF、JPG、PNG；单文件 20MB，全部文件合计 40MB</div></template>
+            </el-upload>
+          </div>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>

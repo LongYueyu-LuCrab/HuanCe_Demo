@@ -16,15 +16,28 @@ export type OrderItem = {
   contact?: string
   phone?: string
   project_name: string
+  industry_category: 'automotive' | 'military' | 'other'
+  industry_label: string
   test_demand?: string
   status: string
   status_key: number
   execution_mode: string
+  execution_attributes: string[]
   expected_delivery_date: string
   total_quote?: string
   is_urgent: boolean
   sales_owner?: string
   created_at?: string
+  documents: OrderDocumentItem[]
+}
+
+export type OrderDocumentItem = {
+  id: number
+  type: 'contract' | 'attachment'
+  type_label: string
+  name: string
+  size: number
+  download_url: string
 }
 
 export type ScheduleItem = {

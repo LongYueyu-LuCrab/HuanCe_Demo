@@ -1,17 +1,19 @@
 import json
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.models import Group
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, JsonResponse
+from django.http import FileResponse, HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, JsonResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabOrder, ReportAudit, Sample, SchedulePlan, TestReport, TestStandard, WorkflowEvent
+from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabOrder, OrderDocument, ReportAudit, Sample, SchedulePlan, TestReport, TestStandard, WorkflowEvent
 
 
 ROLE_SALES = '销售'
@@ -98,7 +100,7 @@ def _user_payload(user):
 
 
 def _orders_for_user(user):
-    orders = LabOrder.objects.select_related('sale_user')
+    orders = LabOrder.objects.select_related('sale_user').prefetch_related('documents')
     if _is_chairman(user):
         return orders
 
@@ -138,16 +140,25 @@ def _order_payload(order):
     else:
         delivery_value = ''
 
+    execution_attributes = []
+    if order.autonomous_execution:
+        execution_attributes.append('自主')
+    if order.outsourced_execution:
+        execution_attributes.append('委外')
+
     return {
         'order_no': order.order_no,
         'customer': order.customer_name,
         'contact': order.customer_contact,
         'phone': order.customer_phone,
         'project_name': order.project_name,
+        'industry_category': order.industry_category,
+        'industry_label': order.get_industry_category_display(),
         'test_demand': order.test_demand,
         'status': order.get_order_status_display(),
         'status_key': order.order_status,
         'execution_mode': order.get_execution_mode_display(),
+        'execution_attributes': execution_attributes,
         'expected_delivery_date': delivery_value,
         'total_quote': str(order.total_quote),
         'is_urgent': order.is_urgent,
@@ -155,6 +166,17 @@ def _order_payload(order):
         if order.sale_user
         else '',
         'created_at': order.create_time.strftime('%Y-%m-%d %H:%M') if order.create_time else '',
+        'documents': [
+            {
+                'id': document.id,
+                'type': document.document_type,
+                'type_label': document.get_document_type_display(),
+                'name': document.original_name,
+                'size': document.file_size,
+                'download_url': f'/api/orders/documents/{document.id}/download/',
+            }
+            for document in order.documents.all()
+        ],
     }
 
 
@@ -427,7 +449,7 @@ def _get_order(payload):
     if not order_no:
         return None, JsonResponse({'ok': False, 'error': '缺少订单号'}, status=400, json_dumps_params={'ensure_ascii': False})
     try:
-        return LabOrder.objects.select_related('sale_user').get(order_no=order_no), None
+        return LabOrder.objects.select_related('sale_user').prefetch_related('documents').get(order_no=order_no), None
     except LabOrder.DoesNotExist:
         return None, JsonResponse({'ok': False, 'error': '订单不存在'}, status=404, json_dumps_params={'ensure_ascii': False})
 
@@ -560,7 +582,42 @@ def add_employee(request):
     )
 
 
+ORDER_DOCUMENT_EXTENSIONS = {'.doc', '.docx', '.pdf', '.jpg', '.jpeg', '.png'}
+ORDER_DOCUMENT_MAX_SIZE = 20 * 1024 * 1024
+ORDER_DOCUMENT_TOTAL_MAX_SIZE = 40 * 1024 * 1024
+
+
+def _validate_order_documents(files, label, max_count):
+    if len(files) > max_count:
+        return f'{label}最多上传 {max_count} 个文件'
+    for uploaded_file in files:
+        extension = Path(uploaded_file.name).suffix.lower()
+        if extension not in ORDER_DOCUMENT_EXTENSIONS:
+            return f'{uploaded_file.name} 格式不支持，仅允许 Word、PDF、JPG、PNG'
+        if uploaded_file.size > ORDER_DOCUMENT_MAX_SIZE:
+            return f'{uploaded_file.name} 超过 20MB，请压缩后重新上传'
+    return ''
+
+
+def _request_order_payload(request):
+    if request.content_type and request.content_type.startswith('multipart/form-data'):
+        return request.POST, None
+    try:
+        return json.loads(request.body.decode('utf-8')), None
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None, JsonResponse(
+            {'ok': False, 'error': '请求格式错误'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        )
+
+
+def _truthy(value):
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
 @csrf_exempt
+@transaction.atomic
 def create_order(request):
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
@@ -571,10 +628,9 @@ def create_order(request):
     if not (_is_chairman(request.user) or ROLE_SALES in roles):
         return JsonResponse({'ok': False, 'error': '仅销售或董事长可以下单'}, status=403, json_dumps_params={'ensure_ascii': False})
 
-    try:
-        payload = json.loads(request.body.decode('utf-8'))
-    except json.JSONDecodeError:
-        return JsonResponse({'ok': False, 'error': '请求格式错误'}, status=400, json_dumps_params={'ensure_ascii': False})
+    payload, parse_error = _request_order_payload(request)
+    if parse_error:
+        return parse_error
 
     customer_name = payload.get('customer_name', '').strip()
     project_name = payload.get('project_name', '').strip()
@@ -583,6 +639,44 @@ def create_order(request):
     customer_phone = payload.get('phone', '').strip()
     expect_sample_arrive = _parse_datetime(payload.get('expected_sample_arrival'))
     expect_delivery_time = _parse_datetime(payload.get('expected_delivery_date'))
+    industry_category = (payload.get('industry_category') or '').strip()
+
+    if hasattr(payload, 'getlist'):
+        execution_attributes = payload.getlist('execution_attributes')
+    else:
+        execution_attributes = payload.get('execution_attributes') or ['autonomous']
+    if isinstance(execution_attributes, str):
+        execution_attributes = [execution_attributes]
+    execution_attributes = set(execution_attributes)
+
+    valid_attributes = {'autonomous', 'outsource'}
+    if not execution_attributes or not execution_attributes.issubset(valid_attributes):
+        return JsonResponse(
+            {'ok': False, 'error': '订单执行属性至少选择“自主”或“委外”之一'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        )
+
+    valid_industries = {choice.value for choice in LabOrder.IndustryCategory}
+    if industry_category not in valid_industries:
+        return JsonResponse(
+            {'ok': False, 'error': '请选择行业属性：汽车、军工或其他'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        )
+
+    contract_files = request.FILES.getlist('contract_files')
+    attachment_files = request.FILES.getlist('attachment_files')
+    file_error = _validate_order_documents(contract_files, '合同', 1)
+    file_error = file_error or _validate_order_documents(attachment_files, '附件', 10)
+    if not file_error and sum(item.size for item in contract_files + attachment_files) > ORDER_DOCUMENT_TOTAL_MAX_SIZE:
+        file_error = '合同与附件总大小不能超过 40MB'
+    if file_error:
+        return JsonResponse(
+            {'ok': False, 'error': file_error},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        )
 
     if not customer_name or not project_name or not test_demand:
         return JsonResponse({'ok': False, 'error': '客户名称、项目名称、试验需求必填'}, status=400, json_dumps_params={'ensure_ascii': False})
@@ -593,7 +687,7 @@ def create_order(request):
         return JsonResponse({'ok': False, 'error': '报价金额格式错误'}, status=400, json_dumps_params={'ensure_ascii': False})
 
     remark = '销售前台下单，等待商务技术评审。'
-    if payload.get('is_urgent'):
+    if _truthy(payload.get('is_urgent')):
         remark = f'加急；{remark}'
 
     order = LabOrder.objects.create(
@@ -602,16 +696,32 @@ def create_order(request):
         customer_contact=customer_contact,
         customer_phone=customer_phone,
         project_name=project_name,
+        industry_category=industry_category,
         test_demand=test_demand,
         sale_user=request.user,
         order_status=LabOrder.Status.PENDING_REVIEW,
         expect_sample_arrive=expect_sample_arrive,
         expect_delivery_time=expect_delivery_time,
         total_quote=total_quote,
+        autonomous_execution='autonomous' in execution_attributes,
+        outsourced_execution='outsource' in execution_attributes,
         create_by=request.user.username,
         update_by=request.user.username,
         remark=remark,
     )
+    for document_type, files in (
+        (OrderDocument.DocumentType.CONTRACT, contract_files),
+        (OrderDocument.DocumentType.ATTACHMENT, attachment_files),
+    ):
+        for uploaded_file in files:
+            OrderDocument.objects.create(
+                order=order,
+                document_type=document_type,
+                file=uploaded_file,
+                original_name=uploaded_file.name,
+                file_size=uploaded_file.size,
+                uploaded_by=request.user,
+            )
     WorkflowEvent.objects.create(
         order=order,
         actor=request.user,
@@ -620,6 +730,23 @@ def create_order(request):
         note='销售下单，进入商务技术评审。',
     )
     return JsonResponse({'ok': True, 'order': _order_payload(order)}, json_dumps_params={'ensure_ascii': False})
+
+
+def download_order_document(request, document_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False, 'error': '请先登录'}, status=401, json_dumps_params={'ensure_ascii': False})
+
+    document = get_object_or_404(OrderDocument.objects.select_related('order'), pk=document_id)
+    if not _orders_for_user(request.user).filter(pk=document.order_id).exists():
+        return JsonResponse({'ok': False, 'error': '无权下载该订单文件'}, status=403, json_dumps_params={'ensure_ascii': False})
+    if not document.file or not document.file.storage.exists(document.file.name):
+        return JsonResponse({'ok': False, 'error': '文件不存在或已被移除'}, status=404, json_dumps_params={'ensure_ascii': False})
+
+    return FileResponse(
+        document.file.open('rb'),
+        as_attachment=True,
+        filename=document.original_name,
+    )
 
 
 @csrf_exempt

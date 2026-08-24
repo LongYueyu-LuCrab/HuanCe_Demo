@@ -3,6 +3,10 @@ from django.db import models
 from django.utils import timezone
 
 
+def order_document_upload_to(instance, filename):
+    return f'private_order_documents/{instance.order.order_no}/{instance.document_type}/{filename}'
+
+
 class TimeStampedModel(models.Model):
     create_time = models.DateTimeField('创建时间', auto_now_add=True)
     update_time = models.DateTimeField('更新时间', auto_now=True)
@@ -27,17 +31,30 @@ class LabOrder(TimeStampedModel):
         OUTSOURCE = 3, '外部委外'
         MIXED = 4, '多路径并行'
 
+    class IndustryCategory(models.TextChoices):
+        AUTOMOTIVE = 'automotive', '汽车'
+        MILITARY = 'military', '军工'
+        OTHER = 'other', '其他'
+
     order_no = models.CharField('订单唯一业务编号', max_length=64, unique=True)
     customer_name = models.CharField('客户单位名称', max_length=100)
     customer_contact = models.CharField('客户对接人', max_length=50, blank=True)
     customer_phone = models.CharField('客户联系电话', max_length=20, blank=True)
     project_name = models.CharField('项目名称', max_length=160, blank=True)
+    industry_category = models.CharField(
+        '行业属性',
+        max_length=20,
+        choices=IndustryCategory.choices,
+        default=IndustryCategory.OTHER,
+    )
     test_demand = models.TextField('详细试验需求、检测标准、检测项目清单')
     total_quote = models.DecimalField('订单总报价金额', max_digits=12, decimal_places=2, default=0)
     expect_sample_arrive = models.DateTimeField('预估样品送达时间', null=True, blank=True)
     expect_delivery_time = models.DateTimeField('预估交付时间', null=True, blank=True)
     order_status = models.PositiveSmallIntegerField('订单状态', choices=Status.choices, default=Status.PENDING_REVIEW)
     execution_mode = models.PositiveSmallIntegerField('试验执行路径', choices=ExecutionMode.choices, default=ExecutionMode.MIXED)
+    autonomous_execution = models.BooleanField('包含自主试验', default=True)
+    outsourced_execution = models.BooleanField('包含委外试验', default=False)
     sale_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         verbose_name='下单销售',
@@ -90,6 +107,41 @@ class LabOrder(TimeStampedModel):
             to_status=str(status or ''),
             note=note,
         )
+
+
+class OrderDocument(models.Model):
+    class DocumentType(models.TextChoices):
+        CONTRACT = 'contract', '合同'
+        ATTACHMENT = 'attachment', '附件'
+
+    order = models.ForeignKey(
+        LabOrder,
+        verbose_name='销售订单',
+        on_delete=models.CASCADE,
+        related_name='documents',
+    )
+    document_type = models.CharField('文件类型', max_length=20, choices=DocumentType.choices)
+    file = models.FileField('文件', upload_to=order_document_upload_to, max_length=500)
+    original_name = models.CharField('原始文件名', max_length=255)
+    file_size = models.PositiveBigIntegerField('文件大小（字节）', default=0)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='上传人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_uploaded_order_documents',
+    )
+    create_time = models.DateTimeField('上传时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'lims_order_document'
+        verbose_name = '订单合同与附件'
+        verbose_name_plural = '订单合同与附件'
+        ordering = ['document_type', 'create_time']
+
+    def __str__(self):
+        return f'{self.order.order_no} - {self.get_document_type_display()} - {self.original_name}'
 
 
 class BusinessReview(TimeStampedModel):

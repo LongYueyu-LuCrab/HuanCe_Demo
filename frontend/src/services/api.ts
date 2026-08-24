@@ -42,14 +42,31 @@ export type CreateOrderPayload = {
   expected_delivery_date: string
   quoted_amount: string
   is_urgent: boolean
+  industry_category: 'automotive' | 'military' | 'other'
+  execution_attributes: Array<'autonomous' | 'outsource'>
+  contract_files: File[]
+  attachment_files: File[]
 }
 
 export async function createOrder(payload: CreateOrderPayload) {
+  const formData = new FormData()
+  Object.entries(payload).forEach(([key, value]) => {
+    if (key === 'contract_files' || key === 'attachment_files') {
+      const files = value as File[]
+      files.forEach((file) => formData.append(key, file))
+      return
+    }
+    if (key === 'execution_attributes') {
+      const attributes = value as string[]
+      attributes.forEach((attribute) => formData.append(key, attribute))
+      return
+    }
+    formData.append(key, typeof value === 'boolean' ? String(value) : String(value ?? ''))
+  })
   const response = await fetch('/api/orders/create/', {
     method: 'POST',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: formData,
   })
   return parseJson(response)
 }

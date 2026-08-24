@@ -29,9 +29,12 @@ const filteredOrders = computed(() => {
       order.contact,
       order.phone,
       order.project_name,
+      order.industry_label,
       order.test_demand,
       order.status,
       order.execution_mode,
+      ...(order.execution_attributes || []),
+      ...(order.documents || []).map((document) => document.name),
       order.expected_delivery_date,
       order.sales_owner,
     ]
@@ -54,6 +57,11 @@ function resetPage() {
 function openOrder(order: OrderItem) {
   selectedOrder.value = order
   drawerVisible.value = true
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`
+  return `${(size / 1024 / 1024).toFixed(1)} MB`
 }
 
 const roleSet = computed(() => new Set(props.user?.roles || []))
@@ -128,6 +136,15 @@ function actionsFor(order: OrderItem) {
           <div class="cell-sub">{{ row.project_name }}</div>
         </template>
       </el-table-column>
+      <el-table-column label="订单属性" min-width="150">
+        <template #default="{ row }">
+          <el-space wrap :size="6">
+            <el-tag v-for="attribute in row.execution_attributes" :key="attribute" size="small" effect="plain">
+              {{ attribute }}
+            </el-tag>
+          </el-space>
+        </template>
+      </el-table-column>
       <el-table-column prop="execution_mode" label="路径" min-width="150" />
       <el-table-column prop="status" label="状态" min-width="130">
         <template #default="{ row }">
@@ -175,10 +192,31 @@ function actionsFor(order: OrderItem) {
       <el-descriptions-item label="项目">{{ selectedOrder.project_name }}</el-descriptions-item>
       <el-descriptions-item label="状态">{{ selectedOrder.status }}</el-descriptions-item>
       <el-descriptions-item label="执行路径">{{ selectedOrder.execution_mode }}</el-descriptions-item>
+      <el-descriptions-item label="行业属性">{{ selectedOrder.industry_label || '其他' }}</el-descriptions-item>
+      <el-descriptions-item label="订单执行属性">
+        <el-space wrap>
+          <el-tag v-for="attribute in selectedOrder.execution_attributes" :key="attribute" effect="plain">{{ attribute }}</el-tag>
+        </el-space>
+      </el-descriptions-item>
       <el-descriptions-item label="销售">{{ selectedOrder.sales_owner || '未记录' }}</el-descriptions-item>
       <el-descriptions-item label="报价">{{ selectedOrder.total_quote || '0.00' }}</el-descriptions-item>
       <el-descriptions-item label="交付">{{ selectedOrder.expected_delivery_date || '待确认' }}</el-descriptions-item>
       <el-descriptions-item label="试验需求">{{ selectedOrder.test_demand || '未填写' }}</el-descriptions-item>
+      <el-descriptions-item label="合同与附件">
+        <div v-if="selectedOrder.documents?.length" class="document-list">
+          <a
+            v-for="document in selectedOrder.documents"
+            :key="document.id"
+            :href="document.download_url"
+            class="document-link"
+          >
+            <el-tag size="small" effect="plain">{{ document.type_label }}</el-tag>
+            <span>{{ document.name }}</span>
+            <small>{{ formatFileSize(document.size) }}</small>
+          </a>
+        </div>
+        <span v-else class="cell-sub">未上传文件</span>
+      </el-descriptions-item>
     </el-descriptions>
   </el-drawer>
 </template>
