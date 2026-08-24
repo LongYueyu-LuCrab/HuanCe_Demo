@@ -32,6 +32,9 @@ const filteredOrders = computed(() => {
       order.project_name,
       order.industry_label,
       order.test_demand,
+      order.test_method,
+      order.test_standard,
+      order.lead_lab_manager,
       order.status,
       order.execution_mode,
       ...(order.execution_attributes || []),
@@ -81,7 +84,7 @@ function actionsFor(order: OrderItem) {
     actions.push({ key: 'sales_confirm', label: '确认无变更', type: 'success' })
     actions.push({ key: 'create_change', label: '填写更改单', type: 'warning' })
   }
-  if ([3, 4].includes(order.status_key) && hasRole('质量部')) {
+  if (order.workflow_version === 1 && [3, 4].includes(order.status_key) && hasRole('质量部')) {
     actions.push({ key: 'schedule_assign', label: '排期分配', type: 'primary' })
     actions.push({ key: 'process_change', label: '处理变更', type: 'warning' })
     actions.push({ key: 'register_sample', label: '样品登记', type: 'success' })
@@ -89,13 +92,28 @@ function actionsFor(order: OrderItem) {
       actions.push({ key: 'outsource_result', label: '委外结果回传', type: 'success' })
     }
   }
-  if ([4, 5].includes(order.status_key) && hasRole('质量部')) {
+  if (order.workflow_version === 1 && [4, 5].includes(order.status_key) && hasRole('质量部')) {
     actions.push({ key: 'issue_report', label: '出具报告', type: 'primary' })
   }
-  if ([3, 4].includes(order.status_key) && (hasRole('苏州实验室') || hasRole('江阴实验室'))) {
+  if (order.workflow_version === 1 && [3, 4].includes(order.status_key) && (hasRole('苏州实验室') || hasRole('江阴实验室'))) {
     actions.push({ key: 'start_test', label: '开始试验', type: 'primary' })
     actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
     actions.push({ key: 'create_change', label: '试验中变更', type: 'warning' })
+  }
+  if (
+    order.workflow_version === 2
+    && order.execution_mode.includes('委外')
+    && [3, 4].includes(order.status_key)
+    && (hasRole('苏州实验室') || hasRole('江阴实验室'))
+  ) {
+    actions.push({ key: 'outsource_result', label: '委外结果回传', type: 'success' })
+  }
+  if (
+    order.workflow_version === 2
+    && [4, 5].includes(order.status_key)
+    && order.lead_lab_manager_username === props.user?.username
+  ) {
+    actions.push({ key: 'issue_report', label: '汇总出报告', type: 'primary' })
   }
   return actions
 }

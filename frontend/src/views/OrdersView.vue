@@ -65,6 +65,24 @@ function rawFiles(files: UploadUserFile[]) {
 }
 
 const orders = computed(() => session.state.dashboard?.order_groups?.orders ?? session.state.dashboard?.recent_orders ?? [])
+const isTechnicalReviewer = computed(() => (session.state.user.roles || []).includes('技术'))
+const routingOptions = computed(() => session.state.dashboard?.routing_options)
+const allLabManagers = computed(() => [
+  ...(routingOptions.value?.suzhou_managers || []),
+  ...(routingOptions.value?.jiangyin_managers || []),
+])
+const leadManagerOptions = computed(() => {
+  const selectedIds = new Set([
+    Number(actionForm.suzhou_manager_id || 0),
+    Number(actionForm.jiangyin_manager_id || 0),
+    Number(actionForm.outsource_owner_id || 0),
+  ])
+  return allLabManagers.value.filter((manager) => selectedIds.has(manager.id))
+})
+
+function hasExecutionRoute(route: string) {
+  return Array.isArray(actionForm.execution_routes) && actionForm.execution_routes.includes(route)
+}
 
 const actionTitleMap: Record<string, string> = {
   review_pass: '评审通过',
@@ -98,6 +116,14 @@ function openWorkflow(action: string, order: OrderItem) {
     reason: '',
     reject_reason: '',
     biz_quote_detail: '',
+    execution_routes: [] as string[],
+    suzhou_manager_id: undefined,
+    jiangyin_manager_id: undefined,
+    outsource_owner_id: undefined,
+    lead_lab_manager_id: undefined,
+    suzhou_task: order.test_demand || '',
+    jiangyin_task: order.test_demand || '',
+    outsource_task: order.test_demand || '',
     note: '',
     change_scene: action === 'create_change' && order.status_key === 4 ? 2 : 1,
     change_content: '',
@@ -113,7 +139,7 @@ function openWorkflow(action: string, order: OrderItem) {
     sample_count: 1,
     storage_condition: '常温',
     test_item_list: order.test_demand || '',
-    test_standard: '',
+    test_standard: order.test_standard || '',
     test_raw_data: '',
     test_conclusion_temp: '',
     test_start_time: '',
@@ -284,7 +310,47 @@ async function submit() {
       />
       <el-form label-position="top" class="form-grid action-form">
         <template v-if="activeAction === 'review_pass' || activeAction === 'review_reject'">
-          <el-form-item label="商务报价/评审说明" class="form-wide"><el-input v-model="actionForm.biz_quote_detail" type="textarea" :rows="3" /></el-form-item>
+          <el-form-item :label="isTechnicalReviewer ? '技术评审说明' : '商务报价/评审说明'" class="form-wide"><el-input v-model="actionForm.biz_quote_detail" type="textarea" :rows="3" /></el-form-item>
+          <template v-if="activeAction === 'review_pass' && isTechnicalReviewer && activeOrder?.workflow_version === 2">
+            <el-form-item label="执行路径" class="form-wide">
+              <el-checkbox-group v-model="actionForm.execution_routes">
+                <el-checkbox value="suzhou">苏州内部实验室</el-checkbox>
+                <el-checkbox value="jiangyin">江阴内部实验室</el-checkbox>
+                <el-checkbox value="outsource">外部委外</el-checkbox>
+              </el-checkbox-group>
+              <div class="field-help">可多选；选择结果必须与销售填写的“自主/委外”属性一致。</div>
+            </el-form-item>
+            <template v-if="hasExecutionRoute('suzhou')">
+              <el-form-item label="苏州实验室负责人">
+                <el-select v-model="actionForm.suzhou_manager_id" placeholder="选择负责人">
+                  <el-option v-for="manager in routingOptions?.suzhou_managers || []" :key="manager.id" :label="manager.name" :value="manager.id" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="苏州任务"><el-input v-model="actionForm.suzhou_task" /></el-form-item>
+            </template>
+            <template v-if="hasExecutionRoute('jiangyin')">
+              <el-form-item label="江阴实验室负责人">
+                <el-select v-model="actionForm.jiangyin_manager_id" placeholder="选择负责人">
+                  <el-option v-for="manager in routingOptions?.jiangyin_managers || []" :key="manager.id" :label="manager.name" :value="manager.id" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="江阴任务"><el-input v-model="actionForm.jiangyin_task" /></el-form-item>
+            </template>
+            <template v-if="hasExecutionRoute('outsource')">
+              <el-form-item label="委外管理负责人">
+                <el-select v-model="actionForm.outsource_owner_id" placeholder="选择内部负责人">
+                  <el-option v-for="manager in allLabManagers" :key="manager.id" :label="manager.name" :value="manager.id" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="委外任务"><el-input v-model="actionForm.outsource_task" /></el-form-item>
+            </template>
+            <el-form-item label="主责实验室负责人" class="form-wide">
+              <el-select v-model="actionForm.lead_lab_manager_id" placeholder="从上述已分配负责人中选择">
+                <el-option v-for="manager in leadManagerOptions" :key="manager.id" :label="manager.name" :value="manager.id" />
+              </el-select>
+              <div class="field-help">主责负责人负责汇总所有执行路径并出具最终检测报告。</div>
+            </el-form-item>
+          </template>
           <el-form-item v-if="activeAction === 'review_reject'" label="驳回原因" class="form-wide"><el-input v-model="actionForm.reject_reason" type="textarea" :rows="3" /></el-form-item>
         </template>
 

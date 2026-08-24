@@ -50,6 +50,13 @@ function formatQuote(value?: string) {
         </el-space>
       </el-descriptions-item>
       <el-descriptions-item label="当前执行路径">{{ order.execution_mode }}</el-descriptions-item>
+      <el-descriptions-item label="工作流">{{ order.workflow_label }}</el-descriptions-item>
+      <el-descriptions-item label="主责实验室负责人">{{ order.lead_lab_manager || '待技术分配' }}</el-descriptions-item>
+      <el-descriptions-item label="销售需求确认">
+        <el-tag :type="order.sales_confirmed ? 'success' : 'warning'" size="small" effect="plain">
+          {{ order.sales_confirmed ? '已确认' : '待确认' }}
+        </el-tag>
+      </el-descriptions-item>
       <el-descriptions-item label="订单报价">{{ formatQuote(order.total_quote) }}</el-descriptions-item>
       <el-descriptions-item label="创建时间">{{ order.created_at || '未记录' }}</el-descriptions-item>
       <el-descriptions-item label="预计样品到达">{{ order.expected_sample_arrival || '待确认' }}</el-descriptions-item>

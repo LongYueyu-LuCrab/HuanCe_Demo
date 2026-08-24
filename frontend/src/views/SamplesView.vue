@@ -65,7 +65,7 @@ async function openOrderDetail(sample: SampleItem) {
         <div class="card-heading">
           <div>
             <h2>样品台账</h2>
-            <p>展示质量部已登记的样品编号、规格、存储条件、到货时间和关联订单。</p>
+            <p>展示实验室负责人登记的样品编号、规格、存储条件、到货时间和关联订单。</p>
           </div>
           <el-input
             v-model="keyword"

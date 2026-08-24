@@ -57,7 +57,7 @@ async function submitResult() {
 <template>
   <OrderTable
     title="委外试验订单"
-    subtitle="展示分配给外部委托实验室的订单；质量部可录入委外试验结果回传。"
+    subtitle="展示分配给当前负责人的委外任务；内部实验室负责人维护厂家、排期与结果回传。"
     :orders="orders"
     :user="session.state.user"
     @workflow="openWorkflow"

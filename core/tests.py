@@ -260,6 +260,7 @@ class LimsFullRoleWorkflowTests(TestCase):
             create_by=self.users['sales'].username,
             update_by=self.users['sales'].username,
             order_status=LabOrder.Status.PENDING_REVIEW,
+            workflow_version=LabOrder.WorkflowVersion.LEGACY_QUALITY,
         )
         WorkflowEvent.objects.create(
             order=order,
@@ -435,3 +436,139 @@ class LimsFullRoleWorkflowTests(TestCase):
             set(Group.objects.values_list('name', flat=True)),
             set(self.roles.values()),
         )
+
+
+class LimsV2DirectLabWorkflowTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.users = {}
+        for username, role in {
+            'sales_v2': '销售',
+            'business_v2': '商务',
+            'tech_v2': '技术',
+            'quality_v1': '质量部',
+            'suzhou_v2': '苏州实验室',
+            'jiangyin_v2': '江阴实验室',
+        }.items():
+            group, _ = Group.objects.get_or_create(name=role)
+            user = user_model.objects.create_user(username=username, password='password123', first_name=role)
+            user.groups.add(group)
+            self.users[username] = user
+        self.order = LabOrder.objects.create(
+            order_no='FLOW-V2-001',
+            customer_name='V2 流程客户',
+            project_name='多路径直达实验室验证',
+            test_demand='苏州环境试验、江阴振动试验及委外盐雾试验',
+            test_standard='GB/T 2423',
+            total_quote='68000.00',
+            autonomous_execution=True,
+            outsourced_execution=True,
+            sale_user=self.users['sales_v2'],
+            workflow_version=LabOrder.WorkflowVersion.LAB_DIRECT,
+        )
+
+    def action(self, user_key, action, **payload):
+        self.client.force_login(self.users[user_key])
+        return self.client.post(
+            reverse('lims_action'),
+            data={'action': action, 'order_no': self.order.order_no, **payload},
+            content_type='application/json',
+        )
+
+    def test_v2_routes_directly_to_labs_and_lead_manager_issues_report(self):
+        business = self.action('business_v2', 'review_pass', biz_quote_detail='商务评审通过')
+        self.assertEqual(business.status_code, 200)
+
+        technical = self.action(
+            'tech_v2',
+            'review_pass',
+            biz_quote_detail='技术可行，多路径执行',
+            execution_routes=['suzhou', 'jiangyin', 'outsource'],
+            suzhou_manager_id=self.users['suzhou_v2'].id,
+            jiangyin_manager_id=self.users['jiangyin_v2'].id,
+            outsource_owner_id=self.users['suzhou_v2'].id,
+            lead_lab_manager_id=self.users['suzhou_v2'].id,
+            suzhou_task='高低温循环',
+            jiangyin_task='振动耐久',
+            outsource_task='盐雾腐蚀',
+        )
+        self.assertEqual(technical.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.order_status, LabOrder.Status.SCHEDULING)
+        self.assertEqual(self.order.lead_lab_manager, self.users['suzhou_v2'])
+        self.assertEqual(self.order.schedules.count(), 3)
+        self.assertEqual(self.order.schedules.filter(assigned_by=self.users['tech_v2']).count(), 3)
+
+        suzhou_schedule = self.order.schedules.get(test_type=SchedulePlan.TestType.SUZHOU)
+        jiangyin_schedule = self.order.schedules.get(test_type=SchedulePlan.TestType.JIANGYIN)
+        outsource_schedule = self.order.schedules.get(test_type=SchedulePlan.TestType.OUTSOURCE)
+
+        changed = self.action(
+            'sales_v2', 'create_change', change_scene=1,
+            new_test_demand='三条路径均增加复测要求', change_content='客户统一调整试验要求',
+        )
+        self.assertEqual(changed.status_code, 200)
+        self.assertEqual(self.order.change_requests.filter(change_status=ChangeRequest.Status.PENDING).count(), 3)
+        for user_key, schedule in (
+            ('suzhou_v2', suzhou_schedule),
+            ('jiangyin_v2', jiangyin_schedule),
+            ('suzhou_v2', outsource_schedule),
+        ):
+            self.assertEqual(
+                self.action(
+                    user_key, 'process_change', schedule_id=schedule.id,
+                    plan_start_time='2026-08-29', plan_end_time='2026-08-31',
+                ).status_code,
+                200,
+            )
+
+        quality_denied = self.action(
+            'quality_v1', 'schedule_assign', schedule_id=suzhou_schedule.id,
+            plan_start_time='2026-09-01', plan_end_time='2026-09-05',
+        )
+        self.assertEqual(quality_denied.status_code, 403)
+
+        confirmed = self.action('sales_v2', 'sales_confirm', note='销售确认无变更')
+        self.assertEqual(confirmed.status_code, 200)
+
+        for user_key, schedule in (
+            ('suzhou_v2', suzhou_schedule),
+            ('jiangyin_v2', jiangyin_schedule),
+            ('suzhou_v2', outsource_schedule),
+        ):
+            schedule_response = self.action(
+                user_key, 'schedule_assign', schedule_id=schedule.id,
+                plan_start_time='2026-09-01', plan_end_time='2026-09-05',
+                outsource_factory='委外测试机构' if schedule.test_type == SchedulePlan.TestType.OUTSOURCE else '',
+            )
+            self.assertEqual(schedule_response.status_code, 200)
+            sample_response = self.action(
+                user_key, 'register_sample', schedule_id=schedule.id,
+                sample_name=f'{schedule.get_test_type_display()}样品', sample_count=1,
+            )
+            self.assertEqual(sample_response.status_code, 200)
+
+        for user_key, schedule in (('suzhou_v2', suzhou_schedule), ('jiangyin_v2', jiangyin_schedule)):
+            self.assertEqual(
+                self.action(user_key, 'start_test', schedule_id=schedule.id, test_standard='GB/T 2423').status_code,
+                200,
+            )
+            self.assertEqual(
+                self.action(user_key, 'submit_test', test_raw_data='原始数据完整', test_conclusion_temp='合格').status_code,
+                200,
+            )
+
+        self.assertEqual(
+            self.action(
+                'suzhou_v2', 'outsource_result', schedule_id=outsource_schedule.id,
+                test_raw_data='委外报告数据', test_conclusion_temp='合格',
+            ).status_code,
+            200,
+        )
+        denied_report = self.action('jiangyin_v2', 'issue_report', final_conclusion='全部合格')
+        self.assertEqual(denied_report.status_code, 403)
+        issued_report = self.action('suzhou_v2', 'issue_report', final_conclusion='三条路径全部完成，结论合格')
+        self.assertEqual(issued_report.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.order_status, LabOrder.Status.REPORT_REVIEW)
+        self.assertEqual(self.order.reports.get().create_quality_user, self.users['suzhou_v2'])

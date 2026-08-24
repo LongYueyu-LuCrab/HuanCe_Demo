@@ -32,6 +32,19 @@ const form = reactive({
   test_standard: '',
   test_raw_data: '',
   test_conclusion_temp: '',
+  plan_start_time: '',
+  plan_end_time: '',
+  outsource_factory: '',
+  outsource_price: '',
+  outsource_cycle: '',
+  sample_name: '',
+  sample_spec: '',
+  sample_count: 1,
+  storage_condition: '常温',
+  test_start_time: '',
+  test_end_time: '',
+  report_no: '',
+  final_conclusion: '',
 })
 const standardForm = reactive({
   industry: '',
@@ -82,6 +95,19 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
     test_standard: firstStandard ? `${firstStandard.standard_code} ${firstStandard.standard_name}` : '',
     test_raw_data: '',
     test_conclusion_temp: '',
+    plan_start_time: schedule.start_time || '',
+    plan_end_time: schedule.end_time || '',
+    outsource_factory: '',
+    outsource_price: '',
+    outsource_cycle: '',
+    sample_name: `${schedule.project_name} 样品`,
+    sample_spec: '客户送检样品',
+    sample_count: 1,
+    storage_condition: '常温',
+    test_start_time: '',
+    test_end_time: '',
+    report_no: '',
+    final_conclusion: '',
   })
   dialogVisible.value = true
   void loadOrderContext(schedule.order_no)
@@ -125,6 +151,7 @@ async function submitWorkflow() {
     await workflowAction({
       action: activeAction.value,
       order_no: activeOrderNo.value,
+      schedule_id: activeSchedule.value?.id,
       ...form,
       test_item_list: activeSchedule.value?.remark || form.test_item_list,
       test_standard: testStandard,
@@ -179,10 +206,29 @@ async function submitWorkflow() {
       @detail="openOrderDetail"
     />
 
-    <el-dialog v-model="dialogVisible" title="试验节点操作" width="min(960px, 94vw)">
+    <el-dialog v-model="dialogVisible" title="实验室任务操作" width="min(960px, 94vw)">
       <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="试验任务订单信息" />
       <el-form label-position="top" class="form-grid mt-16">
-        <template v-if="activeAction === 'start_test'">
+        <template v-if="activeAction === 'schedule_assign'">
+          <el-form-item label="计划开始"><el-date-picker v-model="form.plan_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+          <el-form-item label="计划结束"><el-date-picker v-model="form.plan_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+          <template v-if="activeSchedule?.test_type.includes('委外')">
+            <el-form-item label="委外厂家"><el-input v-model="form.outsource_factory" /></el-form-item>
+            <el-form-item label="委外价格"><el-input v-model="form.outsource_price" type="number" /></el-form-item>
+            <el-form-item label="委外周期/天"><el-input v-model="form.outsource_cycle" type="number" /></el-form-item>
+          </template>
+        </template>
+        <template v-else-if="activeAction === 'process_change'">
+          <el-form-item label="调整后开始"><el-date-picker v-model="form.plan_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+          <el-form-item label="调整后结束"><el-date-picker v-model="form.plan_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+        </template>
+        <template v-else-if="activeAction === 'register_sample'">
+          <el-form-item label="样品名称"><el-input v-model="form.sample_name" /></el-form-item>
+          <el-form-item label="规格型号"><el-input v-model="form.sample_spec" /></el-form-item>
+          <el-form-item label="数量"><el-input v-model="form.sample_count" type="number" /></el-form-item>
+          <el-form-item label="存储条件"><el-input v-model="form.storage_condition" /></el-form-item>
+        </template>
+        <template v-else-if="activeAction === 'start_test'">
           <el-form-item label="试验项目" class="form-wide">
             <el-input v-model="form.test_item_list" disabled type="textarea" :rows="3" />
           </el-form-item>
@@ -206,7 +252,17 @@ async function submitWorkflow() {
           <el-form-item label="原始检测数据" class="form-wide"><el-input v-model="form.test_raw_data" type="textarea" :rows="4" /></el-form-item>
           <el-form-item label="临时结论" class="form-wide"><el-input v-model="form.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
         </template>
-        <template v-else>
+        <template v-else-if="activeAction === 'outsource_result'">
+          <el-form-item label="委外开始"><el-date-picker v-model="form.test_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+          <el-form-item label="委外完成"><el-date-picker v-model="form.test_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+          <el-form-item label="回传原始数据" class="form-wide"><el-input v-model="form.test_raw_data" type="textarea" :rows="4" /></el-form-item>
+          <el-form-item label="委外结论" class="form-wide"><el-input v-model="form.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
+        </template>
+        <template v-else-if="activeAction === 'issue_report'">
+          <el-form-item label="报告编号"><el-input v-model="form.report_no" placeholder="留空自动生成" /></el-form-item>
+          <el-form-item label="最终结论" class="form-wide"><el-input v-model="form.final_conclusion" type="textarea" :rows="4" /></el-form-item>
+        </template>
+        <template v-else-if="activeAction === 'create_change'">
           <el-form-item label="变更后需求" class="form-wide"><el-input v-model="form.new_test_demand" type="textarea" :rows="3" /></el-form-item>
           <el-form-item label="变更说明" class="form-wide"><el-input v-model="form.change_content" type="textarea" :rows="3" /></el-form-item>
         </template>

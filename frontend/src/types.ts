@@ -25,6 +25,11 @@ export type OrderItem = {
   status_key: number
   execution_mode: string
   execution_attributes: string[]
+  workflow_version: number
+  workflow_label: string
+  lead_lab_manager: string
+  lead_lab_manager_username: string
+  sales_confirmed: boolean
   expected_sample_arrival: string
   expected_delivery_date: string
   total_quote?: string
@@ -45,6 +50,7 @@ export type OrderDocumentItem = {
 }
 
 export type ScheduleItem = {
+  id: number
   order_no: string
   customer: string
   project_name: string
@@ -53,6 +59,11 @@ export type ScheduleItem = {
   start_time: string
   end_time: string
   schedule_status: string
+  lab_manager: string
+  is_lead: boolean
+  sample_registered: boolean
+  experiment_status: string
+  workflow_version: number
   remark: string
 }
 
@@ -179,11 +190,21 @@ export type Dashboard = {
   reviews: ReviewItem[]
   workflow_events: WorkflowEventItem[]
   test_standards: TestStandardItem[]
+  routing_options: {
+    suzhou_managers: UserOption[]
+    jiangyin_managers: UserOption[]
+  }
   pending_reports: ReportItem[]
   finance: {
     pending_invoices: InvoiceItem[]
     issued_invoices: InvoiceItem[]
   }
+}
+
+export type UserOption = {
+  id: number
+  username: string
+  name: string
 }
 
 export type MenuItem = {

@@ -84,6 +84,7 @@ class Command(BaseCommand):
                 expect_sample_arrive=created_at + timezone.timedelta(days=2),
                 expect_delivery_time=created_at + timezone.timedelta(days=12 + index % 10),
                 order_status=scenario['order_status'],
+                workflow_version=LabOrder.WorkflowVersion.LEGACY_QUALITY,
                 execution_mode=scenario['mode'],
                 sale_user=sales_user,
                 create_by=sales_user.username,

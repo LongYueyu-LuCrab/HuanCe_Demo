@@ -612,3 +612,68 @@ Sales-order fields are shared workflow context, not sales-only presentation data
   payloads do not grow with document metadata.
 - When adding future sales-order fields, update `_order_payload`, `OrderItem`, `OrderSnapshot`,
   relevant tests, and every downstream workflow view in the same change.
+
+## 19. Workflow V2 Authoritative Baseline
+
+This section supersedes older quality-department workflow descriptions for all newly created
+orders. Older sections remain only as V1 history and compatibility documentation.
+
+### 19.1 Versioning And Cutover
+
+- `LabOrder.workflow_version=1`: legacy quality-department coordination workflow.
+- `LabOrder.workflow_version=2`: technical-review-to-laboratory workflow and the default for new orders.
+- Migration `0005` marks every pre-existing order as V1 and leaves its data and audit chain intact.
+- The legacy `质量部` role cannot operate V2 orders and cannot be assigned to new employees.
+- Keep V1 permissions only until all historical in-progress orders are complete.
+
+### 19.2 V2 Workflow
+
+```text
+sales order
+-> business and technical dual review
+-> technical reviewer selects one or more routes and route managers
+-> technical reviewer selects one lead laboratory manager
+-> assigned laboratory managers plan their own routes
+-> sales confirms requirements after schedules are available
+-> each assigned laboratory manager registers samples for their own route
+-> internal laboratory execution and/or internally-owned outsource execution
+-> every route submits a finished experiment record
+-> lead laboratory manager consolidates and issues the final report
+-> sales report review
+-> general-manager final review
+-> accounting invoice and closure
+```
+
+### 19.3 Responsibility Rules
+
+- Technical reviewers own route selection and initial assignment, not detailed scheduling.
+- Routes are `苏州实验室`, `江阴实验室`, and `外部委外`; multiple routes are allowed.
+- Every route is a `SchedulePlan` and has its own `lab_manager`.
+- Outsource routes must also have an internal Suzhou or Jiangyin manager.
+- `LabOrder.lead_lab_manager` must be one of the assigned route managers.
+- Laboratory managers can only update schedules, samples, changes, and results assigned to themselves.
+- A sales change creates a pending change for every route; a laboratory change affects only its own route.
+- Sample registration is blocked until sales has confirmed requirements.
+- Final report creation is blocked until every schedule and experiment is finished.
+- Only the lead laboratory manager can create or remake the consolidated final report.
+- Sales and general-manager rejection returns the report to the same lead laboratory manager.
+
+### 19.4 Field Semantics
+
+- `SchedulePlan.assigned_by`: technical reviewer who created the route assignment.
+- `SchedulePlan.quality_user`: retained database field; semantically the current schedule operator.
+- `Sample.quality_user`: retained database field; semantically the sample registrar.
+- `TestReport.create_quality_user`: retained database field; semantically the report creator.
+- `LabOrder.sales_confirmed_at`: cleared whenever a change returns the order to scheduling.
+
+### 19.5 Required Tests
+
+Every workflow change must preserve both test paths:
+
+- V1 historical order remains operable by the legacy quality role.
+- V2 order completes through business review, technical route assignment, per-lab scheduling,
+  sales confirmation, per-route sample/test/outsource handling, lead report creation, report audit,
+  and finance closure.
+- Quality role receives HTTP 403 for V2 operational actions.
+- Non-assigned laboratory managers cannot operate another manager's route.
+- Non-lead laboratory managers cannot issue the final report.

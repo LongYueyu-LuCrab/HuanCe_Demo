@@ -12,7 +12,7 @@ const form = reactive({
   role: '销售',
 })
 
-const roles = ['销售', '商务', '技术', '质量部', '苏州实验室', '江阴实验室', '委外供应商', '总经理', '会计', '董事长']
+const roles = ['销售', '商务', '技术', '苏州实验室', '江阴实验室', '委外供应商', '总经理', '会计', '董事长']
 
 async function submit() {
   submitting.value = true

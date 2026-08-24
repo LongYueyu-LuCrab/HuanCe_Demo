@@ -16,6 +16,10 @@ class TimeStampedModel(models.Model):
 
 
 class LabOrder(TimeStampedModel):
+    class WorkflowVersion(models.IntegerChoices):
+        LEGACY_QUALITY = 1, 'V1 质量部调度流程'
+        LAB_DIRECT = 2, 'V2 技术直达实验室流程'
+
     class Status(models.IntegerChoices):
         PENDING_REVIEW = 1, '待评审'
         REVIEW_REJECTED = 2, '评审驳回'
@@ -57,6 +61,18 @@ class LabOrder(TimeStampedModel):
     execution_mode = models.PositiveSmallIntegerField('试验执行路径', choices=ExecutionMode.choices, default=ExecutionMode.MIXED)
     autonomous_execution = models.BooleanField('包含自主试验', default=True)
     outsourced_execution = models.BooleanField('包含委外试验', default=False)
+    workflow_version = models.PositiveSmallIntegerField(
+        '工作流版本', choices=WorkflowVersion.choices, default=WorkflowVersion.LAB_DIRECT
+    )
+    lead_lab_manager = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='主责实验室负责人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_lead_orders',
+    )
+    sales_confirmed_at = models.DateTimeField('销售确认需求时间', null=True, blank=True)
     sale_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         verbose_name='下单销售',
@@ -210,11 +226,19 @@ class SchedulePlan(TimeStampedModel):
     schedule_status = models.PositiveSmallIntegerField('排期状态', choices=Status.choices, default=Status.NEW)
     quality_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        verbose_name='质量部操作人员',
+        verbose_name='排期负责人',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='lims_quality_schedules',
+    )
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='技术分配人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_assigned_schedules',
     )
     remark = models.CharField('排期备注', max_length=500, blank=True)
 
@@ -282,7 +306,7 @@ class Sample(TimeStampedModel):
     sample_status = models.PositiveSmallIntegerField('样品状态', choices=Status.choices, default=Status.REGISTERED)
     quality_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        verbose_name='登记质量人员',
+        verbose_name='样品登记人',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -352,7 +376,7 @@ class TestReport(TimeStampedModel):
     remake_count = models.PositiveIntegerField('驳回重制次数统计', default=0)
     create_quality_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        verbose_name='出具报告质量人员',
+        verbose_name='报告出具人',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

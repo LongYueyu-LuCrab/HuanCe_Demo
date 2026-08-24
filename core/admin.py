@@ -35,6 +35,7 @@ class SchedulePlanInline(admin.TabularInline):
     fields = (
         'test_type',
         'lab_manager',
+        'assigned_by',
         'outsource_factory',
         'outsource_price',
         'outsource_cycle',
@@ -92,11 +93,13 @@ class LabOrderAdmin(admin.ModelAdmin):
         'industry_category',
         'order_status',
         'execution_mode',
+        'workflow_version',
+        'lead_lab_manager',
         'expect_sample_arrive',
         'total_quote',
         'sale_user',
     )
-    list_filter = ('order_status', 'execution_mode', 'industry_category', 'autonomous_execution', 'outsourced_execution')
+    list_filter = ('order_status', 'workflow_version', 'execution_mode', 'industry_category', 'autonomous_execution', 'outsourced_execution')
     search_fields = (
         'order_no', 'customer_name', 'customer_contact', 'customer_phone', 'project_name',
         'test_demand', 'test_method', 'test_standard',
@@ -120,8 +123,11 @@ class LabOrderAdmin(admin.ModelAdmin):
         ('流程状态', {
             'fields': (
                 'order_status',
+                'workflow_version',
                 'execution_mode',
                 ('autonomous_execution', 'outsourced_execution'),
+                'lead_lab_manager',
+                'sales_confirmed_at',
                 'expect_sample_arrive',
                 'expect_delivery_time',
             )
