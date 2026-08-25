@@ -150,6 +150,7 @@ POSTGRES_USER
 POSTGRES_PASSWORD
 POSTGRES_HOST
 POSTGRES_PORT
+MEDIA_ROOT=/opt/huance/media
 ```
 
 Do not copy production secrets into Git or this document.
