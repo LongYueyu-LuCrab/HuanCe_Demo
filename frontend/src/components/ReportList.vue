@@ -16,7 +16,7 @@ const filteredReports = computed(() => {
   const value = keyword.value.trim().toLowerCase()
   if (!value) return props.reports
   return props.reports.filter((report) =>
-    [report.report_no, report.order_no, report.customer, report.project_name, report.status, report.conclusion, report.quality_user]
+    [report.report_no, report.order_no, report.customer, report.project_name, report.status, report.report_type_label, report.conclusion, report.quality_user]
       .filter(Boolean)
       .join(' ')
       .toLowerCase()
@@ -48,6 +48,10 @@ function actionsFor(report: ReportItem) {
   }
   return actions
 }
+
+function downloadReport(report: ReportItem) {
+  if (report.download_url) window.location.assign(report.download_url)
+}
 </script>
 
 <template>
@@ -56,12 +60,12 @@ function actionsFor(report: ReportItem) {
       <div class="card-heading">
         <div>
           <h2>报告工作台</h2>
-          <p>显示当前角色需要处理或核对的报告。</p>
+          <p>显示当前角色可查看的待办与历史报告，PDF 文件可按权限下载。</p>
         </div>
         <el-input v-model="keyword" clearable class="table-search" placeholder="报告号、订单号、客户、状态" @input="page = 1" />
       </div>
     </template>
-    <el-table :data="pagedReports" stripe height="520" empty-text="当前没有待处理报告">
+    <el-table :data="pagedReports" stripe height="520" empty-text="当前没有可查看的报告">
       <el-table-column prop="report_no" label="报告号" min-width="170" />
       <el-table-column prop="order_no" label="订单号" min-width="150" />
       <el-table-column label="客户 / 项目" min-width="300">
@@ -73,12 +77,20 @@ function actionsFor(report: ReportItem) {
       <el-table-column prop="status" label="状态" min-width="150">
         <template #default="{ row }"><el-tag effect="plain">{{ row.status }}</el-tag></template>
       </el-table-column>
+      <el-table-column prop="report_type_label" label="版本" width="100">
+        <template #default="{ row }">
+          <el-tag :type="row.report_type === 'formal' ? 'danger' : row.report_type === 'data_only' ? 'info' : 'warning'" effect="plain">
+            {{ row.report_type_label }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="remake_count" label="重制次数" width="100" />
       <el-table-column prop="quality_user" label="出具人" min-width="120" />
       <el-table-column label="订单信息 / 审核操作" fixed="right" min-width="260">
         <template #default="{ row }">
           <div class="row-actions">
             <el-button size="small" plain @click="emit('detail', row)">订单详情</el-button>
+            <el-button v-if="row.has_file" size="small" type="primary" plain @click="downloadReport(row)">下载 PDF</el-button>
             <el-button
               v-for="action in actionsFor(row)"
               :key="action.key"
@@ -89,7 +101,7 @@ function actionsFor(report: ReportItem) {
             >
               {{ action.label }}
             </el-button>
-            <span v-if="actionsFor(row).length === 0" class="cell-sub">无可操作</span>
+            <span v-if="actionsFor(row).length === 0 && !row.has_file" class="cell-sub">无可操作</span>
           </div>
         </template>
       </el-table-column>

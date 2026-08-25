@@ -248,9 +248,10 @@ class ReportAuditInline(admin.TabularInline):
 
 @admin.register(TestReport)
 class TestReportAdmin(admin.ModelAdmin):
-    list_display = ('report_no', 'order', 'test_record', 'report_status', 'remake_count', 'create_quality_user')
-    list_filter = ('report_status',)
+    list_display = ('report_no', 'order', 'report_type', 'report_status', 'generated_at', 'remake_count', 'create_quality_user')
+    list_filter = ('report_type', 'report_status')
     search_fields = ('report_no', 'order__order_no', 'final_conclusion', 'report_file_url')
+    readonly_fields = ('generated_at',)
     inlines = [ReportAuditInline]
 
 

@@ -733,3 +733,29 @@ Migration `0006` introduces formal equipment scheduling for internal laboratory 
   users do not choose industry or test standard in the start-test dialog.
 - The equipment management page and laboratory overview must show real current/future schedule data,
   never synthesized placeholder devices or mock bookings.
+
+## 21. Test Report PDF Baseline
+
+Migration `0009` introduces real, downloadable PDF files for test reports.
+
+- V2 final reports are issued or remade only by `LabOrder.lead_lab_manager`; a laboratory operator
+  may execute and submit tests but must receive HTTP 403 when attempting `issue_report`.
+- `TestReport.report_type` is required and supports exactly `formal`, `draft`, and `data_only`.
+- `formal` includes the generated red `示例章 / DEMO` placeholder watermark. It must remain visibly
+  marked as a non-legal placeholder until the company supplies an approved seal asset.
+- `draft` uses the complete report layout without any seal or watermark.
+- `data_only` contains order/client metadata, experiment names and types, execution times, operators,
+  raw data, and experiment conclusions; it is not a formal inspection conclusion.
+- `TestReport.report_file` stores the generated PDF under
+  `MEDIA_ROOT/private_test_reports/<order_no>/`. Never expose this private path directly.
+- `TestReport.report_file_url` is retained for backward compatibility and points to the protected
+  download endpoint after generation.
+- `TestReport.generated_at` records the latest PDF generation time. A rejected report remake replaces
+  the previous stored PDF and records the newly selected report type.
+- Downloads use `GET /api/reports/<report_id>/download/`, require authentication, and must pass the
+  same order/laboratory row-permission checks as the corresponding business record.
+- Report payloads include `report_type`, `report_type_label`, `generated_at`, `has_file`, and
+  `download_url`. Authorized report history remains downloadable after review; approval buttons still
+  appear only for the role and status that currently owns the review task.
+- Every report change must keep tests for all three PDF variants, `%PDF` output validity, protected
+  download responses, lead-manager issuance, and operator issuance denial.

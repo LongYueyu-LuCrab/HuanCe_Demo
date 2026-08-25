@@ -9,6 +9,7 @@ from urllib.parse import quote
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.models import Group
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q
 from django.http import FileResponse, HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, JsonResponse
@@ -19,6 +20,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabDevice, LabOrder, LabStaffProfile, OrderDocument, ReportAudit, Sample, SamplePhoto, SchedulePlan, TestReport, TestStandard, WorkflowEvent
+from .report_pdf import build_test_report_pdf
 
 
 ROLE_SALES = '销售'
@@ -280,6 +282,7 @@ def order_detail(request, order_no):
 
 def _report_payload(report):
     return {
+        'id': report.id,
         'report_no': report.report_no,
         'order_no': report.order.order_no,
         'customer': report.order.customer_name,
@@ -291,6 +294,11 @@ def _report_payload(report):
         'quality_user': report.create_quality_user.first_name or report.create_quality_user.username
         if report.create_quality_user
         else '',
+        'report_type': report.report_type,
+        'report_type_label': report.get_report_type_display(),
+        'generated_at': report.generated_at.strftime('%Y-%m-%d %H:%M') if report.generated_at else '',
+        'has_file': bool(report.report_file),
+        'download_url': f'/api/reports/{report.id}/download/' if report.report_file else '',
     }
 
 
@@ -553,30 +561,23 @@ def _lab_payload(test_type, name, related_orders=None, user=None):
 def _pending_reports_for_user(user, related_orders):
     reports = TestReport.objects.select_related('order', 'create_quality_user').filter(order__in=related_orders)
     if _is_chairman(user):
-        return reports.exclude(report_status=TestReport.Status.APPROVED)
+        return reports
     roles = set(_roles(user))
     query = Q()
     if ROLE_SALES in roles:
-        query |= Q(report_status=TestReport.Status.SALES_REVIEW)
+        query |= Q(order__sale_user=user)
     if ROLE_GENERAL_MANAGER in roles:
-        query |= Q(report_status=TestReport.Status.GM_REVIEW)
+        return reports
+    if ROLE_ACCOUNTING in roles:
+        query |= Q(report_status=TestReport.Status.APPROVED)
     if ROLE_QUALITY in roles:
-        query |= Q(
-            order__workflow_version=LabOrder.WorkflowVersion.LEGACY_QUALITY,
-            report_status__in=[TestReport.Status.DRAFT, TestReport.Status.REJECTED],
-        )
+        query |= Q(order__workflow_version=LabOrder.WorkflowVersion.LEGACY_QUALITY)
     if ROLE_SUZHOU_LAB in roles or ROLE_JIANGYIN_LAB in roles:
-        query |= Q(
-            order__lead_lab_manager=user,
-            report_status__in=[TestReport.Status.DRAFT, TestReport.Status.REJECTED],
-        )
+        query |= Q(order__lead_lab_manager=user)
     if ROLE_LAB_OPERATOR in roles:
         lab_type = _user_lab_type(user)
         manager_role = ROLE_SUZHOU_LAB if lab_type == LabDevice.LabType.SUZHOU else ROLE_JIANGYIN_LAB
-        query |= Q(
-            order__lead_lab_manager__groups__name=manager_role,
-            report_status__in=[TestReport.Status.DRAFT, TestReport.Status.REJECTED],
-        )
+        query |= Q(order__lead_lab_manager__groups__name=manager_role)
     if not query:
         return reports.none()
     return reports.filter(query)
@@ -1408,6 +1409,22 @@ def view_sample_photo(request, photo_id):
     return FileResponse(photo.file.open('rb'), content_type=content_type, filename=photo.original_name)
 
 
+def download_test_report(request, report_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False, 'error': '请先登录'}, status=401, json_dumps_params={'ensure_ascii': False})
+    report = get_object_or_404(TestReport.objects.select_related('order'), pk=report_id)
+    can_view = _orders_for_user(request.user).filter(pk=report.order_id).exists()
+    lab_type = _user_lab_type(request.user)
+    if not can_view and lab_type:
+        can_view = report.order.schedules.filter(_lab_schedule_query(lab_type)).exists()
+    if not can_view:
+        return JsonResponse({'ok': False, 'error': '无权下载该检测报告'}, status=403, json_dumps_params={'ensure_ascii': False})
+    if not report.report_file or not report.report_file.storage.exists(report.report_file.name):
+        return JsonResponse({'ok': False, 'error': '报告 PDF 尚未生成或已被移除'}, status=404, json_dumps_params={'ensure_ascii': False})
+    filename = f'{report.report_no}-{report.get_report_type_display()}.pdf'
+    return FileResponse(report.report_file.open('rb'), content_type='application/pdf', as_attachment=True, filename=filename)
+
+
 @csrf_exempt
 @transaction.atomic
 def lims_action(request):
@@ -2076,15 +2093,10 @@ def _action_issue_report(request, payload):
     if error:
         return error
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
+        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB)
         if role_error:
             return role_error
-        can_issue_as_operator = (
-            _is_lab_operator(request.user)
-            and order.lead_lab_manager
-            and _user_lab_type(request.user) == _user_lab_type(order.lead_lab_manager)
-        )
-        if not _is_chairman(request.user) and order.lead_lab_manager_id != request.user.id and not can_issue_as_operator:
+        if not _is_chairman(request.user) and order.lead_lab_manager_id != request.user.id:
             return JsonResponse({'ok': False, 'error': '仅本订单主责实验室负责人可以汇总出具报告'}, status=403, json_dumps_params={'ensure_ascii': False})
         if order.schedules.exclude(schedule_status=SchedulePlan.Status.FINISHED).exists():
             return JsonResponse({'ok': False, 'error': '仍有执行路径未完成，暂不能出具总报告'}, status=400, json_dumps_params={'ensure_ascii': False})
@@ -2097,24 +2109,40 @@ def _action_issue_report(request, payload):
     experiment = order.experiments.order_by('-create_time').first()
     if not experiment:
         return JsonResponse({'ok': False, 'error': '请先完成试验记录'}, status=400, json_dumps_params={'ensure_ascii': False})
+    report_type = payload.get('report_type') or TestReport.ReportType.FORMAL
+    if report_type not in TestReport.ReportType.values:
+        return JsonResponse({'ok': False, 'error': '请选择有效的报告版本'}, status=400, json_dumps_params={'ensure_ascii': False})
     report = order.reports.filter(report_status=TestReport.Status.REJECTED).order_by('-create_time').first()
     if report:
         report.test_record = experiment
-        report.report_file_url = payload.get('report_file_url') or report.report_file_url
+        report.report_type = report_type
         report.final_conclusion = payload.get('final_conclusion') or report.final_conclusion or '检测完成，形成正式检测报告。'
         report.report_status = TestReport.Status.SALES_REVIEW
         report.create_quality_user = request.user
-        report.save()
     else:
-        report = TestReport.objects.create(
+        report = TestReport(
             order=order,
             test_record=experiment,
             report_no=payload.get('report_no') or _next_report_no(order),
-            report_file_url=payload.get('report_file_url') or '',
+            report_type=report_type,
             final_conclusion=payload.get('final_conclusion') or '检测完成，形成正式检测报告。',
             report_status=TestReport.Status.SALES_REVIEW,
             create_quality_user=request.user,
         )
+    report.generated_at = timezone.now()
+    report.save()
+    experiments = order.experiments.select_related('test_operator', 'schedule').order_by('create_time')
+    pdf_content = build_test_report_pdf(report, experiments)
+    old_file_name = report.report_file.name if report.report_file else ''
+    report_filename = f'{report.report_no}-{report.report_type}.pdf'
+    report.report_file.save(report_filename, ContentFile(pdf_content), save=False)
+    report.report_file_url = f'/api/reports/{report.id}/download/'
+    report.save(update_fields=[
+        'test_record', 'report_type', 'final_conclusion', 'report_status', 'create_quality_user',
+        'generated_at', 'report_file', 'report_file_url', 'update_time',
+    ])
+    if old_file_name and old_file_name != report.report_file.name:
+        report.report_file.storage.delete(old_file_name)
     _event(
         order,
         request.user,
@@ -2122,6 +2150,8 @@ def _action_issue_report(request, payload):
         action_code='lab_report_issue',
         changes={
             'report_no': _audit_change('报告编号', '', report.report_no),
+            'report_type': _audit_change('报告版本', '', report.get_report_type_display()),
+            'report_file': _audit_change('报告文件', '', report.report_file.name),
             'report_status': _audit_change('报告状态', '草稿/驳回', report.get_report_status_display()),
             'final_conclusion': _audit_change('最终结论', '', report.final_conclusion[:500]),
             'report_creator': _audit_change('报告提交人', '', _display_user(request.user)),

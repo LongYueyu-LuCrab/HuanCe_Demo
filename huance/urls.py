@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, re_path
-from core.views import add_employee, create_order, current_user, download_order_document, frontend, lab_device_availability, lab_device_detail, lab_devices, laboratory_orders, laboratory_orders_export, lims_action, lims_dashboard, lims_login, lims_logout, order_detail, view_sample_photo
+from core.views import add_employee, create_order, current_user, download_order_document, download_test_report, frontend, lab_device_availability, lab_device_detail, lab_devices, laboratory_orders, laboratory_orders_export, lims_action, lims_dashboard, lims_login, lims_logout, order_detail, view_sample_photo
 
 urlpatterns = [
     path('', frontend, name='frontend'),
@@ -27,6 +27,7 @@ urlpatterns = [
     path('api/orders/create/', create_order, name='create_order'),
     path('api/orders/<str:order_no>/', order_detail, name='order_detail'),
     path('api/orders/documents/<int:document_id>/download/', download_order_document, name='download_order_document'),
+    path('api/reports/<int:report_id>/download/', download_test_report, name='download_test_report'),
     path('api/samples/photos/<int:photo_id>/', view_sample_photo, name='view_sample_photo'),
     path('api/labs/devices/', lab_devices, name='lab_devices'),
     path('api/labs/devices/availability/', lab_device_availability, name='lab_device_availability'),

@@ -22,6 +22,7 @@ from .models import (
     TestReport,
     WorkflowEvent,
 )
+from .report_pdf import build_test_report_pdf
 
 
 class LimsDashboardTests(TestCase):
@@ -56,6 +57,33 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(data['metrics']['active_orders'], 1)
         self.assertEqual(len(data['recent_orders']), 1)
         self.assertEqual(data['recent_orders'][0]['order_no'], 'TEST-001')
+
+    def test_all_three_report_versions_generate_valid_pdf(self):
+        experiment = Experiment.objects.create(
+            order=self.order,
+            test_item_list='振动耐久试验',
+            test_standard='GB/T 2423.10-2019',
+            test_raw_data='频率 10-500Hz；加速度 5g；持续 8h',
+            test_conclusion_temp='试验数据完整',
+            test_status=Experiment.Status.FINISHED,
+            test_start_time=timezone.now(),
+            test_end_time=timezone.now(),
+            test_operator=self.user,
+        )
+        for report_type in TestReport.ReportType.values:
+            with self.subTest(report_type=report_type):
+                report = TestReport(
+                    order=self.order,
+                    test_record=experiment,
+                    report_no=f'PDF-{report_type}',
+                    report_type=report_type,
+                    generated_at=timezone.now(),
+                    final_conclusion='试验结果符合要求',
+                    create_quality_user=self.user,
+                )
+                pdf = build_test_report_pdf(report, [experiment])
+                self.assertTrue(pdf.startswith(b'%PDF'))
+                self.assertGreater(len(pdf), 1000)
 
     def test_order_detail_returns_complete_visible_context(self):
         self.order.industry_category = LabOrder.IndustryCategory.MILITARY
@@ -616,7 +644,18 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         self.assertEqual(issued_report.status_code, 200)
         self.order.refresh_from_db()
         self.assertEqual(self.order.order_status, LabOrder.Status.REPORT_REVIEW)
-        self.assertEqual(self.order.reports.get().create_quality_user, self.users['suzhou_v2'])
+        report = self.order.reports.get()
+        self.assertEqual(report.create_quality_user, self.users['suzhou_v2'])
+        self.assertEqual(report.report_type, TestReport.ReportType.FORMAL)
+        self.assertIn('-formal', report.report_file.name)
+        self.assertTrue(report.report_file.name.endswith('.pdf'))
+        self.assertGreater(report.report_file.size, 1000)
+        download = self.client.get(reverse('download_test_report', args=[report.id]))
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(download['Content-Type'], 'application/pdf')
+        self.assertTrue(b''.join(download.streaming_content).startswith(b'%PDF'))
+        self.client.force_login(self.users['quality_v1'])
+        self.assertEqual(self.client.get(reverse('download_test_report', args=[report.id])).status_code, 403)
 
 
 class LabDeviceSchedulingTests(TestCase):
@@ -761,16 +800,35 @@ class LaboratoryOperatorTests(TestCase):
         self.assertEqual(self.action(
             'submit_test', test_raw_data='振动数据记录完整', test_conclusion_temp='试验合格',
         ).status_code, 200)
-        self.assertEqual(self.action('issue_report', final_conclusion='检测项目全部合格').status_code, 200)
+        denied_report = self.action('issue_report', final_conclusion='检测项目全部合格')
+        self.assertEqual(denied_report.status_code, 403)
+        self.client.force_login(self.manager)
+        issued_report = self.client.post(
+            reverse('lims_action'),
+            data={
+                'action': 'issue_report', 'order_no': self.order.order_no,
+                'report_type': TestReport.ReportType.DATA_ONLY,
+                'final_conclusion': '检测项目全部合格',
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(issued_report.status_code, 200)
 
         action_codes = set(
             WorkflowEvent.objects.filter(order=self.order, actor=self.operator).exclude(action_code='')
             .values_list('action_code', flat=True)
         )
         self.assertTrue({
-            'lab_schedule_assign', 'lab_test_start',
-            'lab_test_submit', 'lab_report_issue',
+            'lab_schedule_assign', 'lab_test_start', 'lab_test_submit',
         }.issubset(action_codes))
+        self.assertNotIn('lab_report_issue', action_codes)
+        self.assertTrue(WorkflowEvent.objects.filter(
+            order=self.order, actor=self.manager, action_code='lab_report_issue',
+        ).exists())
+        report = self.order.reports.get()
+        self.assertEqual(report.report_type, TestReport.ReportType.DATA_ONLY)
+        self.assertIn('-data_only', report.report_file.name)
+        self.assertTrue(report.report_file.name.endswith('.pdf'))
         schedule_event = WorkflowEvent.objects.get(order=self.order, action_code='lab_schedule_assign')
         self.assertEqual(schedule_event.schedule, self.schedule)
         self.assertIn('device', schedule_event.change_data)

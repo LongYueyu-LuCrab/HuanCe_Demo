@@ -26,7 +26,7 @@ const form = reactive({
   sample_arrived: false,
   test_item_list: '', test_standard: '', test_raw_data: '', test_conclusion_temp: '',
   test_start_time: '', test_end_time: '', change_scene: 2, new_test_demand: '', change_content: '',
-  report_no: '', final_conclusion: '',
+  report_no: '', report_type: 'formal', final_conclusion: '',
 })
 
 async function loadOrder(orderNo: string) {
@@ -56,7 +56,7 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
     outsource_factory: '', outsource_price: '', outsource_cycle: '',
     test_item_list: schedule.remark || schedule.project_name,
     test_standard: '', test_raw_data: '', test_conclusion_temp: '', test_start_time: '', test_end_time: '',
-    change_scene: 2, new_test_demand: '', change_content: '', report_no: '', final_conclusion: '',
+    change_scene: 2, new_test_demand: '', change_content: '', report_no: '', report_type: 'formal', final_conclusion: '',
   })
   dialogVisible.value = true
   void loadOrder(schedule.order_no)
@@ -177,6 +177,14 @@ async function submitWorkflow() {
         </template>
         <template v-else-if="activeAction === 'issue_report'">
           <el-form-item label="报告编号"><el-input v-model="form.report_no" placeholder="留空自动生成" /></el-form-item>
+          <el-form-item label="报告版本" class="form-wide">
+            <el-radio-group v-model="form.report_type">
+              <el-radio-button value="formal">正式版</el-radio-button>
+              <el-radio-button value="draft">草稿版</el-radio-button>
+              <el-radio-button value="data_only">仅数据</el-radio-button>
+            </el-radio-group>
+            <div class="field-help">正式版带示例章占位水印，草稿版无水印，仅数据版聚焦实验数据。</div>
+          </el-form-item>
           <el-form-item label="最终结论" class="form-wide"><el-input v-model="form.final_conclusion" type="textarea" :rows="4" /></el-form-item>
         </template>
       </el-form>

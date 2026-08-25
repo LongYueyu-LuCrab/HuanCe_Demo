@@ -11,6 +11,10 @@ def sample_photo_upload_to(instance, filename):
     return f'private_sample_photos/{instance.order.order_no}/{instance.schedule_id}/{filename}'
 
 
+def report_pdf_upload_to(instance, filename):
+    return f'private_test_reports/{instance.order.order_no}/{filename}'
+
+
 class TimeStampedModel(models.Model):
     create_time = models.DateTimeField('创建时间', auto_now_add=True)
     update_time = models.DateTimeField('更新时间', auto_now=True)
@@ -474,6 +478,11 @@ class Experiment(TimeStampedModel):
 
 
 class TestReport(TimeStampedModel):
+    class ReportType(models.TextChoices):
+        FORMAL = 'formal', '正式版'
+        DRAFT = 'draft', '草稿版'
+        DATA_ONLY = 'data_only', '仅数据'
+
     class Status(models.IntegerChoices):
         DRAFT = 1, '草稿'
         SALES_REVIEW = 2, '待销售初审'
@@ -485,6 +494,11 @@ class TestReport(TimeStampedModel):
     test_record = models.ForeignKey(Experiment, verbose_name='试验记录', on_delete=models.SET_NULL, null=True, blank=True, related_name='reports')
     report_no = models.CharField('全局唯一报告编号', max_length=64, unique=True)
     report_file_url = models.CharField('报告 PDF 文件存储地址', max_length=500, blank=True)
+    report_file = models.FileField('检测报告 PDF', upload_to=report_pdf_upload_to, max_length=500, blank=True)
+    report_type = models.CharField(
+        '报告版本', max_length=20, choices=ReportType.choices, default=ReportType.FORMAL
+    )
+    generated_at = models.DateTimeField('PDF 生成时间', null=True, blank=True)
     final_conclusion = models.TextField('检测最终正式结论', blank=True)
     report_status = models.PositiveSmallIntegerField('报告状态', choices=Status.choices, default=Status.DRAFT)
     remake_count = models.PositiveIntegerField('驳回重制次数统计', default=0)

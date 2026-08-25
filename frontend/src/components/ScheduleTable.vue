@@ -56,6 +56,7 @@ const pagedOrders = computed(() => {
 const roleSet = computed(() => new Set(props.user?.roles || []))
 const isChairman = computed(() => Boolean(props.user?.is_chairman))
 const canLabOperate = computed(() => isChairman.value || roleSet.value.has('苏州实验室') || roleSet.value.has('江阴实验室') || roleSet.value.has('实验操作员'))
+const canIssueReport = computed(() => isChairman.value || roleSet.value.has('苏州实验室') || roleSet.value.has('江阴实验室'))
 
 function resetPage() {
   page.value = 1
@@ -167,7 +168,7 @@ async function exportOrders(selectedOnly: boolean) {
                   <el-button v-if="row.sample_arrived && row.device_id && !row.experiment_status" size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
                   <el-button v-if="row.experiment_status.includes('试验中')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">提交结果</el-button>
                 </template>
-                <el-button v-if="row.is_lead" size="small" type="primary" plain @click="emit('workflow', 'issue_report', row)">汇总出报告</el-button>
+                <el-button v-if="row.is_lead && canIssueReport" size="small" type="primary" plain @click="emit('workflow', 'issue_report', row)">汇总出报告</el-button>
               </template>
               <template v-else>
                 <el-button size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>

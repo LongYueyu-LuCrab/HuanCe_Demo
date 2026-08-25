@@ -175,6 +175,7 @@ export type LabView = {
 }
 
 export type ReportItem = {
+  id: number
   report_no: string
   order_no: string
   customer: string
@@ -184,6 +185,11 @@ export type ReportItem = {
   conclusion: string
   remake_count: number
   quality_user: string
+  report_type: 'formal' | 'draft' | 'data_only'
+  report_type_label: string
+  generated_at: string
+  has_file: boolean
+  download_url: string
 }
 
 export type InvoiceItem = {

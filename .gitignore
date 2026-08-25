@@ -13,6 +13,7 @@ db.sqlite3*
 .coverage
 htmlcov/
 .pytest_cache/
+tmp/
 
 staticfiles/
 static/frontend/
