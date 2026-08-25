@@ -88,11 +88,28 @@ export type WorkflowActionPayload = {
 }
 
 export async function workflowAction(payload: WorkflowActionPayload) {
+  const hasFiles = Object.values(payload).some((value) => Array.isArray(value) && value.some((item) => item instanceof File))
+  let body: BodyInit
+  let headers: HeadersInit | undefined
+  if (hasFiles) {
+    const formData = new FormData()
+    Object.entries(payload).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        value.forEach((item) => formData.append(key, item instanceof File ? item : String(item)))
+      } else if (value !== undefined && value !== null) {
+        formData.append(key, typeof value === 'boolean' ? String(value) : String(value))
+      }
+    })
+    body = formData
+  } else {
+    headers = { 'Content-Type': 'application/json' }
+    body = JSON.stringify(payload)
+  }
   const response = await fetch('/api/lims/action/', {
     method: 'POST',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    headers,
+    body,
   })
   return parseJson(response)
 }

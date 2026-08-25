@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { UploadUserFile } from 'element-plus'
 import { useRoute } from 'vue-router'
 import ScheduleTable from '../components/ScheduleTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
@@ -24,6 +25,7 @@ const orderLoading = ref(false)
 const detailDrawerVisible = ref(false)
 const availabilityLoading = ref(false)
 const availableDevices = ref<LabDevice[]>([])
+const samplePhotoFiles = ref<UploadUserFile[]>([])
 const form = reactive({
   change_scene: 2,
   change_content: '',
@@ -37,10 +39,7 @@ const form = reactive({
   outsource_factory: '',
   outsource_price: '',
   outsource_cycle: '',
-  sample_name: '',
-  sample_spec: '',
-  sample_count: 1,
-  storage_condition: '常温',
+  sample_arrived: false,
   test_start_time: '',
   test_end_time: '',
   report_no: '',
@@ -92,16 +91,14 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
     outsource_factory: '',
     outsource_price: '',
     outsource_cycle: '',
-    sample_name: `${schedule.project_name} 样品`,
-    sample_spec: '客户送检样品',
-    sample_count: 1,
-    storage_condition: '常温',
+    sample_arrived: schedule.sample_arrived,
     test_start_time: '',
     test_end_time: '',
     report_no: '',
     final_conclusion: '',
   })
   dialogVisible.value = true
+  samplePhotoFiles.value = []
   void loadOrderContext(schedule.order_no)
   if ((action === 'schedule_assign' || action === 'process_change') && schedule.start_time && schedule.end_time && !schedule.test_type.includes('委外')) {
     void queryAvailableDevices()
@@ -131,6 +128,11 @@ function resetDeviceSelection() {
 }
 
 async function submitWorkflow() {
+  if ((activeAction.value === 'schedule_assign' || activeAction.value === 'process_change')
+    && form.sample_arrived && (activeSchedule.value?.sample_photos.length || 0) === 0 && samplePhotoFiles.value.length === 0) {
+    ElMessage.warning('选择“样品已到”时必须上传至少一张样品照片')
+    return
+  }
   submitting.value = true
   try {
     await workflowAction({
@@ -139,6 +141,7 @@ async function submitWorkflow() {
       schedule_id: activeSchedule.value?.id,
       ...form,
       test_item_list: activeSchedule.value?.remark || form.test_item_list,
+      sample_photos: samplePhotoFiles.value.map((item) => item.raw).filter((file): file is File => Boolean(file)),
     })
     ElMessage.success('试验节点操作已完成')
     dialogVisible.value = false
@@ -223,12 +226,21 @@ async function submitWorkflow() {
               </el-select>
             </el-form-item>
           </template>
-        </template>
-        <template v-else-if="activeAction === 'register_sample'">
-          <el-form-item label="样品名称"><el-input v-model="form.sample_name" /></el-form-item>
-          <el-form-item label="规格型号"><el-input v-model="form.sample_spec" /></el-form-item>
-          <el-form-item label="数量"><el-input v-model="form.sample_count" type="number" /></el-form-item>
-          <el-form-item label="存储条件"><el-input v-model="form.storage_condition" /></el-form-item>
+          <el-form-item label="样品到样状态">
+            <el-radio-group v-model="form.sample_arrived">
+              <el-radio-button :value="false">样品未到</el-radio-button>
+              <el-radio-button :value="true">样品已到</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item v-if="form.sample_arrived" label="样品照片" class="form-wide">
+            <el-upload v-model:file-list="samplePhotoFiles" :auto-upload="false" multiple accept=".jpg,.jpeg,.png">
+              <el-button plain>上传样品图片</el-button>
+              <template #tip><div class="el-upload__tip">支持 JPG、PNG，单张不超过 10MB，本次合计不超过 30MB。</div></template>
+            </el-upload>
+            <div v-if="activeSchedule?.sample_photos.length" class="document-list mt-8">
+              <a v-for="photo in activeSchedule.sample_photos" :key="photo.id" :href="photo.url" target="_blank" class="document-link">{{ photo.name }}</a>
+            </div>
+          </el-form-item>
         </template>
         <template v-else-if="activeAction === 'start_test'">
           <el-form-item label="试验项目" class="form-wide">

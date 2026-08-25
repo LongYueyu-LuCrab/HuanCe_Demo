@@ -184,6 +184,7 @@ class LimsDashboardTests(TestCase):
                 'customer_name': '附件测试客户',
                 'project_name': '文件上传测试',
                 'test_requirements': '验证合同与附件上传。',
+                'expected_sample_arrival': '2026-07-01',
                 'industry_category': 'military',
                 'execution_attributes': ['autonomous'],
                 'contract_files': contract,
@@ -203,6 +204,22 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(download.status_code, 200)
         self.assertEqual(download['Content-Disposition'], "attachment; filename*=utf-8''%E5%90%88%E5%90%8C.pdf")
 
+    def test_sales_order_requires_expected_sample_arrival(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('create_order'),
+            data={
+                'customer_name': '缺少到样时间客户',
+                'project_name': '必填校验',
+                'test_requirements': '验证预计到样时间必填。',
+                'industry_category': 'other',
+                'execution_attributes': ['autonomous'],
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('预计样品到达时间必填', response.json()['error'])
+
     def test_order_upload_rejects_unsupported_file_type(self):
         self.client.force_login(self.user)
         unsafe_file = SimpleUploadedFile('程序.exe', b'not-allowed')
@@ -213,6 +230,7 @@ class LimsDashboardTests(TestCase):
                 'customer_name': '非法文件客户',
                 'project_name': '非法文件测试',
                 'test_requirements': '验证上传格式限制。',
+                'expected_sample_arrival': '2026-07-01',
                 'industry_category': 'other',
                 'execution_attributes': ['outsource'],
                 'attachment_files': unsafe_file,
@@ -479,9 +497,13 @@ class LimsV2DirectLabWorkflowTests(TestCase):
 
     def action(self, user_key, action, **payload):
         self.client.force_login(self.users[user_key])
+        data = {'action': action, 'order_no': self.order.order_no, **payload}
+        if 'sample_photos' in payload:
+            data = {key: value for key, value in data.items() if value is not None}
+            return self.client.post(reverse('lims_action'), data=data)
         return self.client.post(
             reverse('lims_action'),
-            data={'action': action, 'order_no': self.order.order_no, **payload},
+            data=data,
             content_type='application/json',
         )
 
@@ -560,13 +582,15 @@ class LimsV2DirectLabWorkflowTests(TestCase):
                     else None
                 ),
                 outsource_factory='委外测试机构' if schedule.test_type == SchedulePlan.TestType.OUTSOURCE else '',
+                sample_arrived='true',
+                sample_photos=SimpleUploadedFile(
+                    f'{schedule.id}.jpg', b'fake-jpeg-content', content_type='image/jpeg'
+                ),
             )
             self.assertEqual(schedule_response.status_code, 200)
-            sample_response = self.action(
-                user_key, 'register_sample', schedule_id=schedule.id,
-                sample_name=f'{schedule.get_test_type_display()}样品', sample_count=1,
-            )
-            self.assertEqual(sample_response.status_code, 200)
+            schedule.refresh_from_db()
+            self.assertTrue(schedule.sample_arrived)
+            self.assertEqual(schedule.sample_photos.count(), 1)
 
         for user_key, schedule in (('suzhou_v2', suzhou_schedule), ('jiangyin_v2', jiangyin_schedule)):
             self.assertEqual(
@@ -717,9 +741,12 @@ class LaboratoryOperatorTests(TestCase):
 
     def action(self, action, **payload):
         self.client.force_login(self.operator)
+        data = {'action': action, 'order_no': self.order.order_no, 'schedule_id': self.schedule.id, **payload}
+        if 'sample_photos' in payload:
+            return self.client.post(reverse('lims_action'), data=data)
         return self.client.post(
             reverse('lims_action'),
-            data={'action': action, 'order_no': self.order.order_no, 'schedule_id': self.schedule.id, **payload},
+            data=data,
             content_type='application/json',
         )
 
@@ -727,8 +754,9 @@ class LaboratoryOperatorTests(TestCase):
         self.assertEqual(self.action(
             'schedule_assign', device_id=self.device.id,
             plan_start_time='2026-10-01', plan_end_time='2026-10-03',
+            sample_arrived='true',
+            sample_photos=SimpleUploadedFile('operator-sample.png', b'fake-png-content', content_type='image/png'),
         ).status_code, 200)
-        self.assertEqual(self.action('register_sample', sample_name='操作员测试样品', sample_count=2).status_code, 200)
         self.assertEqual(self.action('start_test').status_code, 200)
         self.assertEqual(self.action(
             'submit_test', test_raw_data='振动数据记录完整', test_conclusion_temp='试验合格',
@@ -740,13 +768,33 @@ class LaboratoryOperatorTests(TestCase):
             .values_list('action_code', flat=True)
         )
         self.assertTrue({
-            'lab_schedule_assign', 'lab_sample_register', 'lab_test_start',
+            'lab_schedule_assign', 'lab_test_start',
             'lab_test_submit', 'lab_report_issue',
         }.issubset(action_codes))
         schedule_event = WorkflowEvent.objects.get(order=self.order, action_code='lab_schedule_assign')
         self.assertEqual(schedule_event.schedule, self.schedule)
         self.assertIn('device', schedule_event.change_data)
+        self.assertIn('sample_arrived', schedule_event.change_data)
         self.assertEqual(self.order.experiments.get().test_operator, self.operator)
+
+    def test_operator_cannot_start_test_before_sample_arrives(self):
+        self.assertEqual(self.action(
+            'schedule_assign', device_id=self.device.id,
+            plan_start_time='2026-10-01', plan_end_time='2026-10-03', sample_arrived='false',
+        ).status_code, 200)
+        response = self.action('start_test')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('样品尚未到达', response.json()['error'])
+
+    def test_arrived_status_requires_sample_photo(self):
+        response = self.action(
+            'schedule_assign', device_id=self.device.id,
+            plan_start_time='2026-10-01', plan_end_time='2026-10-03', sample_arrived='true',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('必须上传至少一张样品照片', response.json()['error'])
+        self.schedule.refresh_from_db()
+        self.assertFalse(self.schedule.sample_arrived)
 
     def test_operator_can_query_and_export_only_own_laboratory(self):
         self.client.force_login(self.operator)

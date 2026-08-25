@@ -334,6 +334,10 @@ class Command(BaseCommand):
                 sample_status=scenario['sample_status'],
                 quality_user=users['quality01'],
             )
+            schedule.sample_arrived = True
+            schedule.sample_arrived_at = sample.actual_arrive_time
+            schedule.sample_confirmed_by = schedule.lab_manager or users['quality01']
+            schedule.save(update_fields=['sample_arrived', 'sample_arrived_at', 'sample_confirmed_by', 'update_time'])
             operator = users['suzhou_lab01'] if schedule.test_type == SchedulePlan.TestType.SUZHOU else users['jiangyin_lab01'] if schedule.test_type == SchedulePlan.TestType.JIANGYIN else users['quality01']
             experiments.append(
                 Experiment.objects.create(

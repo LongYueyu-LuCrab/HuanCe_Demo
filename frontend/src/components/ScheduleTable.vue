@@ -149,6 +149,9 @@ async function exportOrders(selectedOnly: boolean) {
         <template #default="{ row }">
           <el-tag effect="plain">{{ row.status }}</el-tag>
           <span class="cell-sub block">{{ row.schedule_status }}</span>
+          <el-tag class="mt-8" size="small" :type="row.sample_arrived ? 'success' : 'warning'" effect="plain">
+            {{ row.sample_arrival_status }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column label="订单信息 / 试验操作" fixed="right" min-width="300">
@@ -159,10 +162,9 @@ async function exportOrders(selectedOnly: boolean) {
               <template v-if="row.workflow_version === 2">
                 <el-button size="small" type="primary" plain @click="emit('workflow', 'schedule_assign', row)">排期 / 排台</el-button>
                 <el-button v-if="row.schedule_status.includes('变更')" size="small" type="warning" plain @click="emit('workflow', 'process_change', row)">处理变更</el-button>
-                <el-button v-if="!row.sample_registered" size="small" type="success" plain @click="emit('workflow', 'register_sample', row)">登记样品</el-button>
                 <el-button v-if="row.test_type.includes('委外')" size="small" type="success" plain @click="emit('workflow', 'outsource_result', row)">委外回传</el-button>
                 <template v-else>
-                  <el-button v-if="row.sample_registered && row.device_id && !row.experiment_status" size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
+                  <el-button v-if="row.sample_arrived && row.device_id && !row.experiment_status" size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
                   <el-button v-if="row.experiment_status.includes('试验中')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">提交结果</el-button>
                 </template>
                 <el-button v-if="row.is_lead" size="small" type="primary" plain @click="emit('workflow', 'issue_report', row)">汇总出报告</el-button>

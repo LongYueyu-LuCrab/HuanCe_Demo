@@ -7,6 +7,10 @@ def order_document_upload_to(instance, filename):
     return f'private_order_documents/{instance.order.order_no}/{instance.document_type}/{filename}'
 
 
+def sample_photo_upload_to(instance, filename):
+    return f'private_sample_photos/{instance.order.order_no}/{instance.schedule_id}/{filename}'
+
+
 class TimeStampedModel(models.Model):
     create_time = models.DateTimeField('创建时间', auto_now_add=True)
     update_time = models.DateTimeField('更新时间', auto_now=True)
@@ -292,6 +296,16 @@ class SchedulePlan(TimeStampedModel):
     outsource_cycle = models.PositiveIntegerField('委外交付周期（天）', null=True, blank=True)
     plan_start_time = models.DateTimeField('试验计划开始时间', null=True, blank=True)
     plan_end_time = models.DateTimeField('试验计划完成时间', null=True, blank=True)
+    sample_arrived = models.BooleanField('样品是否已到', default=False)
+    sample_arrived_at = models.DateTimeField('样品确认到达时间', null=True, blank=True)
+    sample_confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='到样确认人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_confirmed_sample_arrivals',
+    )
     schedule_status = models.PositiveSmallIntegerField('排期状态', choices=Status.choices, default=Status.NEW)
     quality_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -319,6 +333,37 @@ class SchedulePlan(TimeStampedModel):
 
     def __str__(self):
         return f'{self.order.order_no} {self.get_test_type_display()}排期'
+
+
+class SamplePhoto(models.Model):
+    order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='sample_photos')
+    schedule = models.ForeignKey(
+        SchedulePlan,
+        verbose_name='项目排期',
+        on_delete=models.CASCADE,
+        related_name='sample_photos',
+    )
+    file = models.FileField('样品照片', upload_to=sample_photo_upload_to, max_length=500)
+    original_name = models.CharField('原始文件名', max_length=255)
+    file_size = models.PositiveBigIntegerField('文件大小（字节）', default=0)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='上传人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_uploaded_sample_photos',
+    )
+    create_time = models.DateTimeField('上传时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'lims_sample_photo'
+        verbose_name = '样品到样照片'
+        verbose_name_plural = '样品到样照片'
+        ordering = ['create_time', 'id']
+
+    def __str__(self):
+        return f'{self.order.order_no} - {self.original_name}'
 
 
 class ChangeRequest(TimeStampedModel):

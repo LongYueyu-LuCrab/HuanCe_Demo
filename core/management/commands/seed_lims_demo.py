@@ -149,6 +149,10 @@ class Command(BaseCommand):
                     else Sample.Status.REGISTERED,
                     quality_user=admin_user,
                 )
+                schedule.sample_arrived = True
+                schedule.sample_arrived_at = sample.actual_arrive_time
+                schedule.sample_confirmed_by = admin_user
+                schedule.save(update_fields=['sample_arrived', 'sample_arrived_at', 'sample_confirmed_by', 'update_time'])
                 experiment = Experiment.objects.create(
                     order=order,
                     schedule=schedule,

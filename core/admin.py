@@ -11,6 +11,7 @@ from .models import (
     OrderDocument,
     ReportAudit,
     Sample,
+    SamplePhoto,
     SchedulePlan,
     TestStandard,
     TestReport,
@@ -44,6 +45,9 @@ class SchedulePlanInline(admin.TabularInline):
         'outsource_cycle',
         'plan_start_time',
         'plan_end_time',
+        'sample_arrived',
+        'sample_arrived_at',
+        'sample_confirmed_by',
         'schedule_status',
         'quality_user',
     )
@@ -59,6 +63,13 @@ class SampleInline(admin.TabularInline):
     model = Sample
     extra = 0
     fields = ('sample_no', 'sample_name', 'sample_spec', 'sample_count', 'sample_status', 'actual_arrive_time')
+
+
+class SamplePhotoInline(admin.TabularInline):
+    model = SamplePhoto
+    extra = 0
+    fields = ('schedule', 'original_name', 'file', 'file_size', 'uploaded_by', 'create_time')
+    readonly_fields = ('original_name', 'file_size', 'uploaded_by', 'create_time')
 
 
 class ExperimentInline(admin.TabularInline):
@@ -148,6 +159,7 @@ class LabOrderAdmin(admin.ModelAdmin):
         TestReportInline,
         WorkflowEventInline,
         OrderDocumentInline,
+        SamplePhotoInline,
     ]
     actions = ('send_to_scheduling', 'send_to_testing', 'send_to_report_review', 'close_orders')
 
@@ -212,6 +224,13 @@ class SampleAdmin(admin.ModelAdmin):
     list_display = ('sample_no', 'order', 'sample_name', 'sample_count', 'sample_status', 'actual_arrive_time')
     list_filter = ('sample_status',)
     search_fields = ('sample_no', 'sample_name', 'sample_spec', 'order__order_no')
+
+
+@admin.register(SamplePhoto)
+class SamplePhotoAdmin(admin.ModelAdmin):
+    list_display = ('order', 'schedule', 'original_name', 'file_size', 'uploaded_by', 'create_time')
+    search_fields = ('order__order_no', 'original_name', 'uploaded_by__username')
+    readonly_fields = ('file_size', 'uploaded_by', 'create_time')
 
 
 @admin.register(Experiment)

@@ -69,10 +69,20 @@ export type ScheduleItem = {
   device_code: string
   device_name: string
   is_lead: boolean
-  sample_registered: boolean
+  sample_arrived: boolean
+  sample_arrival_status: string
+  sample_arrived_at: string
+  sample_photos: SamplePhotoItem[]
   experiment_status: string
   workflow_version: number
   remark: string
+}
+
+export type SamplePhotoItem = {
+  id: number
+  name: string
+  size: number
+  url: string
 }
 
 export type TestStandardItem = {

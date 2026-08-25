@@ -1,4 +1,5 @@
 import json
+import mimetypes
 from io import BytesIO
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
@@ -17,7 +18,7 @@ from django.views.decorators.csrf import csrf_exempt
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
-from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabDevice, LabOrder, LabStaffProfile, OrderDocument, ReportAudit, Sample, SchedulePlan, TestReport, TestStandard, WorkflowEvent
+from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabDevice, LabOrder, LabStaffProfile, OrderDocument, ReportAudit, Sample, SamplePhoto, SchedulePlan, TestReport, TestStandard, WorkflowEvent
 
 
 ROLE_SALES = '销售'
@@ -348,7 +349,18 @@ def _schedule_payload(schedule):
         'device_code': schedule.device.device_code if schedule.device else '',
         'device_name': schedule.device.device_name if schedule.device else '',
         'is_lead': bool(order.lead_lab_manager_id and order.lead_lab_manager_id == schedule.lab_manager_id),
-        'sample_registered': schedule.samples.exists(),
+        'sample_arrived': schedule.sample_arrived,
+        'sample_arrival_status': '样品已到' if schedule.sample_arrived else '样品未到',
+        'sample_arrived_at': schedule.sample_arrived_at.strftime('%Y-%m-%d %H:%M') if schedule.sample_arrived_at else '',
+        'sample_photos': [
+            {
+                'id': photo.id,
+                'name': photo.original_name,
+                'size': photo.file_size,
+                'url': f'/api/samples/photos/{photo.id}/',
+            }
+            for photo in schedule.sample_photos.all()
+        ],
         'experiment_status': schedule.experiments.first().get_test_status_display() if schedule.experiments.exists() else '',
         'workflow_version': order.workflow_version,
         'remark': schedule.remark,
@@ -513,7 +525,7 @@ def _device_payload(device, start_time=None, end_time=None, exclude_schedule_id=
 
 
 def _lab_payload(test_type, name, related_orders=None, user=None):
-    schedules = SchedulePlan.objects.select_related('order', 'device').filter(test_type=test_type).order_by('plan_start_time')
+    schedules = SchedulePlan.objects.select_related('order', 'device').prefetch_related('sample_photos').filter(test_type=test_type).order_by('plan_start_time')
     if related_orders is not None:
         schedules = schedules.filter(order__in=related_orders)
     if user is not None and not _is_chairman(user):
@@ -637,6 +649,8 @@ def _assign_schedule_device(schedule, payload, start_time, end_time):
 
 
 def _json_payload(request):
+    if request.content_type and request.content_type.startswith('multipart/form-data'):
+        return request.POST.dict(), None
     try:
         return json.loads(request.body.decode('utf-8') or '{}'), None
     except json.JSONDecodeError:
@@ -1080,7 +1094,8 @@ def _laboratory_schedule_queryset(request):
     schedules = SchedulePlan.objects.select_related(
         'order', 'order__sale_user', 'lab_manager', 'device'
     ).prefetch_related(
-        Prefetch('experiments', queryset=Experiment.objects.order_by('-create_time'), to_attr='ordered_experiments')
+        'sample_photos',
+        Prefetch('experiments', queryset=Experiment.objects.order_by('-create_time'), to_attr='ordered_experiments'),
     ).filter(_lab_schedule_query(lab_type)).distinct()
     keyword = (request.GET.get('keyword') or '').strip()
     if keyword:
@@ -1157,7 +1172,7 @@ def laboratory_orders_export(request):
     sheet.title = '实验室订单'
     headers = [
         '序号', '订单号', '客户名称', '项目名称', '试验任务', '执行路径', '设备编号', '设备名称',
-        '计划开始', '计划结束', '排期状态', '订单状态', '负责人', '试验状态', '销售', '报价', '预计交付',
+        '计划开始', '计划结束', '到样状态', '到样确认时间', '排期状态', '订单状态', '负责人', '试验状态', '销售', '报价', '预计交付',
     ]
     sheet.append(headers)
     header_fill = PatternFill('solid', fgColor='1F4E78')
@@ -1179,6 +1194,8 @@ def laboratory_orders_export(request):
             schedule.device.device_name if schedule.device else '',
             schedule.plan_start_time.strftime('%Y-%m-%d') if schedule.plan_start_time else '',
             schedule.plan_end_time.strftime('%Y-%m-%d') if schedule.plan_end_time else '',
+            '样品已到' if schedule.sample_arrived else '样品未到',
+            schedule.sample_arrived_at.strftime('%Y-%m-%d %H:%M') if schedule.sample_arrived_at else '',
             schedule.get_schedule_status_display(),
             order.get_order_status_display(),
             _display_user(schedule.lab_manager),
@@ -1187,7 +1204,7 @@ def laboratory_orders_export(request):
             float(order.total_quote),
             order.expect_delivery_time.strftime('%Y-%m-%d') if order.expect_delivery_time else '',
         ])
-    widths = [8, 20, 24, 30, 34, 18, 18, 22, 14, 14, 16, 16, 16, 16, 14, 14, 14]
+    widths = [8, 20, 24, 30, 34, 18, 18, 22, 14, 14, 14, 18, 16, 16, 16, 16, 14, 14, 14]
     for column, width in enumerate(widths, start=1):
         sheet.column_dimensions[chr(64 + column)].width = width
     sheet.freeze_panes = 'A2'
@@ -1302,8 +1319,8 @@ def create_order(request):
             json_dumps_params={'ensure_ascii': False},
         )
 
-    if not customer_name or not project_name or not test_demand:
-        return JsonResponse({'ok': False, 'error': '客户名称、项目名称、试验需求必填'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if not customer_name or not project_name or not test_demand or not expect_sample_arrive:
+        return JsonResponse({'ok': False, 'error': '客户名称、项目名称、试验需求、预计样品到达时间必填'}, status=400, json_dumps_params={'ensure_ascii': False})
 
     try:
         total_quote = Decimal(str(payload.get('quoted_amount') or '0'))
@@ -1375,6 +1392,22 @@ def download_order_document(request, document_id):
     )
 
 
+def view_sample_photo(request, photo_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False, 'error': '请先登录'}, status=401, json_dumps_params={'ensure_ascii': False})
+    photo = get_object_or_404(SamplePhoto.objects.select_related('order'), pk=photo_id)
+    can_view = _orders_for_user(request.user).filter(pk=photo.order_id).exists()
+    lab_type = _user_lab_type(request.user)
+    if not can_view and lab_type:
+        can_view = SchedulePlan.objects.filter(pk=photo.schedule_id).filter(_lab_schedule_query(lab_type)).exists()
+    if not can_view:
+        return JsonResponse({'ok': False, 'error': '无权查看该样品照片'}, status=403, json_dumps_params={'ensure_ascii': False})
+    if not photo.file or not photo.file.storage.exists(photo.file.name):
+        return JsonResponse({'ok': False, 'error': '样品照片不存在或已被移除'}, status=404, json_dumps_params={'ensure_ascii': False})
+    content_type = mimetypes.guess_type(photo.original_name)[0] or 'application/octet-stream'
+    return FileResponse(photo.file.open('rb'), content_type=content_type, filename=photo.original_name)
+
+
 @csrf_exempt
 @transaction.atomic
 def lims_action(request):
@@ -1398,7 +1431,6 @@ def lims_action(request):
         'create_change': _action_create_change,
         'schedule_assign': _action_schedule_assign,
         'process_change': _action_process_change,
-        'register_sample': _action_register_sample,
         'start_test': _action_start_test,
         'outsource_result': _action_outsource_result,
         'submit_test': _action_submit_test,
@@ -1546,7 +1578,7 @@ def _action_sales_confirm(request, payload):
         return JsonResponse({'ok': False, 'error': '只有排期中订单可以确认需求'}, status=400, json_dumps_params={'ensure_ascii': False})
     order.sales_confirmed_at = timezone.now()
     order.save(update_fields=['sales_confirmed_at', 'update_time'])
-    target = '实验室负责人登记样品' if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT else '质量部样品登记'
+    target = '实验室负责人确认到样状态并执行试验' if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT else '历史质量流程继续处理'
     _event(order, request.user, payload.get('note') or f'销售确认样品与需求无变更，流转{target}')
     return _status_response('销售已确认无变更', order)
 
@@ -1612,6 +1644,87 @@ def _action_create_change(request, payload):
     return _status_response('变更单已创建，回流排期负责人', order)
 
 
+SAMPLE_PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png'}
+SAMPLE_PHOTO_MAX_SIZE = 10 * 1024 * 1024
+SAMPLE_PHOTO_TOTAL_MAX_SIZE = 30 * 1024 * 1024
+
+
+def _update_sample_arrival(request, payload, order, schedule):
+    before_arrived = schedule.sample_arrived
+    arrived = _truthy(payload.get('sample_arrived'))
+    photos = request.FILES.getlist('sample_photos')
+    existing_photo_count = schedule.sample_photos.count()
+
+    if arrived and not photos and not existing_photo_count:
+        return JsonResponse(
+            {'ok': False, 'error': '选择“样品已到”时必须上传至少一张样品照片'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        ), None
+    if not arrived and schedule.experiments.exists():
+        return JsonResponse(
+            {'ok': False, 'error': '当前任务已经产生试验记录，不能改为“样品未到”'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        ), None
+    if sum(photo.size for photo in photos) > SAMPLE_PHOTO_TOTAL_MAX_SIZE:
+        return JsonResponse(
+            {'ok': False, 'error': '本次上传的样品照片合计不能超过 30MB'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        ), None
+    for photo in photos:
+        if Path(photo.name).suffix.lower() not in SAMPLE_PHOTO_EXTENSIONS:
+            return JsonResponse(
+                {'ok': False, 'error': f'{photo.name} 格式不支持，仅允许 JPG、PNG'},
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            ), None
+        if photo.content_type not in {'image/jpeg', 'image/png'}:
+            return JsonResponse(
+                {'ok': False, 'error': f'{photo.name} 不是有效的 JPG 或 PNG 图片类型'},
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            ), None
+        if photo.size > SAMPLE_PHOTO_MAX_SIZE:
+            return JsonResponse(
+                {'ok': False, 'error': f'{photo.name} 超过 10MB'},
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            ), None
+
+    schedule.sample_arrived = arrived
+    schedule.sample_arrived_at = schedule.sample_arrived_at or timezone.now() if arrived else None
+    schedule.sample_confirmed_by = request.user
+    schedule.save(update_fields=['sample_arrived', 'sample_arrived_at', 'sample_confirmed_by', 'update_time'])
+    for photo in photos:
+        SamplePhoto.objects.create(
+            order=order,
+            schedule=schedule,
+            file=photo,
+            original_name=photo.name,
+            file_size=photo.size,
+            uploaded_by=request.user,
+        )
+    if arrived and not schedule.samples.exists():
+        Sample.objects.create(
+            order=order,
+            schedule=schedule,
+            sample_no=_next_sample_no(order),
+            sample_name=f'{order.project_name} 样品',
+            sample_spec='客户送检样品',
+            sample_count=1,
+            storage_condition='按试验要求存放',
+            actual_arrive_time=schedule.sample_arrived_at,
+            sample_status=Sample.Status.REGISTERED,
+            quality_user=request.user,
+        )
+    return None, {
+        'sample_arrived': _audit_change('到样状态', '样品已到' if before_arrived else '样品未到', '样品已到' if arrived else '样品未到'),
+        'sample_photos': _audit_change('新增样品照片', 0, len(photos)),
+    }
+
+
 def _action_schedule_assign(request, payload):
     order, error = _get_order(payload)
     if error:
@@ -1650,6 +1763,10 @@ def _action_schedule_assign(request, payload):
         schedule.quality_user = request.user
         schedule.remark = payload.get('remark') or schedule.remark or order.test_demand
         schedule.save()
+        sample_error, sample_changes = _update_sample_arrival(request, payload, order, schedule)
+        if sample_error:
+            transaction.set_rollback(True)
+            return sample_error
         _event(
             order,
             request.user,
@@ -1660,6 +1777,7 @@ def _action_schedule_assign(request, payload):
                 'plan_end_time': _audit_change('计划结束', before_end, schedule.plan_end_time),
                 'device': _audit_change('试验设备', before_device, schedule.device.device_name if schedule.device else ''),
                 'outsource_factory': _audit_change('委外厂家', '', schedule.outsource_factory),
+                **sample_changes,
             },
             schedule=schedule,
         )
@@ -1730,6 +1848,10 @@ def _action_process_change(request, payload):
         change.schedule.plan_end_time = end_time
         change.schedule.schedule_status = SchedulePlan.Status.NEW
         change.schedule.save()
+        sample_error, sample_changes = _update_sample_arrival(request, payload, order, change.schedule)
+        if sample_error:
+            transaction.set_rollback(True)
+            return sample_error
     change.change_status = ChangeRequest.Status.APPLIED
     change.save(update_fields=['change_status', 'update_time'])
     _event(
@@ -1743,56 +1865,11 @@ def _action_process_change(request, payload):
             'plan_end_time': _audit_change('计划结束', before_end, change.schedule.plan_end_time if change.schedule else None),
             'device': _audit_change('试验设备', before_device, change.schedule.device.device_name if change.schedule and change.schedule.device else ''),
             'change_status': _audit_change('变更状态', '待调整', '已闭环'),
+            **(sample_changes or {}),
         },
         schedule=change.schedule,
     )
     return _status_response('变更已闭环', order)
-
-
-def _action_register_sample(request, payload):
-    order, error = _get_order(payload)
-    if error:
-        return error
-    if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
-    else:
-        role_error = _require_role(request.user, ROLE_QUALITY)
-    if role_error:
-        return role_error
-    if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not order.sales_confirmed_at:
-        return JsonResponse({'ok': False, 'error': '请先由销售确认需求无变更'}, status=400, json_dumps_params={'ensure_ascii': False})
-    schedule = _schedule_for_actor(order, payload, request.user)
-    if not schedule:
-        return JsonResponse({'ok': False, 'error': '请先完成排期'}, status=400, json_dumps_params={'ensure_ascii': False})
-    if schedule.samples.exists():
-        return JsonResponse({'ok': False, 'error': '当前任务已经登记过样品'}, status=400, json_dumps_params={'ensure_ascii': False})
-    sample = Sample.objects.create(
-        order=order,
-        schedule=schedule,
-        sample_no=payload.get('sample_no') or _next_sample_no(order),
-        sample_name=payload.get('sample_name') or f'{order.project_name} 样品',
-        sample_spec=payload.get('sample_spec') or '客户送检样品',
-        sample_count=int(payload.get('sample_count') or 1),
-        storage_condition=payload.get('storage_condition') or '常温',
-        actual_arrive_time=_parse_datetime(payload.get('actual_arrive_time')) or timezone.now(),
-        sample_status=Sample.Status.REGISTERED,
-        quality_user=request.user,
-    )
-    order.mark_status(LabOrder.Status.TESTING, request.user, '实验室负责人完成样品编号登记，进入试验执行')
-    _event(
-        order,
-        request.user,
-        '实验室人员登记样品',
-        action_code='lab_sample_register',
-        changes={
-            'sample_no': _audit_change('样品编号', '', sample.sample_no),
-            'sample_name': _audit_change('样品名称', '', sample.sample_name),
-            'sample_count': _audit_change('样品数量', '', sample.sample_count),
-            'storage_condition': _audit_change('存储条件', '', sample.storage_condition),
-        },
-        schedule=schedule,
-    )
-    return _status_response('样品已登记', order)
 
 
 def _action_start_test(request, payload):
@@ -1805,6 +1882,8 @@ def _action_start_test(request, payload):
     schedule = _schedule_for_actor(order, payload, request.user)
     if not schedule:
         return JsonResponse({'ok': False, 'error': '没有分配给当前实验室负责人的排期'}, status=403, json_dumps_params={'ensure_ascii': False})
+    if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not order.sales_confirmed_at:
+        return JsonResponse({'ok': False, 'error': '销售尚未确认需求，不能开始试验'}, status=400, json_dumps_params={'ensure_ascii': False})
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
         if not schedule.device:
             return JsonResponse({'ok': False, 'error': '请先完成设备排台'}, status=400, json_dumps_params={'ensure_ascii': False})
@@ -1814,11 +1893,12 @@ def _action_start_test(request, payload):
                 status=400,
                 json_dumps_params={'ensure_ascii': False},
             )
+    if not schedule.sample_arrived:
+        return JsonResponse({'ok': False, 'error': '样品尚未到达，不能开始试验'}, status=400, json_dumps_params={'ensure_ascii': False})
     sample = order.samples.filter(schedule=schedule).first()
-    if not sample:
-        return JsonResponse({'ok': False, 'error': '请先登记当前任务样品'}, status=400, json_dumps_params={'ensure_ascii': False})
-    sample.sample_status = Sample.Status.TESTING
-    sample.save(update_fields=['sample_status', 'update_time'])
+    if sample:
+        sample.sample_status = Sample.Status.TESTING
+        sample.save(update_fields=['sample_status', 'update_time'])
     schedule.schedule_status = SchedulePlan.Status.RUNNING
     schedule.save(update_fields=['schedule_status', 'update_time'])
     experiment, _ = Experiment.objects.get_or_create(
@@ -1904,9 +1984,11 @@ def _action_outsource_result(request, payload):
         schedule = schedules.order_by('-create_time').first()
     if not schedule:
         return JsonResponse({'ok': False, 'error': '该订单没有委外排期'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not order.sales_confirmed_at:
+        return JsonResponse({'ok': False, 'error': '销售尚未确认需求，不能回传委外试验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if not schedule.sample_arrived:
+        return JsonResponse({'ok': False, 'error': '委外样品尚未到达，不能回传试验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
     sample = order.samples.filter(schedule=schedule).first() or order.samples.first()
-    if not sample:
-        return JsonResponse({'ok': False, 'error': '请先登记委外样品'}, status=400, json_dumps_params={'ensure_ascii': False})
     experiment, _ = Experiment.objects.get_or_create(
         order=order,
         schedule=schedule,
@@ -1928,8 +2010,9 @@ def _action_outsource_result(request, payload):
     experiment.test_status = Experiment.Status.FINISHED
     experiment.test_type = SchedulePlan.TestType.OUTSOURCE
     experiment.save()
-    sample.sample_status = Sample.Status.FINISHED
-    sample.save(update_fields=['sample_status', 'update_time'])
+    if sample:
+        sample.sample_status = Sample.Status.FINISHED
+        sample.save(update_fields=['sample_status', 'update_time'])
     schedule.schedule_status = SchedulePlan.Status.FINISHED
     schedule.save(update_fields=['schedule_status', 'update_time'])
     _event(
@@ -2206,7 +2289,7 @@ def lims_dashboard(request):
             | Q(schedules__test_type=SchedulePlan.TestType.OUTSOURCE)
         ).distinct().order_by('-create_time')
     ]
-    schedules = SchedulePlan.objects.select_related('order', 'lab_manager', 'quality_user', 'device').filter(
+    schedules = SchedulePlan.objects.select_related('order', 'lab_manager', 'quality_user', 'device').prefetch_related('sample_photos').filter(
         order__in=related_orders
     ).order_by('-plan_start_time', '-create_time')
     samples = Sample.objects.select_related('order', 'schedule', 'quality_user').filter(

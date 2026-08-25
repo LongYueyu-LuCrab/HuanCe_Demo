@@ -93,7 +93,6 @@ const actionTitleMap: Record<string, string> = {
   create_change: '填写更改单',
   schedule_assign: '排期分配',
   process_change: '处理变更',
-  register_sample: '样品登记',
   start_test: '开始试验',
   submit_test: '提交试验结果',
   outsource_result: '委外试验结果回传',
@@ -134,10 +133,6 @@ function openWorkflow(action: string, order: OrderItem) {
     outsource_factory: '',
     outsource_price: '',
     outsource_cycle: '',
-    sample_name: `${order.project_name} 样品`,
-    sample_spec: '客户送检样品',
-    sample_count: 1,
-    storage_condition: '常温',
     test_item_list: order.test_demand || '',
     test_standard: order.test_standard || '',
     test_raw_data: '',
@@ -170,8 +165,8 @@ async function submitWorkflow() {
 }
 
 async function submit() {
-  if (!form.customer_name.trim() || !form.project_name.trim() || !form.test_requirements.trim()) {
-    ElMessage.warning('请填写客户名称、项目名称和试验需求')
+  if (!form.customer_name.trim() || !form.project_name.trim() || !form.test_requirements.trim() || !form.expected_sample_arrival) {
+    ElMessage.warning('请填写客户名称、项目名称、试验需求和预计样品到达时间')
     return
   }
   if (form.execution_attributes.length === 0) {
@@ -236,7 +231,7 @@ async function submit() {
         <el-form-item label="联系人"><el-input v-model="form.contact_name" /></el-form-item>
         <el-form-item label="联系电话"><el-input v-model="form.phone" /></el-form-item>
         <el-form-item label="项目名称"><el-input v-model="form.project_name" /></el-form-item>
-        <el-form-item label="预计样品到达"><el-date-picker v-model="form.expected_sample_arrival" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+        <el-form-item label="预计样品到达" required><el-date-picker v-model="form.expected_sample_arrival" value-format="YYYY-MM-DD" type="date" /></el-form-item>
         <el-form-item label="预计交付日期"><el-date-picker v-model="form.expected_delivery_date" value-format="YYYY-MM-DD" type="date" /></el-form-item>
         <el-form-item label="报价金额"><el-input v-model="form.quoted_amount" type="number" /></el-form-item>
         <el-form-item label="行业属性">
@@ -402,13 +397,6 @@ async function submit() {
         <template v-else-if="activeAction === 'process_change'">
           <el-form-item label="调整后开始"><el-date-picker v-model="actionForm.plan_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
           <el-form-item label="调整后结束"><el-date-picker v-model="actionForm.plan_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
-        </template>
-
-        <template v-else-if="activeAction === 'register_sample'">
-          <el-form-item label="样品名称"><el-input v-model="actionForm.sample_name" /></el-form-item>
-          <el-form-item label="规格型号"><el-input v-model="actionForm.sample_spec" /></el-form-item>
-          <el-form-item label="数量"><el-input v-model="actionForm.sample_count" type="number" /></el-form-item>
-          <el-form-item label="存储条件"><el-input v-model="actionForm.storage_condition" /></el-form-item>
         </template>
 
         <template v-else-if="activeAction === 'start_test'">

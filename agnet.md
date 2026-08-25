@@ -117,6 +117,7 @@ lims_test_standard        industry/category based test standard library
 lims_order_document       protected sales-order contracts and attachments
 lims_lab_device           Suzhou/Jiangyin laboratory equipment registry
 lims_lab_staff_profile    laboratory staff affiliation and position
+lims_sample_photo         protected sample-arrival photos by schedule
 ```
 
 Structured workflow audit fields in `lims_workflow_event`:
@@ -266,7 +267,6 @@ sales_confirm            销售确认无变更
 create_change            销售/质量/实验室创建更改单
 schedule_assign          质量部排期分配
 process_change           质量部处理变更并闭环
-register_sample          质量部样品登记
 start_test               苏州/江阴实验室开始试验
 submit_test              苏州/江阴实验室提交试验结果
 outsource_result         质量部录入委外试验结果回传，生成委外试验记录
@@ -310,7 +310,6 @@ Main views:
 DashboardView.vue       role workbench and clickable metric order groups
 OrdersView.vue          order list, sales order creation, workflow order actions
 ScheduleView.vue        visible project schedules
-SamplesView.vue         sample ledger
 LabView.vue             Suzhou/Jiangyin equipment and lab task actions
 OutsourceView.vue       outsourced order list
 ReportsView.vue         report audit actions
@@ -354,11 +353,21 @@ Do not add a new menu or workflow button without checking role visibility and ro
 Laboratory role rules:
 
 - `LabStaffProfile` is the authoritative Suzhou/Jiangyin affiliation for laboratory managers and operators.
-- The `实验操作员` group is a workflow role. Operators may schedule, register samples, start tests, submit results, create in-test changes, and issue reports for their own laboratory.
+- The `实验操作员` group is a workflow role. Operators may schedule tasks, confirm sample arrival, start tests, submit results, create in-test changes, and issue reports for their own laboratory.
 - Laboratory operators cannot create, delete, or change laboratory devices. Device management remains a laboratory-manager/chairman responsibility.
 - Laboratory managers and operators may query the complete order history of their own laboratory and export the filtered result to Excel.
 - Suzhou users must never query or export Jiangyin laboratory rows, and vice versa.
 - Each laboratory workflow mutation must append a `WorkflowEvent` containing action code, operator, timestamp, related schedule, and structured changed values.
+
+Sample-arrival workflow rules:
+
+- Sales must provide `expect_sample_arrive` when creating a new order.
+- There is no independent `register_sample` workflow action in the current workflow.
+- Laboratory managers/operators set `SchedulePlan.sample_arrived` while scheduling a task.
+- Marking a task as arrived requires at least one JPG/PNG photo in `lims_sample_photo` unless that schedule already has a photo.
+- `start_test` and outsourced-result submission must reject schedules whose sample has not arrived.
+- The legacy `lims_sample_info` table is retained only for historical traceability and compatibility with existing experiment foreign keys; it is not a separate user-operated workflow node.
+- Sample photos are private media and must only be served through the authenticated permission-checked API.
 
 ## 10. Demo Data
 
@@ -570,7 +579,7 @@ Full workflow smoke test path:
 sales01 creates order
 business01 review_pass
 quality01 schedule_assign
-quality01 register_sample
+laboratory manager/operator confirms sample arrival during schedule_assign
 suzhou_lab01 start_test
 suzhou_lab01 submit_test
 quality01 issue_report
@@ -660,7 +669,7 @@ sales order
 -> technical reviewer selects one lead laboratory manager
 -> assigned laboratory managers plan their own routes
 -> sales confirms requirements after schedules are available
--> each assigned laboratory manager registers samples for their own route
+-> each assigned laboratory manager schedules the route, confirms arrival, and uploads sample photos
 -> internal laboratory execution and/or internally-owned outsource execution
 -> every route submits a finished experiment record
 -> lead laboratory manager consolidates and issues the final report
@@ -676,9 +685,9 @@ sales order
 - Every route is a `SchedulePlan` and has its own `lab_manager`.
 - Outsource routes must also have an internal Suzhou or Jiangyin manager.
 - `LabOrder.lead_lab_manager` must be one of the assigned route managers.
-- Laboratory managers can only update schedules, samples, changes, and results assigned to themselves.
+- Laboratory managers can only update schedules, sample-arrival status, changes, and results assigned to themselves.
 - A sales change creates a pending change for every route; a laboratory change affects only its own route.
-- Sample registration is blocked until sales has confirmed requirements.
+- Starting an experiment is blocked until that route is marked as sample-arrived.
 - Final report creation is blocked until every schedule and experiment is finished.
 - Only the lead laboratory manager can create or remake the consolidated final report.
 - Sales and general-manager rejection returns the report to the same lead laboratory manager.
@@ -687,7 +696,7 @@ sales order
 
 - `SchedulePlan.assigned_by`: technical reviewer who created the route assignment.
 - `SchedulePlan.quality_user`: retained database field; semantically the current schedule operator.
-- `Sample.quality_user`: retained database field; semantically the sample registrar.
+- `Sample.quality_user`: retained legacy compatibility field; new sample-arrival confirmation is stored on `SchedulePlan`.
 - `TestReport.create_quality_user`: retained database field; semantically the report creator.
 - `LabOrder.sales_confirmed_at`: cleared whenever a change returns the order to scheduling.
 
@@ -697,7 +706,7 @@ Every workflow change must preserve both test paths:
 
 - V1 historical order remains operable by the legacy quality role.
 - V2 order completes through business review, technical route assignment, per-lab scheduling,
-  sales confirmation, per-route sample/test/outsource handling, lead report creation, report audit,
+  sales confirmation, per-route sample-arrival/test/outsource handling, lead report creation, report audit,
   and finance closure.
 - Quality role receives HTTP 403 for V2 operational actions.
 - Non-assigned laboratory managers cannot operate another manager's route.
