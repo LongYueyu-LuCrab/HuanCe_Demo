@@ -20,14 +20,8 @@ class Command(BaseCommand):
             reports = reports.filter(report_file='')
 
         generated = 0
-        skipped = 0
         for report in reports.iterator():
             experiments = report.order.experiments.select_related('test_operator', 'schedule').order_by('create_time')
-            if not experiments.exists():
-                skipped += 1
-                self.stdout.write(self.style.WARNING(f'Skipped {report.report_no}: no experiment records'))
-                continue
-
             old_file_name = report.report_file.name if report.report_file else ''
             report.generated_at = timezone.now()
             pdf_content = build_test_report_pdf(report, experiments)
@@ -40,4 +34,4 @@ class Command(BaseCommand):
             generated += 1
             self.stdout.write(f'Generated {report.report_no} ({report.get_report_type_display()})')
 
-        self.stdout.write(self.style.SUCCESS(f'PDF backfill complete: generated={generated}, skipped={skipped}'))
+        self.stdout.write(self.style.SUCCESS(f'PDF backfill complete: generated={generated}'))
