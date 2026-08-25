@@ -1,19 +1,23 @@
 import json
+from io import BytesIO
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.models import Group
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from django.http import FileResponse, HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
 
-from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabDevice, LabOrder, OrderDocument, ReportAudit, Sample, SchedulePlan, TestReport, TestStandard, WorkflowEvent
+from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabDevice, LabOrder, LabStaffProfile, OrderDocument, ReportAudit, Sample, SchedulePlan, TestReport, TestStandard, WorkflowEvent
 
 
 ROLE_SALES = '销售'
@@ -22,6 +26,7 @@ ROLE_TECH = '技术'
 ROLE_QUALITY = '质量部'
 ROLE_SUZHOU_LAB = '苏州实验室'
 ROLE_JIANGYIN_LAB = '江阴实验室'
+ROLE_LAB_OPERATOR = '实验操作员'
 ROLE_OUTSOURCE = '委外供应商'
 ROLE_GENERAL_MANAGER = '总经理'
 ROLE_ACCOUNTING = '会计'
@@ -33,6 +38,7 @@ VALID_ROLES = [
     ROLE_QUALITY,
     ROLE_SUZHOU_LAB,
     ROLE_JIANGYIN_LAB,
+    ROLE_LAB_OPERATOR,
     ROLE_OUTSOURCE,
     ROLE_GENERAL_MANAGER,
     ROLE_ACCOUNTING,
@@ -77,6 +83,57 @@ def _display_user(user):
     return user.first_name or user.username
 
 
+def _lab_profile(user):
+    if not user or not user.is_authenticated:
+        return None
+    try:
+        profile = user.lims_lab_profile
+    except LabStaffProfile.DoesNotExist:
+        return None
+    return profile if profile.is_active else None
+
+
+def _user_lab_type(user):
+    profile = _lab_profile(user)
+    if profile:
+        return profile.lab_type
+    roles = set(_roles(user))
+    if ROLE_SUZHOU_LAB in roles:
+        return LabDevice.LabType.SUZHOU
+    if ROLE_JIANGYIN_LAB in roles:
+        return LabDevice.LabType.JIANGYIN
+    return None
+
+
+def _is_lab_operator(user):
+    profile = _lab_profile(user)
+    return bool(ROLE_LAB_OPERATOR in _roles(user) and profile and profile.position == LabStaffProfile.Position.OPERATOR)
+
+
+def _lab_schedule_query(lab_type):
+    manager_role = ROLE_SUZHOU_LAB if lab_type == LabDevice.LabType.SUZHOU else ROLE_JIANGYIN_LAB
+    return Q(test_type=lab_type) | Q(
+        test_type=SchedulePlan.TestType.OUTSOURCE,
+        lab_manager__groups__name=manager_role,
+    )
+
+
+def _can_operate_schedule(user, schedule):
+    if _is_chairman(user):
+        return True
+    if _is_lab_operator(user):
+        lab_type = _user_lab_type(user)
+        if schedule.test_type == lab_type:
+            return True
+        manager_role = ROLE_SUZHOU_LAB if lab_type == LabDevice.LabType.SUZHOU else ROLE_JIANGYIN_LAB
+        return bool(
+            schedule.test_type == SchedulePlan.TestType.OUTSOURCE
+            and schedule.lab_manager
+            and schedule.lab_manager.groups.filter(name=manager_role).exists()
+        )
+    return schedule.lab_manager_id == user.id
+
+
 def _can_view_finance(user):
     roles = set(_roles(user))
     return bool(_is_chairman(user) or ROLE_GENERAL_MANAGER in roles or ROLE_ACCOUNTING in roles)
@@ -86,6 +143,7 @@ def _user_payload(user):
     if not user.is_authenticated:
         return {'authenticated': False}
     roles = _roles(user)
+    profile = _lab_profile(user)
     return {
         'authenticated': True,
         'id': user.id,
@@ -96,6 +154,9 @@ def _user_payload(user):
         'is_chairman': _is_chairman(user),
         'is_staff': user.is_staff,
         'is_superuser': user.is_superuser,
+        'lab_type': profile.lab_type if profile else _user_lab_type(user),
+        'lab_name': profile.get_lab_type_display() if profile else '',
+        'lab_position': profile.get_position_display() if profile else '',
     }
 
 
@@ -121,6 +182,13 @@ def _orders_for_user(user):
             schedules__lab_manager=user,
             order_status__in=[LabOrder.Status.SCHEDULING, LabOrder.Status.TESTING, LabOrder.Status.REPORT_REVIEW],
         ) | Q(lead_lab_manager=user)
+    if ROLE_LAB_OPERATOR in roles:
+        lab_type = _user_lab_type(user)
+        if lab_type:
+            query |= Q(
+                schedules__in=SchedulePlan.objects.filter(_lab_schedule_query(lab_type)),
+                order_status__in=[LabOrder.Status.SCHEDULING, LabOrder.Status.TESTING, LabOrder.Status.REPORT_REVIEW],
+            )
     if ROLE_OUTSOURCE in roles:
         query |= Q(execution_mode__in=[LabOrder.ExecutionMode.OUTSOURCE, LabOrder.ExecutionMode.MIXED])
     if ROLE_GENERAL_MANAGER in roles:
@@ -269,10 +337,12 @@ def _schedule_payload(schedule):
         'customer': order.customer_name,
         'project_name': order.project_name,
         'status': order.get_order_status_display(),
+        'status_key': order.order_status,
         'test_type': schedule.get_test_type_display(),
         'start_time': schedule.plan_start_time.strftime('%Y-%m-%d') if schedule.plan_start_time else '',
         'end_time': schedule.plan_end_time.strftime('%Y-%m-%d') if schedule.plan_end_time else '',
         'schedule_status': schedule.get_schedule_status_display(),
+        'schedule_status_key': schedule.schedule_status,
         'lab_manager': _display_user(schedule.lab_manager),
         'device_id': schedule.device_id,
         'device_code': schedule.device.device_code if schedule.device else '',
@@ -344,6 +414,14 @@ def _workflow_payload(event):
         'from_status': event.from_status,
         'to_status': event.to_status,
         'note': event.note,
+        'action_code': event.action_code,
+        'schedule_id': event.schedule_id,
+        'change_data': event.change_data,
+        'change_summary': '；'.join(
+            f"{item.get('label') or field}：{item.get('before', '')} → {item.get('after', '')}"
+            for field, item in (event.change_data or {}).items()
+            if isinstance(item, dict)
+        ),
         'create_time': event.create_time.strftime('%Y-%m-%d %H:%M') if event.create_time else '',
     }
 
@@ -447,6 +525,8 @@ def _lab_payload(test_type, name, related_orders=None, user=None):
         elif ROLE_JIANGYIN_LAB in roles and test_type == SchedulePlan.TestType.JIANGYIN:
             can_view_lab = True
             schedules = schedules.filter(lab_manager=user)
+        elif ROLE_LAB_OPERATOR in roles and _user_lab_type(user) == test_type:
+            can_view_lab = True
         if not can_view_lab:
             schedules = schedules.none()
     devices = LabDevice.objects.filter(lab_type=test_type).order_by('device_code')
@@ -476,6 +556,13 @@ def _pending_reports_for_user(user, related_orders):
     if ROLE_SUZHOU_LAB in roles or ROLE_JIANGYIN_LAB in roles:
         query |= Q(
             order__lead_lab_manager=user,
+            report_status__in=[TestReport.Status.DRAFT, TestReport.Status.REJECTED],
+        )
+    if ROLE_LAB_OPERATOR in roles:
+        lab_type = _user_lab_type(user)
+        manager_role = ROLE_SUZHOU_LAB if lab_type == LabDevice.LabType.SUZHOU else ROLE_JIANGYIN_LAB
+        query |= Q(
+            order__lead_lab_manager__groups__name=manager_role,
             report_status__in=[TestReport.Status.DRAFT, TestReport.Status.REJECTED],
         )
     if not query:
@@ -600,7 +687,17 @@ def _status_response(message, order=None):
     return JsonResponse(payload, json_dumps_params={'ensure_ascii': False})
 
 
-def _event(order, actor, note, from_status=None, to_status=None, event_type=WorkflowEvent.EventType.STATUS):
+def _event(
+    order,
+    actor,
+    note,
+    from_status=None,
+    to_status=None,
+    event_type=WorkflowEvent.EventType.STATUS,
+    action_code='',
+    changes=None,
+    schedule=None,
+):
     WorkflowEvent.objects.create(
         order=order,
         actor=actor,
@@ -608,7 +705,20 @@ def _event(order, actor, note, from_status=None, to_status=None, event_type=Work
         from_status=str(from_status or ''),
         to_status=str(to_status or order.order_status or ''),
         note=note,
+        action_code=action_code,
+        change_data=changes or {},
+        schedule=schedule,
     )
+
+
+def _audit_change(label, before, after):
+    def normalize(value):
+        if value is None:
+            return ''
+        if isinstance(value, (datetime, date)):
+            return value.isoformat()
+        return str(value)
+    return {'label': label, 'before': normalize(before), 'after': normalize(after)}
 
 
 def _next_sample_no(order):
@@ -699,7 +809,11 @@ def _schedule_for_actor(order, payload, user):
     if schedule_id:
         schedules = schedules.filter(id=schedule_id)
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not _is_chairman(user):
-        schedules = schedules.filter(lab_manager=user)
+        if _is_lab_operator(user):
+            lab_type = _user_lab_type(user)
+            schedules = schedules.filter(_lab_schedule_query(lab_type)) if lab_type else schedules.none()
+        else:
+            schedules = schedules.filter(lab_manager=user)
     return schedules.order_by('id').first()
 
 
@@ -737,6 +851,7 @@ def lims_logout(request):
 
 
 @csrf_exempt
+@transaction.atomic
 def add_employee(request):
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
@@ -753,11 +868,17 @@ def add_employee(request):
     email = payload.get('email', '').strip()
     display_name = payload.get('display_name', '').strip()
     role = payload.get('role', '').strip()
+    try:
+        lab_type = int(payload.get('lab_type') or 0)
+    except (TypeError, ValueError):
+        lab_type = 0
 
     if not username or not password:
         return JsonResponse({'ok': False, 'error': '用户名和密码必填'}, status=400, json_dumps_params={'ensure_ascii': False})
     if role == ROLE_QUALITY:
         return JsonResponse({'ok': False, 'error': 'V2 工作流已取消质量部岗位，请选择实验室负责人'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if role == ROLE_LAB_OPERATOR and lab_type not in LabDevice.LabType.values:
+        return JsonResponse({'ok': False, 'error': '实验操作员必须选择所属实验室'}, status=400, json_dumps_params={'ensure_ascii': False})
 
     user_model = get_user_model()
     if user_model.objects.filter(username=username).exists():
@@ -768,11 +889,25 @@ def add_employee(request):
         password=password,
         email=email,
         first_name=display_name,
-        is_staff=True,
+        is_staff=role != ROLE_LAB_OPERATOR,
     )
     if role:
         group, _ = Group.objects.get_or_create(name=role)
         employee.groups.add(group)
+    profile_position = None
+    if role == ROLE_LAB_OPERATOR:
+        profile_position = LabStaffProfile.Position.OPERATOR
+    elif role == ROLE_SUZHOU_LAB:
+        lab_type = LabDevice.LabType.SUZHOU
+        profile_position = LabStaffProfile.Position.MANAGER
+    elif role == ROLE_JIANGYIN_LAB:
+        lab_type = LabDevice.LabType.JIANGYIN
+        profile_position = LabStaffProfile.Position.MANAGER
+    if profile_position:
+        LabStaffProfile.objects.update_or_create(
+            user=employee,
+            defaults={'lab_type': lab_type, 'position': profile_position, 'is_active': True},
+        )
 
     return JsonResponse(
         {
@@ -783,6 +918,7 @@ def add_employee(request):
                 'display_name': employee.first_name or employee.username,
                 'email': employee.email,
                 'role': role,
+                'lab_type': lab_type or None,
             },
         },
         json_dumps_params={'ensure_ascii': False},
@@ -900,7 +1036,7 @@ def lab_device_availability(request):
     auth_error = _require_auth(request)
     if auth_error:
         return auth_error
-    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB)
+    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
     if role_error:
         return role_error
     try:
@@ -910,7 +1046,7 @@ def lab_device_availability(request):
     schedule = SchedulePlan.objects.select_related('order').filter(id=schedule_id).first()
     if not schedule or schedule.test_type == SchedulePlan.TestType.OUTSOURCE:
         return JsonResponse({'ok': False, 'error': '内部实验室排期不存在'}, status=404, json_dumps_params={'ensure_ascii': False})
-    if not _is_chairman(request.user) and schedule.lab_manager_id != request.user.id:
+    if not _can_operate_schedule(request.user, schedule):
         return JsonResponse({'ok': False, 'error': '无权查询该排期设备'}, status=403, json_dumps_params={'ensure_ascii': False})
     start_time, end_time, range_error = _parse_plan_range(
         request.GET.get('start_date'), request.GET.get('end_date')
@@ -926,6 +1062,146 @@ def lab_device_availability(request):
         },
         json_dumps_params={'ensure_ascii': False},
     )
+
+
+def _laboratory_schedule_queryset(request):
+    try:
+        lab_type = int(request.GET.get('lab_type') or _user_lab_type(request.user) or 0)
+    except (TypeError, ValueError):
+        lab_type = 0
+    if lab_type not in LabDevice.LabType.values:
+        return None, None, JsonResponse({'ok': False, 'error': '所属实验室无效'}, status=400, json_dumps_params={'ensure_ascii': False})
+    allowed_lab_type = _user_lab_type(request.user)
+    if not (_is_chairman(request.user) or ROLE_GENERAL_MANAGER in _roles(request.user)) and allowed_lab_type != lab_type:
+        return None, None, JsonResponse({'ok': False, 'error': '无权查询其他实验室订单'}, status=403, json_dumps_params={'ensure_ascii': False})
+    if not _has_any_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_GENERAL_MANAGER):
+        return None, None, JsonResponse({'ok': False, 'error': '当前岗位无权查询实验室订单'}, status=403, json_dumps_params={'ensure_ascii': False})
+
+    schedules = SchedulePlan.objects.select_related(
+        'order', 'order__sale_user', 'lab_manager', 'device'
+    ).prefetch_related(
+        Prefetch('experiments', queryset=Experiment.objects.order_by('-create_time'), to_attr='ordered_experiments')
+    ).filter(_lab_schedule_query(lab_type)).distinct()
+    keyword = (request.GET.get('keyword') or '').strip()
+    if keyword:
+        schedules = schedules.filter(
+            Q(order__order_no__icontains=keyword)
+            | Q(order__customer_name__icontains=keyword)
+            | Q(order__project_name__icontains=keyword)
+            | Q(remark__icontains=keyword)
+            | Q(device__device_name__icontains=keyword)
+        )
+    if request.GET.get('order_status'):
+        schedules = schedules.filter(order__order_status=request.GET['order_status'])
+    if request.GET.get('schedule_status'):
+        schedules = schedules.filter(schedule_status=request.GET['schedule_status'])
+    if request.GET.get('device_id'):
+        schedules = schedules.filter(device_id=request.GET['device_id'])
+    start_time = _parse_datetime(request.GET.get('start_date'))
+    end_time = _parse_datetime(request.GET.get('end_date'))
+    if end_time:
+        end_time += timezone.timedelta(days=1)
+    if start_time:
+        schedules = schedules.filter(plan_end_time__gte=start_time)
+    if end_time:
+        schedules = schedules.filter(plan_start_time__lt=end_time)
+    selected_ids = [value for value in (request.GET.get('schedule_ids') or '').split(',') if value.isdigit()]
+    if selected_ids:
+        schedules = schedules.filter(id__in=selected_ids)
+    return schedules.order_by('-plan_start_time', '-create_time'), lab_type, None
+
+
+def laboratory_orders(request):
+    if request.method != 'GET':
+        return HttpResponseNotAllowed(['GET'])
+    auth_error = _require_auth(request)
+    if auth_error:
+        return auth_error
+    schedules, lab_type, error = _laboratory_schedule_queryset(request)
+    if error:
+        return error
+    try:
+        page = max(1, int(request.GET.get('page') or 1))
+        page_size = max(10, min(500, int(request.GET.get('page_size') or 100)))
+    except (TypeError, ValueError):
+        page, page_size = 1, 100
+    total = schedules.count()
+    start = (page - 1) * page_size
+    items = schedules[start:start + page_size]
+    return JsonResponse(
+        {
+            'ok': True,
+            'lab_type': lab_type,
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'items': [_schedule_payload(schedule) for schedule in items],
+        },
+        json_dumps_params={'ensure_ascii': False},
+    )
+
+
+def laboratory_orders_export(request):
+    if request.method != 'GET':
+        return HttpResponseNotAllowed(['GET'])
+    auth_error = _require_auth(request)
+    if auth_error:
+        return auth_error
+    schedules, lab_type, error = _laboratory_schedule_queryset(request)
+    if error:
+        return error
+
+    workbook = Workbook()
+    sheet = workbook.active
+    lab_name = dict(LabDevice.LabType.choices)[lab_type]
+    sheet.title = '实验室订单'
+    headers = [
+        '序号', '订单号', '客户名称', '项目名称', '试验任务', '执行路径', '设备编号', '设备名称',
+        '计划开始', '计划结束', '排期状态', '订单状态', '负责人', '试验状态', '销售', '报价', '预计交付',
+    ]
+    sheet.append(headers)
+    header_fill = PatternFill('solid', fgColor='1F4E78')
+    for cell in sheet[1]:
+        cell.fill = header_fill
+        cell.font = Font(color='FFFFFF', bold=True)
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    for index, schedule in enumerate(schedules[:5000], start=1):
+        order = schedule.order
+        experiment = schedule.ordered_experiments[0] if schedule.ordered_experiments else None
+        sheet.append([
+            index,
+            order.order_no,
+            order.customer_name,
+            order.project_name,
+            schedule.remark,
+            schedule.get_test_type_display(),
+            schedule.device.device_code if schedule.device else '',
+            schedule.device.device_name if schedule.device else '',
+            schedule.plan_start_time.strftime('%Y-%m-%d') if schedule.plan_start_time else '',
+            schedule.plan_end_time.strftime('%Y-%m-%d') if schedule.plan_end_time else '',
+            schedule.get_schedule_status_display(),
+            order.get_order_status_display(),
+            _display_user(schedule.lab_manager),
+            experiment.get_test_status_display() if experiment else '',
+            _display_user(order.sale_user),
+            float(order.total_quote),
+            order.expect_delivery_time.strftime('%Y-%m-%d') if order.expect_delivery_time else '',
+        ])
+    widths = [8, 20, 24, 30, 34, 18, 18, 22, 14, 14, 16, 16, 16, 16, 14, 14, 14]
+    for column, width in enumerate(widths, start=1):
+        sheet.column_dimensions[chr(64 + column)].width = width
+    sheet.freeze_panes = 'A2'
+    sheet.auto_filter.ref = sheet.dimensions
+    output = BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    filename = f'{lab_name}订单台账_{date.today().isoformat()}.xlsx'
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+    return response
 
 
 ORDER_DOCUMENT_EXTENSIONS = {'.doc', '.docx', '.pdf', '.jpg', '.jpeg', '.png'}
@@ -1276,7 +1552,7 @@ def _action_sales_confirm(request, payload):
 
 
 def _action_create_change(request, payload):
-    role_error = _require_role(request.user, ROLE_SALES, ROLE_QUALITY, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB)
+    role_error = _require_role(request.user, ROLE_SALES, ROLE_QUALITY, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
     if role_error:
         return role_error
     order, error = _get_order(payload)
@@ -1286,7 +1562,7 @@ def _action_create_change(request, payload):
     if (
         order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT
         and ROLE_QUALITY in roles
-        and not ({ROLE_SALES, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB} & roles)
+        and not ({ROLE_SALES, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR} & roles)
         and not _is_chairman(request.user)
     ):
         return JsonResponse({'ok': False, 'error': 'V2 订单已取消质量部操作权限'}, status=403, json_dumps_params={'ensure_ascii': False})
@@ -1317,6 +1593,19 @@ def _action_create_change(request, payload):
             change_time=timezone.now(),
             change_status=ChangeRequest.Status.PENDING,
         )
+        if ROLE_SUZHOU_LAB in roles or ROLE_JIANGYIN_LAB in roles or ROLE_LAB_OPERATOR in roles:
+            _event(
+                order,
+                request.user,
+                '实验室人员发起试验变更',
+                event_type=WorkflowEvent.EventType.CHANGE,
+                action_code='lab_change_create',
+                changes={
+                    'test_demand': _audit_change('试验需求', order.test_demand, payload.get('new_test_demand') or order.test_demand),
+                    'change_content': _audit_change('变更说明', '', change_content),
+                },
+                schedule=schedule,
+            )
     order.sales_confirmed_at = None
     order.save(update_fields=['sales_confirmed_at', 'update_time'])
     order.mark_status(LabOrder.Status.SCHEDULING, request.user, f'创建变更单：{change_content}')
@@ -1328,7 +1617,7 @@ def _action_schedule_assign(request, payload):
     if error:
         return error
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB)
+        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
     else:
         role_error = _require_role(request.user, ROLE_QUALITY)
     if role_error:
@@ -1339,6 +1628,9 @@ def _action_schedule_assign(request, payload):
         schedule = _schedule_for_actor(order, payload, request.user)
         if not schedule:
             return JsonResponse({'ok': False, 'error': '没有分配给当前负责人的任务'}, status=403, json_dumps_params={'ensure_ascii': False})
+        before_start = schedule.plan_start_time
+        before_end = schedule.plan_end_time
+        before_device = schedule.device.device_name if schedule.device else ''
         start_time, end_time, range_error = _parse_plan_range(
             payload.get('plan_start_time'), payload.get('plan_end_time')
         )
@@ -1358,7 +1650,19 @@ def _action_schedule_assign(request, payload):
         schedule.quality_user = request.user
         schedule.remark = payload.get('remark') or schedule.remark or order.test_demand
         schedule.save()
-        _event(order, request.user, f'{schedule.get_test_type_display()}负责人完成任务排期')
+        _event(
+            order,
+            request.user,
+            f'{schedule.get_test_type_display()}完成任务排期与排台',
+            action_code='lab_schedule_assign',
+            changes={
+                'plan_start_time': _audit_change('计划开始', before_start, schedule.plan_start_time),
+                'plan_end_time': _audit_change('计划结束', before_end, schedule.plan_end_time),
+                'device': _audit_change('试验设备', before_device, schedule.device.device_name if schedule.device else ''),
+                'outsource_factory': _audit_change('委外厂家', '', schedule.outsource_factory),
+            },
+            schedule=schedule,
+        )
         return _status_response('当前实验室任务排期已更新', order)
 
     test_type = int(payload.get('test_type') or SchedulePlan.TestType.SUZHOU)
@@ -1393,7 +1697,7 @@ def _action_process_change(request, payload):
     if error:
         return error
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB)
+        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
     else:
         role_error = _require_role(request.user, ROLE_QUALITY)
     if role_error:
@@ -1402,10 +1706,17 @@ def _action_process_change(request, payload):
     if payload.get('schedule_id'):
         pending_changes = pending_changes.filter(schedule_id=payload.get('schedule_id'))
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not _is_chairman(request.user):
-        pending_changes = pending_changes.filter(schedule__lab_manager=request.user)
+        if _is_lab_operator(request.user):
+            lab_type = _user_lab_type(request.user)
+            pending_changes = pending_changes.filter(schedule__in=order.schedules.filter(_lab_schedule_query(lab_type)))
+        else:
+            pending_changes = pending_changes.filter(schedule__lab_manager=request.user)
     change = pending_changes.first()
     if not change:
         return JsonResponse({'ok': False, 'error': '没有待处理变更单'}, status=400, json_dumps_params={'ensure_ascii': False})
+    before_start = change.schedule.plan_start_time if change.schedule else None
+    before_end = change.schedule.plan_end_time if change.schedule else None
+    before_device = change.schedule.device.device_name if change.schedule and change.schedule.device else ''
     if change.schedule:
         start_time, end_time, range_error = _parse_plan_range(
             payload.get('plan_start_time'), payload.get('plan_end_time')
@@ -1421,7 +1732,20 @@ def _action_process_change(request, payload):
         change.schedule.save()
     change.change_status = ChangeRequest.Status.APPLIED
     change.save(update_fields=['change_status', 'update_time'])
-    _event(order, request.user, '实验室负责人已处理变更单并更新项目周期表', event_type=WorkflowEvent.EventType.CHANGE)
+    _event(
+        order,
+        request.user,
+        '实验室人员已处理变更单并更新项目周期表',
+        event_type=WorkflowEvent.EventType.CHANGE,
+        action_code='lab_change_process',
+        changes={
+            'plan_start_time': _audit_change('计划开始', before_start, change.schedule.plan_start_time if change.schedule else None),
+            'plan_end_time': _audit_change('计划结束', before_end, change.schedule.plan_end_time if change.schedule else None),
+            'device': _audit_change('试验设备', before_device, change.schedule.device.device_name if change.schedule and change.schedule.device else ''),
+            'change_status': _audit_change('变更状态', '待调整', '已闭环'),
+        },
+        schedule=change.schedule,
+    )
     return _status_response('变更已闭环', order)
 
 
@@ -1430,7 +1754,7 @@ def _action_register_sample(request, payload):
     if error:
         return error
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB)
+        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
     else:
         role_error = _require_role(request.user, ROLE_QUALITY)
     if role_error:
@@ -1442,7 +1766,7 @@ def _action_register_sample(request, payload):
         return JsonResponse({'ok': False, 'error': '请先完成排期'}, status=400, json_dumps_params={'ensure_ascii': False})
     if schedule.samples.exists():
         return JsonResponse({'ok': False, 'error': '当前任务已经登记过样品'}, status=400, json_dumps_params={'ensure_ascii': False})
-    Sample.objects.create(
+    sample = Sample.objects.create(
         order=order,
         schedule=schedule,
         sample_no=payload.get('sample_no') or _next_sample_no(order),
@@ -1455,19 +1779,30 @@ def _action_register_sample(request, payload):
         quality_user=request.user,
     )
     order.mark_status(LabOrder.Status.TESTING, request.user, '实验室负责人完成样品编号登记，进入试验执行')
+    _event(
+        order,
+        request.user,
+        '实验室人员登记样品',
+        action_code='lab_sample_register',
+        changes={
+            'sample_no': _audit_change('样品编号', '', sample.sample_no),
+            'sample_name': _audit_change('样品名称', '', sample.sample_name),
+            'sample_count': _audit_change('样品数量', '', sample.sample_count),
+            'storage_condition': _audit_change('存储条件', '', sample.storage_condition),
+        },
+        schedule=schedule,
+    )
     return _status_response('样品已登记', order)
 
 
 def _action_start_test(request, payload):
-    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB)
+    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
     if role_error:
         return role_error
     order, error = _get_order(payload)
     if error:
         return error
-    roles = set(_roles(request.user))
-    allowed_type = SchedulePlan.TestType.SUZHOU if ROLE_SUZHOU_LAB in roles else SchedulePlan.TestType.JIANGYIN
-    schedule = order.schedules.filter(test_type=allowed_type, lab_manager=request.user).first()
+    schedule = _schedule_for_actor(order, payload, request.user)
     if not schedule:
         return JsonResponse({'ok': False, 'error': '没有分配给当前实验室负责人的排期'}, status=403, json_dumps_params={'ensure_ascii': False})
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
@@ -1507,6 +1842,19 @@ def _action_start_test(request, payload):
     experiment.test_type = schedule.test_type
     experiment.save()
     order.mark_status(LabOrder.Status.TESTING, request.user, '实验室开始试验')
+    _event(
+        order,
+        request.user,
+        '实验室人员开始试验',
+        action_code='lab_test_start',
+        changes={
+            'test_item_list': _audit_change('试验项目', '', experiment.test_item_list),
+            'test_standard': _audit_change('执行标准', '', experiment.test_standard),
+            'test_status': _audit_change('试验状态', '待开展', experiment.get_test_status_display()),
+            'test_operator': _audit_change('操作人员', '', _display_user(request.user)),
+        },
+        schedule=schedule,
+    )
     return _status_response('试验已开始', order)
 
 
@@ -1544,15 +1892,16 @@ def _action_outsource_result(request, payload):
     if error:
         return error
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB)
+        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
     else:
         role_error = _require_role(request.user, ROLE_QUALITY)
     if role_error:
         return role_error
     schedules = order.schedules.filter(test_type=SchedulePlan.TestType.OUTSOURCE)
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not _is_chairman(request.user):
-        schedules = schedules.filter(lab_manager=request.user)
-    schedule = schedules.order_by('-create_time').first()
+        schedule = next((item for item in schedules if _can_operate_schedule(request.user, item)), None)
+    else:
+        schedule = schedules.order_by('-create_time').first()
     if not schedule:
         return JsonResponse({'ok': False, 'error': '该订单没有委外排期'}, status=400, json_dumps_params={'ensure_ascii': False})
     sample = order.samples.filter(schedule=schedule).first() or order.samples.first()
@@ -1583,18 +1932,32 @@ def _action_outsource_result(request, payload):
     sample.save(update_fields=['sample_status', 'update_time'])
     schedule.schedule_status = SchedulePlan.Status.FINISHED
     schedule.save(update_fields=['schedule_status', 'update_time'])
+    _event(
+        order,
+        request.user,
+        '实验室人员录入委外试验结果',
+        action_code='lab_outsource_result',
+        changes={
+            'test_status': _audit_change('委外试验状态', '待回传', experiment.get_test_status_display()),
+            'test_end_time': _audit_change('委外完成时间', '', experiment.test_end_time),
+            'test_raw_data': _audit_change('回传数据摘要', '', experiment.test_raw_data[:500]),
+            'test_conclusion': _audit_change('委外结论', '', experiment.test_conclusion_temp),
+        },
+        schedule=schedule,
+    )
     order.mark_status(LabOrder.Status.TESTING, request.user, '实验室负责人录入委外试验结果回传，委外试验已完成')
     return _status_response('委外试验结果已回传，可出具报告', order)
 
 
 def _action_submit_test(request, payload):
-    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB)
+    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
     if role_error:
         return role_error
     order, error = _get_order(payload)
     if error:
         return error
-    experiment = order.experiments.filter(test_operator=request.user).exclude(test_status=Experiment.Status.FINISHED).first()
+    schedule = _schedule_for_actor(order, payload, request.user)
+    experiment = order.experiments.filter(schedule=schedule).exclude(test_status=Experiment.Status.FINISHED).first() if schedule else None
     if not experiment:
         return JsonResponse({'ok': False, 'error': '没有待提交的试验记录'}, status=400, json_dumps_params={'ensure_ascii': False})
     experiment.test_raw_data = payload.get('test_raw_data') or experiment.test_raw_data or '试验数据已录入。'
@@ -1608,6 +1971,19 @@ def _action_submit_test(request, payload):
     if experiment.schedule:
         experiment.schedule.schedule_status = SchedulePlan.Status.FINISHED
         experiment.schedule.save(update_fields=['schedule_status', 'update_time'])
+    _event(
+        order,
+        request.user,
+        '实验室人员提交试验结果',
+        action_code='lab_test_submit',
+        changes={
+            'test_raw_data': _audit_change('原始数据摘要', '', experiment.test_raw_data[:500]),
+            'test_conclusion': _audit_change('试验结论', '', experiment.test_conclusion_temp),
+            'test_status': _audit_change('试验状态', '试验中', experiment.get_test_status_display()),
+            'test_end_time': _audit_change('实际结束时间', '', experiment.test_end_time),
+        },
+        schedule=experiment.schedule,
+    )
     _event(order, request.user, '实验室提交试验结果；全部路径完成后主责负责人可出具报告')
     return _status_response('试验结果已提交', order)
 
@@ -1617,10 +1993,15 @@ def _action_issue_report(request, payload):
     if error:
         return error
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB)
+        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
         if role_error:
             return role_error
-        if not _is_chairman(request.user) and order.lead_lab_manager_id != request.user.id:
+        can_issue_as_operator = (
+            _is_lab_operator(request.user)
+            and order.lead_lab_manager
+            and _user_lab_type(request.user) == _user_lab_type(order.lead_lab_manager)
+        )
+        if not _is_chairman(request.user) and order.lead_lab_manager_id != request.user.id and not can_issue_as_operator:
             return JsonResponse({'ok': False, 'error': '仅本订单主责实验室负责人可以汇总出具报告'}, status=403, json_dumps_params={'ensure_ascii': False})
         if order.schedules.exclude(schedule_status=SchedulePlan.Status.FINISHED).exists():
             return JsonResponse({'ok': False, 'error': '仍有执行路径未完成，暂不能出具总报告'}, status=400, json_dumps_params={'ensure_ascii': False})
@@ -1651,6 +2032,19 @@ def _action_issue_report(request, payload):
             report_status=TestReport.Status.SALES_REVIEW,
             create_quality_user=request.user,
         )
+    _event(
+        order,
+        request.user,
+        '实验室人员汇总并提交检测报告',
+        action_code='lab_report_issue',
+        changes={
+            'report_no': _audit_change('报告编号', '', report.report_no),
+            'report_status': _audit_change('报告状态', '草稿/驳回', report.get_report_status_display()),
+            'final_conclusion': _audit_change('最终结论', '', report.final_conclusion[:500]),
+            'report_creator': _audit_change('报告提交人', '', _display_user(request.user)),
+        },
+        schedule=experiment.schedule,
+    )
     order.mark_status(LabOrder.Status.REPORT_REVIEW, request.user, f'主责实验室负责人出具报告 {report.report_no}，提交销售初审')
     return _status_response('报告已提交销售初审', order)
 
@@ -1826,10 +2220,16 @@ def lims_dashboard(request):
         schedules = schedules.filter(lab_manager=request.user)
         samples = samples.filter(schedule__lab_manager=request.user)
         changes = changes.filter(schedule__lab_manager=request.user)
+    elif not _is_chairman(request.user) and ROLE_LAB_OPERATOR in dashboard_roles:
+        lab_type = _user_lab_type(request.user)
+        schedule_scope = _lab_schedule_query(lab_type) if lab_type else Q(pk__in=[])
+        schedules = schedules.filter(schedule_scope)
+        samples = samples.filter(schedule__in=SchedulePlan.objects.filter(schedule_scope))
+        changes = changes.filter(schedule__in=SchedulePlan.objects.filter(schedule_scope))
     reviews = BusinessReview.objects.select_related('order', 'biz_review_user', 'tech_review_user').filter(
         order__in=related_orders
     ).order_by('-review_time', '-create_time')
-    workflow_events = WorkflowEvent.objects.select_related('order', 'actor').filter(
+    workflow_events = WorkflowEvent.objects.select_related('order', 'actor', 'schedule').filter(
         order__in=related_orders
     ).order_by('-create_time')[:120]
     test_standards = TestStandard.objects.filter(is_active=True).order_by('industry', 'standard_code')

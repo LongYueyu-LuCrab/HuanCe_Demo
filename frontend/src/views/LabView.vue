@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRoute } from 'vue-router'
 import ScheduleTable from '../components/ScheduleTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
-import { fetchAvailableDevices, fetchOrderDetail, workflowAction } from '../services/api'
+import { fetchAvailableDevices, fetchLaboratoryOrders, fetchOrderDetail, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
 import type { LabDevice, OrderItem, ScheduleItem } from '../types'
 
@@ -12,6 +12,8 @@ const route = useRoute()
 const session = useSession()
 const labKey = computed(() => (route.params.lab === 'jiangyin' ? 'jiangyin' : 'suzhou'))
 const lab = computed(() => session.state.dashboard?.labs?.[labKey.value])
+const labType = computed(() => labKey.value === 'jiangyin' ? 2 : 1)
+const labOrders = ref<ScheduleItem[]>([])
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const activeAction = ref('')
@@ -44,6 +46,17 @@ const form = reactive({
   report_no: '',
   final_conclusion: '',
 })
+
+async function loadLaboratoryOrders() {
+  try {
+    const data = await fetchLaboratoryOrders({ lab_type: labType.value, page: 1, page_size: 500 })
+    labOrders.value = data.items
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '实验室订单读取失败')
+  }
+}
+
+watch(labType, loadLaboratoryOrders, { immediate: true })
 async function loadOrderContext(orderNo: string) {
   activeOrder.value = null
   orderLoading.value = true
@@ -130,6 +143,7 @@ async function submitWorkflow() {
     ElMessage.success('试验节点操作已完成')
     dialogVisible.value = false
     await session.refreshDashboard()
+    await loadLaboratoryOrders()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '操作失败')
   } finally {
@@ -170,8 +184,10 @@ async function submitWorkflow() {
     </div>
 
     <ScheduleTable
-      :orders="lab?.orders ?? []"
+      :orders="labOrders"
       :user="session.state.user"
+      :lab-type="labType"
+      exportable
       @workflow="openWorkflow"
       @detail="openOrderDetail"
     />

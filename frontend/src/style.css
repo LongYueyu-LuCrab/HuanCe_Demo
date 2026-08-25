@@ -359,6 +359,18 @@ select {
   width: min(360px, 40vw);
 }
 
+.schedule-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.5fr) repeat(3, minmax(150px, 0.75fr)) minmax(260px, 1fr);
+  gap: 12px;
+  padding: 0 0 16px;
+  align-items: end;
+}
+
+.schedule-filter-bar > * {
+  width: 100% !important;
+}
+
 .el-table {
   --el-table-header-bg-color: #f8fafc;
   --el-table-header-text-color: #475569;
@@ -651,6 +663,10 @@ select {
 
   .table-search {
     width: 100%;
+  }
+
+  .schedule-filter-bar {
+    grid-template-columns: 1fr;
   }
 
   .snapshot-heading {

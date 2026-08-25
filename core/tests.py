@@ -4,6 +4,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from openpyxl import load_workbook
+from io import BytesIO
 
 from .models import (
     BusinessReview,
@@ -12,6 +14,7 @@ from .models import (
     Invoice,
     LabDevice,
     LabOrder,
+    LabStaffProfile,
     OrderDocument,
     ReportAudit,
     Sample,
@@ -435,7 +438,7 @@ class LimsFullRoleWorkflowTests(TestCase):
         self.assertEqual(order.order_status, LabOrder.Status.INVOICED_CLOSED)
         self.assertEqual(
             set(Group.objects.values_list('name', flat=True)),
-            set(self.roles.values()),
+            set(self.roles.values()) | {'实验操作员'},
         )
 
 
@@ -678,3 +681,96 @@ class LabDeviceSchedulingTests(TestCase):
         protected = self.client.delete(reverse('lab_device_detail', args=[self.device.id]))
         self.assertEqual(protected.status_code, 400)
         self.assertIn('不能删除', protected.json()['error'])
+
+
+class LaboratoryOperatorTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        manager_group, _ = Group.objects.get_or_create(name='苏州实验室')
+        operator_group, _ = Group.objects.get_or_create(name='实验操作员')
+        self.manager = user_model.objects.create_user(username='operator_manager', password='password123')
+        self.manager.groups.add(manager_group)
+        LabStaffProfile.objects.update_or_create(
+            user=self.manager,
+            defaults={'lab_type': LabDevice.LabType.SUZHOU, 'position': LabStaffProfile.Position.MANAGER},
+        )
+        self.operator = user_model.objects.create_user(username='lab_operator', password='password123')
+        self.operator.groups.add(operator_group)
+        LabStaffProfile.objects.create(
+            user=self.operator,
+            lab_type=LabDevice.LabType.SUZHOU,
+            position=LabStaffProfile.Position.OPERATOR,
+        )
+        self.device = LabDevice.objects.create(
+            device_code='OP-SZ-001', device_name='操作员测试台', lab_type=LabDevice.LabType.SUZHOU,
+        )
+        self.order = LabOrder.objects.create(
+            order_no='OPERATOR-FLOW-001', customer_name='操作员流程客户', project_name='操作员权限验证',
+            test_demand='振动耐久试验', test_standard='GB/T 2423.10', total_quote='12000.00',
+            order_status=LabOrder.Status.SCHEDULING, workflow_version=LabOrder.WorkflowVersion.LAB_DIRECT,
+            lead_lab_manager=self.manager, sales_confirmed_at=timezone.now(),
+        )
+        self.schedule = SchedulePlan.objects.create(
+            order=self.order, test_type=SchedulePlan.TestType.SUZHOU, lab_manager=self.manager,
+            quality_user=self.manager, remark='振动耐久试验',
+        )
+
+    def action(self, action, **payload):
+        self.client.force_login(self.operator)
+        return self.client.post(
+            reverse('lims_action'),
+            data={'action': action, 'order_no': self.order.order_no, 'schedule_id': self.schedule.id, **payload},
+            content_type='application/json',
+        )
+
+    def test_operator_runs_assigned_lab_flow_and_writes_structured_history(self):
+        self.assertEqual(self.action(
+            'schedule_assign', device_id=self.device.id,
+            plan_start_time='2026-10-01', plan_end_time='2026-10-03',
+        ).status_code, 200)
+        self.assertEqual(self.action('register_sample', sample_name='操作员测试样品', sample_count=2).status_code, 200)
+        self.assertEqual(self.action('start_test').status_code, 200)
+        self.assertEqual(self.action(
+            'submit_test', test_raw_data='振动数据记录完整', test_conclusion_temp='试验合格',
+        ).status_code, 200)
+        self.assertEqual(self.action('issue_report', final_conclusion='检测项目全部合格').status_code, 200)
+
+        action_codes = set(
+            WorkflowEvent.objects.filter(order=self.order, actor=self.operator).exclude(action_code='')
+            .values_list('action_code', flat=True)
+        )
+        self.assertTrue({
+            'lab_schedule_assign', 'lab_sample_register', 'lab_test_start',
+            'lab_test_submit', 'lab_report_issue',
+        }.issubset(action_codes))
+        schedule_event = WorkflowEvent.objects.get(order=self.order, action_code='lab_schedule_assign')
+        self.assertEqual(schedule_event.schedule, self.schedule)
+        self.assertIn('device', schedule_event.change_data)
+        self.assertEqual(self.order.experiments.get().test_operator, self.operator)
+
+    def test_operator_can_query_and_export_only_own_laboratory(self):
+        self.client.force_login(self.operator)
+        response = self.client.get(reverse('laboratory_orders'), {'lab_type': 1, 'keyword': '操作员'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['total'], 1)
+        self.assertEqual(response.json()['items'][0]['order_no'], self.order.order_no)
+
+        denied = self.client.get(reverse('laboratory_orders'), {'lab_type': 2})
+        self.assertEqual(denied.status_code, 403)
+        exported = self.client.get(reverse('laboratory_orders_export'), {
+            'lab_type': 1, 'schedule_ids': str(self.schedule.id),
+        })
+        self.assertEqual(exported.status_code, 200)
+        self.assertIn('spreadsheetml', exported['Content-Type'])
+        workbook = load_workbook(BytesIO(exported.content), read_only=True)
+        rows = list(workbook.active.iter_rows(values_only=True))
+        self.assertEqual(rows[1][1], self.order.order_no)
+
+    def test_operator_cannot_manage_devices(self):
+        self.client.force_login(self.operator)
+        response = self.client.post(
+            reverse('lab_devices'),
+            data={'device_code': 'DENIED-001', 'device_name': '不应创建'},
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 403)

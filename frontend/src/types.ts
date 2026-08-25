@@ -8,6 +8,9 @@ export type User = {
   is_chairman?: boolean
   is_staff?: boolean
   is_superuser?: boolean
+  lab_type?: number | null
+  lab_name?: string
+  lab_position?: string
 }
 
 export type OrderItem = {
@@ -55,10 +58,12 @@ export type ScheduleItem = {
   customer: string
   project_name: string
   status: string
+  status_key: number
   test_type: string
   start_time: string
   end_time: string
   schedule_status: string
+  schedule_status_key: number
   lab_manager: string
   device_id: number | null
   device_code: string
@@ -126,6 +131,10 @@ export type WorkflowEventItem = {
   from_status: string
   to_status: string
   note: string
+  action_code: string
+  schedule_id: number | null
+  change_data: Record<string, { label: string; before: string; after: string }>
+  change_summary: string
   create_time: string
 }
 

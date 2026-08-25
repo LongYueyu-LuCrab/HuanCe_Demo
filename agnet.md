@@ -116,6 +116,17 @@ Supporting reference tables:
 lims_test_standard        industry/category based test standard library
 lims_order_document       protected sales-order contracts and attachments
 lims_lab_device           Suzhou/Jiangyin laboratory equipment registry
+lims_lab_staff_profile    laboratory staff affiliation and position
+```
+
+Structured workflow audit fields in `lims_workflow_event`:
+
+```text
+action_code              stable machine-readable action identifier
+change_data              JSON snapshot of changed fields and values
+schedule_id              optional related laboratory schedule
+create_time              operation timestamp
+user_id                  operator account
 ```
 
 Sales-order extension fields:
@@ -340,6 +351,15 @@ Data access is currently role-filtered in `_orders_for_user()` and related dashb
 
 Do not add a new menu or workflow button without checking role visibility and row-level access.
 
+Laboratory role rules:
+
+- `LabStaffProfile` is the authoritative Suzhou/Jiangyin affiliation for laboratory managers and operators.
+- The `实验操作员` group is a workflow role. Operators may schedule, register samples, start tests, submit results, create in-test changes, and issue reports for their own laboratory.
+- Laboratory operators cannot create, delete, or change laboratory devices. Device management remains a laboratory-manager/chairman responsibility.
+- Laboratory managers and operators may query the complete order history of their own laboratory and export the filtered result to Excel.
+- Suzhou users must never query or export Jiangyin laboratory rows, and vice versa.
+- Each laboratory workflow mutation must append a `WorkflowEvent` containing action code, operator, timestamp, related schedule, and structured changed values.
+
 ## 10. Demo Data
 
 Primary demo seed command:
@@ -386,7 +406,11 @@ POST /api/lims/action/
 POST /api/orders/create/
 GET  /api/orders/documents/<id>/download/
 POST /api/employees/add/
+GET  /api/labs/orders/
+GET  /api/labs/orders/export/
 ```
+
+Laboratory order query/export filters include keyword, order status, schedule status, device, planned date range, and selected schedule IDs. Export files are generated with `openpyxl`; the API must enforce laboratory row permissions independently of frontend filters.
 
 `/api/lims/dashboard/` returns role-filtered:
 

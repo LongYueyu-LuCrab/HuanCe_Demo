@@ -24,6 +24,8 @@ const filteredEvents = computed(() => {
       event.from_status,
       event.to_status,
       event.note,
+      event.action_code,
+      event.change_summary,
       event.create_time,
     ]
       .filter(Boolean)
@@ -84,7 +86,13 @@ const pagedEvents = computed(() => {
         </el-table-column>
         <el-table-column prop="actor" label="操作人" min-width="120" />
         <el-table-column prop="event_type" label="类型" min-width="110" />
-        <el-table-column prop="note" label="节点说明" min-width="320" />
+        <el-table-column prop="note" label="节点说明" min-width="240" />
+        <el-table-column label="操作变更项" min-width="360">
+          <template #default="{ row }">
+            <span v-if="row.change_summary">{{ row.change_summary }}</span>
+            <span v-else class="muted">无结构化变更</span>
+          </template>
+        </el-table-column>
       </el-table>
 
       <div class="table-footer">

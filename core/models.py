@@ -232,6 +232,31 @@ class LabDevice(TimeStampedModel):
         return f'{self.device_code} {self.device_name}'
 
 
+class LabStaffProfile(TimeStampedModel):
+    class Position(models.TextChoices):
+        MANAGER = 'manager', '实验室负责人'
+        OPERATOR = 'operator', '实验操作员'
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        verbose_name='员工账号',
+        on_delete=models.CASCADE,
+        related_name='lims_lab_profile',
+    )
+    lab_type = models.PositiveSmallIntegerField('所属实验室', choices=LabDevice.LabType.choices)
+    position = models.CharField('实验室岗位', max_length=20, choices=Position.choices, default=Position.OPERATOR)
+    is_active = models.BooleanField('是否在岗', default=True)
+
+    class Meta:
+        db_table = 'lims_lab_staff_profile'
+        verbose_name = '实验室人员档案'
+        verbose_name_plural = '实验室人员档案'
+        ordering = ['lab_type', 'position', 'user__username']
+
+    def __str__(self):
+        return f'{self.user} - {self.get_lab_type_display()} - {self.get_position_display()}'
+
+
 class SchedulePlan(TimeStampedModel):
     class TestType(models.IntegerChoices):
         SUZHOU = 1, '苏州内部实验室'
@@ -523,6 +548,16 @@ class WorkflowEvent(TimeStampedModel):
     from_status = models.CharField('原状态', max_length=40, blank=True)
     to_status = models.CharField('新状态', max_length=40, blank=True)
     note = models.TextField('说明', blank=True)
+    action_code = models.CharField('动作编码', max_length=64, blank=True)
+    change_data = models.JSONField('结构化变更内容', default=dict, blank=True)
+    schedule = models.ForeignKey(
+        SchedulePlan,
+        verbose_name='关联排期',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='workflow_events',
+    )
 
     class Meta:
         db_table = 'lims_workflow_event'

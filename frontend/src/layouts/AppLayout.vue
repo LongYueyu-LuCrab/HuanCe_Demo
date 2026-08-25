@@ -13,6 +13,7 @@ import {
   Money,
   Operation,
   Tickets,
+  Tools,
   UserFilled,
   Van,
 } from '@element-plus/icons-vue'
@@ -26,7 +27,9 @@ const session = useSession()
 
 const menuGroups = computed(() => getMenuGroups(session.state.user))
 const activePath = computed(() => route.path)
-const roleText = computed(() => session.state.user.roles?.join(' / ') || '普通用户')
+const roleText = computed(() => session.state.user.lab_position
+  ? `${session.state.user.lab_name} / ${session.state.user.lab_position}`
+  : session.state.user.roles?.join(' / ') || '普通用户')
 const displayName = computed(() => session.state.user.display_name || session.state.user.username || '用户')
 const currentTitle = computed(() => {
   const item = menuGroups.value.flatMap((group) => group.items).find((menuItem) => menuItem.path === route.path)
@@ -44,6 +47,7 @@ const iconMap = {
   Money,
   Operation,
   Tickets,
+  Tools,
   UserFilled,
   Van,
 }

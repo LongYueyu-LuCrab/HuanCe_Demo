@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { exportLaboratoryOrders } from '../services/api'
 import type { ScheduleItem, User } from '../types'
 
 const props = defineProps<{
   orders: ScheduleItem[]
   user?: User
+  labType?: number
+  exportable?: boolean
 }>()
 const emit = defineEmits<{
   workflow: [action: string, schedule: ScheduleItem]
@@ -14,17 +18,34 @@ const emit = defineEmits<{
 const keyword = ref('')
 const page = ref(1)
 const pageSize = ref(10)
+const orderStatus = ref<number | ''>('')
+const scheduleStatus = ref<number | ''>('')
+const deviceId = ref<number | ''>('')
+const dateRange = ref<[string, string] | []>([])
+const selectedRows = ref<ScheduleItem[]>([])
+const exporting = ref(false)
+
+const orderStatusOptions = computed(() => Array.from(new Map(props.orders.map((item) => [item.status_key, item.status])).entries()))
+const scheduleStatusOptions = computed(() => Array.from(new Map(props.orders.map((item) => [item.schedule_status_key, item.schedule_status])).entries()))
+const deviceOptions = computed(() => Array.from(new Map(props.orders.filter((item) => item.device_id).map((item) => [item.device_id as number, `${item.device_code} · ${item.device_name}`])).entries()))
 
 const filteredOrders = computed(() => {
   const value = keyword.value.trim().toLowerCase()
-  if (!value) return props.orders
-  return props.orders.filter((order) =>
-    [order.order_no, order.customer, order.project_name, order.status, order.test_type, order.schedule_status, order.device_code, order.device_name, order.remark]
+  return props.orders.filter((order) => {
+    const matchesKeyword = !value || [order.order_no, order.customer, order.project_name, order.status, order.test_type, order.schedule_status, order.device_code, order.device_name, order.remark]
       .filter(Boolean)
       .join(' ')
       .toLowerCase()
-      .includes(value),
-  )
+      .includes(value)
+    const matchesOrderStatus = orderStatus.value === '' || order.status_key === orderStatus.value
+    const matchesScheduleStatus = scheduleStatus.value === '' || order.schedule_status_key === scheduleStatus.value
+    const matchesDevice = deviceId.value === '' || order.device_id === deviceId.value
+    const matchesDate = dateRange.value.length !== 2 || (
+      (!order.end_time || order.end_time >= dateRange.value[0])
+      && (!order.start_time || order.start_time <= dateRange.value[1])
+    )
+    return matchesKeyword && matchesOrderStatus && matchesScheduleStatus && matchesDevice && matchesDate
+  })
 })
 
 const pagedOrders = computed(() => {
@@ -34,7 +55,41 @@ const pagedOrders = computed(() => {
 
 const roleSet = computed(() => new Set(props.user?.roles || []))
 const isChairman = computed(() => Boolean(props.user?.is_chairman))
-const canLabOperate = computed(() => isChairman.value || roleSet.value.has('苏州实验室') || roleSet.value.has('江阴实验室'))
+const canLabOperate = computed(() => isChairman.value || roleSet.value.has('苏州实验室') || roleSet.value.has('江阴实验室') || roleSet.value.has('实验操作员'))
+
+function resetPage() {
+  page.value = 1
+}
+
+function handleSelection(rows: ScheduleItem[]) {
+  selectedRows.value = rows
+}
+
+async function exportOrders(selectedOnly: boolean) {
+  if (!props.labType) return
+  if (selectedOnly && selectedRows.value.length === 0) {
+    ElMessage.warning('请先勾选需要导出的订单')
+    return
+  }
+  exporting.value = true
+  try {
+    await exportLaboratoryOrders({
+      lab_type: props.labType,
+      keyword: keyword.value,
+      order_status: orderStatus.value === '' ? '' : String(orderStatus.value),
+      schedule_status: scheduleStatus.value === '' ? '' : String(scheduleStatus.value),
+      device_id: deviceId.value === '' ? '' : String(deviceId.value),
+      start_date: dateRange.value[0] || '',
+      end_date: dateRange.value[1] || '',
+      schedule_ids: selectedOnly ? selectedRows.value.map((item) => item.id) : undefined,
+    })
+    ElMessage.success('Excel 已生成')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '导出失败')
+  } finally {
+    exporting.value = false
+  }
+}
 </script>
 
 <template>
@@ -45,10 +100,34 @@ const canLabOperate = computed(() => isChairman.value || roleSet.value.has('苏�
           <h2>实验室订单筛选</h2>
           <p>筛选本实验室内执行过或排期中的订单。</p>
         </div>
-        <el-input v-model="keyword" clearable class="table-search" placeholder="订单号、客户、项目、状态" @input="page = 1" />
+        <div v-if="exportable" class="row-actions">
+          <el-button :loading="exporting" plain @click="exportOrders(true)">导出已选</el-button>
+          <el-button :loading="exporting" type="primary" plain @click="exportOrders(false)">按条件导出 Excel</el-button>
+        </div>
       </div>
     </template>
-    <el-table :data="pagedOrders" stripe height="420" empty-text="暂无匹配任务">
+    <div class="schedule-filter-bar">
+      <el-input v-model="keyword" clearable placeholder="搜索订单号、客户、项目、任务、设备" @input="resetPage" />
+      <el-select v-model="orderStatus" clearable placeholder="订单状态" @change="resetPage">
+        <el-option v-for="item in orderStatusOptions" :key="item[0]" :label="item[1]" :value="item[0]" />
+      </el-select>
+      <el-select v-model="scheduleStatus" clearable placeholder="排期状态" @change="resetPage">
+        <el-option v-for="item in scheduleStatusOptions" :key="item[0]" :label="item[1]" :value="item[0]" />
+      </el-select>
+      <el-select v-model="deviceId" clearable filterable placeholder="试验设备" @change="resetPage">
+        <el-option v-for="item in deviceOptions" :key="item[0]" :label="item[1]" :value="item[0]" />
+      </el-select>
+      <el-date-picker
+        v-model="dateRange"
+        type="daterange"
+        value-format="YYYY-MM-DD"
+        start-placeholder="计划开始"
+        end-placeholder="计划结束"
+        @change="resetPage"
+      />
+    </div>
+    <el-table :data="pagedOrders" stripe height="420" empty-text="暂无匹配任务" @selection-change="handleSelection">
+      <el-table-column v-if="exportable" type="selection" width="48" />
       <el-table-column prop="order_no" label="订单号" min-width="150" />
       <el-table-column label="客户 / 项目" min-width="300">
         <template #default="{ row }">

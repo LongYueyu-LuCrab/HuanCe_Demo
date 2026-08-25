@@ -112,6 +112,22 @@ export function getMenuGroups(user: User): MenuGroup[] {
     ])].filter(Boolean) as MenuGroup[]
   }
 
+  if (hasRole(user, '实验操作员')) {
+    const isJiangyin = user.lab_type === 2
+    const labKey = isJiangyin ? 'jiangyin' : 'suzhou'
+    const labName = isJiangyin ? '江阴实验室' : '苏州实验室'
+    return [group(`${labName}操作台`, [
+      { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataBoard' },
+      { key: 'orders', label: '实验室订单', path: '/orders', icon: 'Tickets' },
+      { key: labKey, label: '试验任务', path: `/labs/${labKey}`, icon: isJiangyin ? 'Operation' : 'Cpu' },
+      { key: 'schedule', label: '排期与操作', path: '/schedule', icon: 'Calendar' },
+      { key: 'samples', label: '样品台账', path: '/samples', icon: 'Box' },
+      { key: 'outsource', label: '委外任务', path: '/outsource', icon: 'Van' },
+      { key: 'reports', label: '报告任务', path: '/reports', icon: 'DocumentChecked' },
+      { key: 'audit', label: '操作历史', path: '/audit', icon: 'Clock' },
+    ])].filter(Boolean) as MenuGroup[]
+  }
+
   if (hasRole(user, '总经理')) {
     return [
       group('经营总览', [
@@ -166,7 +182,7 @@ export function getMetricCards(user: User, dashboard: Dashboard | null) {
       { key: 'change_requests', label: '变更待调整排期', value: metrics?.change_requests ?? 0 },
     ]
   }
-  if ((hasRole(user, '苏州实验室') || hasRole(user, '江阴实验室')) && !canSeeAllBusiness(user)) {
+  if ((hasRole(user, '苏州实验室') || hasRole(user, '江阴实验室') || hasRole(user, '实验操作员')) && !canSeeAllBusiness(user)) {
     return [
       { key: 'orders', label: '分配给我的试验单', value: metrics?.orders ?? 0 },
       { key: 'running_experiments', label: '我的试验执行中', value: metrics?.running_experiments ?? 0 },

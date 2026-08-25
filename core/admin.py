@@ -6,6 +6,7 @@ from .models import (
     Experiment,
     Invoice,
     LabDevice,
+    LabStaffProfile,
     LabOrder,
     OrderDocument,
     ReportAudit,
@@ -192,6 +193,13 @@ class LabDeviceAdmin(admin.ModelAdmin):
     search_fields = ('device_code', 'device_name', 'model_spec', 'capability', 'remark')
 
 
+@admin.register(LabStaffProfile)
+class LabStaffProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'lab_type', 'position', 'is_active', 'update_time')
+    list_filter = ('lab_type', 'position', 'is_active')
+    search_fields = ('user__username', 'user__first_name', 'user__email')
+
+
 @admin.register(ChangeRequest)
 class ChangeRequestAdmin(admin.ModelAdmin):
     list_display = ('order', 'schedule', 'change_scene', 'change_user', 'change_status', 'change_time')
@@ -250,7 +258,7 @@ class TestStandardAdmin(admin.ModelAdmin):
 
 @admin.register(WorkflowEvent)
 class WorkflowEventAdmin(admin.ModelAdmin):
-    list_display = ('order', 'event_type', 'actor', 'from_status', 'to_status', 'create_time')
-    list_filter = ('event_type', 'from_status', 'to_status')
-    search_fields = ('order__order_no', 'note')
+    list_display = ('order', 'event_type', 'action_code', 'actor', 'schedule', 'from_status', 'to_status', 'create_time')
+    list_filter = ('event_type', 'action_code', 'from_status', 'to_status')
+    search_fields = ('order__order_no', 'note', 'action_code')
     readonly_fields = ('create_time', 'update_time')

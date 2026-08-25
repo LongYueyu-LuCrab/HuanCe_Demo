@@ -110,6 +110,51 @@ export async function fetchAvailableDevices(scheduleId: number, startDate: strin
   return data.devices
 }
 
+export type LabOrderQuery = {
+  lab_type: number
+  keyword?: string
+  order_status?: string
+  schedule_status?: string
+  device_id?: string
+  start_date?: string
+  end_date?: string
+  schedule_ids?: number[]
+  page?: number
+  page_size?: number
+}
+
+function labOrderParams(query: LabOrderQuery) {
+  const params = new URLSearchParams()
+  Object.entries(query).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return
+    params.set(key, Array.isArray(value) ? value.join(',') : String(value))
+  })
+  return params
+}
+
+export async function fetchLaboratoryOrders(query: LabOrderQuery) {
+  const response = await fetch(`/api/labs/orders/?${labOrderParams(query)}`, { credentials: 'include' })
+  return parseJson<{ ok: boolean; total: number; items: import('../types').ScheduleItem[] }>(response)
+}
+
+export async function exportLaboratoryOrders(query: LabOrderQuery): Promise<void> {
+  const response = await fetch(`/api/labs/orders/export/?${labOrderParams(query)}`, { credentials: 'include' })
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.error || '导出失败')
+  }
+  const blob = await response.blob()
+  const disposition = response.headers.get('Content-Disposition') || ''
+  const match = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+  const filename = match ? decodeURIComponent(match[1]) : '实验室订单台账.xlsx'
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
 export type LabDevicePayload = {
   device_code?: string
   device_name: string
@@ -147,6 +192,7 @@ export type AddEmployeePayload = {
   display_name: string
   email: string
   role: string
+  lab_type?: number
 }
 
 export async function addEmployee(payload: AddEmployeePayload) {
