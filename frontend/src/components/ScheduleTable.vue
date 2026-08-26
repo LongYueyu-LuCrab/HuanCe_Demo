@@ -146,6 +146,16 @@ async function exportOrders(selectedOnly: boolean) {
       <el-table-column label="排期" min-width="190">
         <template #default="{ row }">{{ row.start_time || '待排' }} - {{ row.end_time || '待定' }}</template>
       </el-table-column>
+      <el-table-column label="样品流转" min-width="235">
+        <template #default="{ row }">
+          <div class="sample-time-line"><span>预入库</span>{{ row.expected_sample_arrival || '待确认' }}</div>
+          <div class="sample-time-line"><span>实入库</span>{{ row.sample_arrived_at || '尚未入库' }}</div>
+          <div class="sample-time-line"><span>出库</span>{{ row.sample_outbound_at || '尚未出库' }}</div>
+          <div v-if="row.sample_photos.length" class="sample-photo-links">
+            <a v-for="photo in row.sample_photos" :key="photo.id" :href="photo.url" target="_blank">{{ photo.name }}</a>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column label="状态" min-width="170">
         <template #default="{ row }">
           <el-tag effect="plain">{{ row.status }}</el-tag>
@@ -168,6 +178,7 @@ async function exportOrders(selectedOnly: boolean) {
                   <el-button v-if="row.sample_arrived && row.device_id && !row.experiment_status" size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
                   <el-button v-if="row.experiment_status.includes('试验中')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">提交结果</el-button>
                 </template>
+                <el-button v-if="row.sample_arrived && row.schedule_status_key === 4 && !row.sample_outbound_at" size="small" plain @click="emit('workflow', 'sample_outbound', row)">样品出库</el-button>
                 <el-button v-if="row.is_lead && canIssueReport" size="small" type="primary" plain @click="emit('workflow', 'issue_report', row)">汇总出报告</el-button>
               </template>
               <template v-else>

@@ -221,7 +221,10 @@ class ChangeRequestAdmin(admin.ModelAdmin):
 
 @admin.register(Sample)
 class SampleAdmin(admin.ModelAdmin):
-    list_display = ('sample_no', 'order', 'sample_name', 'sample_count', 'sample_status', 'actual_arrive_time')
+    list_display = (
+        'sample_no', 'order', 'sample_name', 'sample_count', 'sample_status',
+        'actual_arrive_time', 'outbound_time', 'outbound_by',
+    )
     list_filter = ('sample_status',)
     search_fields = ('sample_no', 'sample_name', 'sample_spec', 'order__order_no')
 

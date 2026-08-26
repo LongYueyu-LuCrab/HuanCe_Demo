@@ -165,6 +165,16 @@ async function submitWorkflow() {
         <template v-else-if="activeAction === 'start_test'">
           <el-form-item label="试验项目" class="form-wide"><el-input v-model="form.test_item_list" disabled type="textarea" :rows="3" /></el-form-item>
         </template>
+        <template v-else-if="activeAction === 'sample_outbound'">
+          <el-alert
+            class="form-wide"
+            title="确认办理样品出库"
+            type="warning"
+            :closable="false"
+            description="提交后将使用服务器当前时间作为出库时间，并记录当前操作账号。"
+            show-icon
+          />
+        </template>
         <template v-else-if="activeAction === 'submit_test' || activeAction === 'outsource_result'">
           <el-form-item v-if="activeAction === 'outsource_result'" label="开始时间"><el-date-picker v-model="form.test_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
           <el-form-item v-if="activeAction === 'outsource_result'" label="完成时间"><el-date-picker v-model="form.test_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>

@@ -31,6 +31,10 @@ const filteredSamples = computed(() => {
       sample.sample_status,
       sample.test_type,
       sample.quality_user,
+      sample.expected_arrive_time,
+      sample.actual_arrive_time,
+      sample.outbound_time,
+      sample.outbound_by,
     ]
       .filter(Boolean)
       .join(' ')
@@ -65,7 +69,7 @@ async function openOrderDetail(sample: SampleItem) {
         <div class="card-heading">
           <div>
             <h2>样品台账</h2>
-            <p>展示实验室负责人登记的样品编号、规格、存储条件、到货时间和关联订单。</p>
+            <p>追踪样品预入库、实际入库、入库照片和出库信息。</p>
           </div>
           <el-input
             v-model="keyword"
@@ -97,8 +101,23 @@ async function openOrderDetail(sample: SampleItem) {
         <el-table-column label="状态" min-width="140">
           <template #default="{ row }"><el-tag effect="plain">{{ row.sample_status }}</el-tag></template>
         </el-table-column>
-        <el-table-column prop="actual_arrive_time" label="到货" min-width="120" />
-        <el-table-column prop="quality_user" label="登记人" min-width="120" />
+        <el-table-column prop="expected_arrive_time" label="预入库时间" min-width="150" />
+        <el-table-column prop="actual_arrive_time" label="实际入库时间" min-width="150" />
+        <el-table-column label="入库照片" min-width="170">
+          <template #default="{ row }">
+            <div v-if="row.photos.length" class="sample-photo-links">
+              <a v-for="photo in row.photos" :key="photo.id" :href="photo.url" target="_blank">{{ photo.name }}</a>
+            </div>
+            <span v-else class="cell-sub">暂无照片</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="出库信息" min-width="180">
+          <template #default="{ row }">
+            <div>{{ row.outbound_time || '尚未出库' }}</div>
+            <div v-if="row.outbound_by" class="cell-sub">操作人：{{ row.outbound_by }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="quality_user" label="入库登记人" min-width="120" />
         <el-table-column label="订单信息" fixed="right" width="110">
           <template #default="{ row }">
             <el-button size="small" plain @click="openOrderDetail(row)">订单详情</el-button>

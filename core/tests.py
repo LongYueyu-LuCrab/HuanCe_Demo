@@ -844,6 +844,48 @@ class LaboratoryOperatorTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('样品尚未到达', response.json()['error'])
 
+    def test_operator_records_sample_outbound_and_lifecycle_details(self):
+        self.order.expect_sample_arrive = timezone.make_aware(timezone.datetime(2026, 10, 1, 9, 0))
+        self.order.save(update_fields=['expect_sample_arrive', 'update_time'])
+        self.assertEqual(self.action(
+            'schedule_assign', device_id=self.device.id,
+            plan_start_time='2026-10-01', plan_end_time='2026-10-03', sample_arrived='true',
+            sample_photos=SimpleUploadedFile('outbound-sample.png', b'fake-png-content', content_type='image/png'),
+        ).status_code, 200)
+
+        too_early = self.action('sample_outbound')
+        self.assertEqual(too_early.status_code, 400)
+        self.assertIn('试验尚未完成', too_early.json()['error'])
+
+        self.assertEqual(self.action('start_test').status_code, 200)
+        self.assertEqual(self.action(
+            'submit_test', test_raw_data='出库流程试验数据', test_conclusion_temp='试验完成',
+        ).status_code, 200)
+        outbound = self.action('sample_outbound')
+        self.assertEqual(outbound.status_code, 200)
+
+        sample = self.schedule.samples.get()
+        self.assertEqual(sample.sample_status, Sample.Status.RETURNED)
+        self.assertEqual(sample.outbound_by, self.operator)
+        self.assertIsNotNone(sample.outbound_time)
+        self.assertTrue(WorkflowEvent.objects.filter(
+            order=self.order,
+            schedule=self.schedule,
+            actor=self.operator,
+            action_code='lab_sample_outbound',
+        ).exists())
+
+        detail = self.client.get(reverse('order_detail', args=[self.order.order_no]))
+        self.assertEqual(detail.status_code, 200)
+        records = detail.json()['order']['sample_records']
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]['sample_no'], sample.sample_no)
+        self.assertEqual(records[0]['expected_arrive_time'], '2026-10-01 09:00')
+        self.assertTrue(records[0]['actual_arrive_time'])
+        self.assertTrue(records[0]['outbound_time'])
+        self.assertEqual(records[0]['outbound_by'], self.operator.username)
+        self.assertEqual(records[0]['photos'][0]['name'], 'outbound-sample.png')
+
     def test_arrived_status_requires_sample_photo(self):
         response = self.action(
             'schedule_assign', device_id=self.device.id,

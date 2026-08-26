@@ -86,6 +86,22 @@ def _display_user(user):
     return user.first_name or user.username
 
 
+def _display_datetime(value):
+    if not value:
+        return ''
+    if timezone.is_aware(value):
+        value = timezone.localtime(value)
+    return value.strftime('%Y-%m-%d %H:%M')
+
+
+def _display_date(value):
+    if not value:
+        return ''
+    if timezone.is_aware(value):
+        value = timezone.localtime(value)
+    return value.date().isoformat()
+
+
 def _lab_profile(user):
     if not user or not user.is_authenticated:
         return None
@@ -205,12 +221,59 @@ def _orders_for_user(user):
     return orders.filter(query).distinct()
 
 
-def _order_payload(order):
+def _schedule_samples(schedule):
+    prefetched = getattr(schedule, 'ordered_samples', None)
+    if prefetched is not None:
+        return prefetched
+    return list(schedule.samples.select_related('quality_user', 'outbound_by').order_by('id'))
+
+
+def _sample_photo_payloads(schedule):
+    photos = getattr(schedule, 'ordered_sample_photos', None)
+    if photos is None:
+        photos = schedule.sample_photos.all()
+    return [
+        {
+            'id': photo.id,
+            'name': photo.original_name,
+            'size': photo.file_size,
+            'url': f'/api/samples/photos/{photo.id}/',
+        }
+        for photo in photos
+    ]
+
+
+def _sample_lifecycle_payload(order):
+    records = []
+    for schedule in order.schedules.all():
+        samples = _schedule_samples(schedule)
+        photos = _sample_photo_payloads(schedule)
+        if not samples:
+            samples = [None]
+        for sample in samples:
+            actual_arrive_time = sample.actual_arrive_time if sample else schedule.sample_arrived_at
+            records.append({
+                'schedule_id': schedule.id,
+                'sample_no': sample.sample_no if sample else '',
+                'test_type': schedule.get_test_type_display(),
+                'task_name': schedule.remark,
+                'expected_arrive_time': _display_datetime(order.expect_sample_arrive),
+                'actual_arrive_time': _display_datetime(actual_arrive_time),
+                'outbound_time': _display_datetime(sample.outbound_time) if sample else '',
+                'sample_status': sample.get_sample_status_display() if sample else ('样品已到' if schedule.sample_arrived else '样品未到'),
+                'registered_by': _display_user(sample.quality_user) if sample else _display_user(schedule.sample_confirmed_by),
+                'outbound_by': _display_user(sample.outbound_by) if sample else '',
+                'photos': photos,
+            })
+    return records
+
+
+def _order_payload(order, include_sample_records=False):
     sample_arrival = order.expect_sample_arrive
-    sample_arrival_value = sample_arrival.date().isoformat() if sample_arrival else ''
+    sample_arrival_value = _display_date(sample_arrival)
     delivery = order.expect_delivery_time
     if delivery:
-        delivery_value = delivery.date().isoformat()
+        delivery_value = _display_date(delivery)
     else:
         delivery_value = ''
 
@@ -220,7 +283,7 @@ def _order_payload(order):
     if order.outsourced_execution:
         execution_attributes.append('委外')
 
-    return {
+    payload = {
         'order_no': order.order_no,
         'customer': order.customer_name,
         'contact': order.customer_contact,
@@ -261,6 +324,9 @@ def _order_payload(order):
             for document in order.documents.all()
         ],
     }
+    if include_sample_records:
+        payload['sample_records'] = _sample_lifecycle_payload(order)
+    return payload
 
 
 def order_detail(request, order_no):
@@ -270,14 +336,26 @@ def order_detail(request, order_no):
         return JsonResponse({'ok': False, 'error': '请先登录'}, status=401, json_dumps_params={'ensure_ascii': False})
 
     try:
-        order = _orders_for_user(request.user).get(order_no=order_no)
+        schedule_queryset = SchedulePlan.objects.select_related(
+            'lab_manager', 'sample_confirmed_by'
+        ).prefetch_related(
+            Prefetch('sample_photos', queryset=SamplePhoto.objects.order_by('create_time', 'id'), to_attr='ordered_sample_photos'),
+            Prefetch(
+                'samples',
+                queryset=Sample.objects.select_related('quality_user', 'outbound_by').order_by('id'),
+                to_attr='ordered_samples',
+            ),
+        )
+        order = _orders_for_user(request.user).prefetch_related(
+            Prefetch('schedules', queryset=schedule_queryset)
+        ).get(order_no=order_no)
     except LabOrder.DoesNotExist:
         return JsonResponse(
             {'ok': False, 'error': '订单不存在或当前岗位无权查看'},
             status=404,
             json_dumps_params={'ensure_ascii': False},
         )
-    return JsonResponse({'ok': True, 'order': _order_payload(order)}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'ok': True, 'order': _order_payload(order, include_sample_records=True)}, json_dumps_params={'ensure_ascii': False})
 
 
 def _report_payload(report):
@@ -340,6 +418,8 @@ def _pending_invoice_payload(report):
 
 def _schedule_payload(schedule):
     order = schedule.order
+    samples = _schedule_samples(schedule)
+    sample = samples[0] if samples else None
     return {
         'id': schedule.id,
         'order_no': order.order_no,
@@ -359,16 +439,11 @@ def _schedule_payload(schedule):
         'is_lead': bool(order.lead_lab_manager_id and order.lead_lab_manager_id == schedule.lab_manager_id),
         'sample_arrived': schedule.sample_arrived,
         'sample_arrival_status': '样品已到' if schedule.sample_arrived else '样品未到',
-        'sample_arrived_at': schedule.sample_arrived_at.strftime('%Y-%m-%d %H:%M') if schedule.sample_arrived_at else '',
-        'sample_photos': [
-            {
-                'id': photo.id,
-                'name': photo.original_name,
-                'size': photo.file_size,
-                'url': f'/api/samples/photos/{photo.id}/',
-            }
-            for photo in schedule.sample_photos.all()
-        ],
+        'sample_arrived_at': _display_datetime(schedule.sample_arrived_at),
+        'expected_sample_arrival': _display_datetime(order.expect_sample_arrive),
+        'sample_outbound_at': _display_datetime(sample.outbound_time) if sample else '',
+        'sample_status': sample.get_sample_status_display() if sample else ('样品已到' if schedule.sample_arrived else '样品未到'),
+        'sample_photos': _sample_photo_payloads(schedule),
         'experiment_status': schedule.experiments.first().get_test_status_display() if schedule.experiments.exists() else '',
         'workflow_version': order.workflow_version,
         'remark': schedule.remark,
@@ -387,10 +462,14 @@ def _sample_payload(sample):
         'sample_spec': sample.sample_spec,
         'sample_count': sample.sample_count,
         'storage_condition': sample.storage_condition,
-        'actual_arrive_time': sample.actual_arrive_time.strftime('%Y-%m-%d') if sample.actual_arrive_time else '',
+        'expected_arrive_time': _display_datetime(order.expect_sample_arrive),
+        'actual_arrive_time': _display_datetime(sample.actual_arrive_time),
+        'outbound_time': _display_datetime(sample.outbound_time),
         'sample_status': sample.get_sample_status_display(),
         'test_type': schedule.get_test_type_display() if schedule else '',
         'quality_user': _display_user(sample.quality_user),
+        'outbound_by': _display_user(sample.outbound_by),
+        'photos': _sample_photo_payloads(schedule) if schedule else [],
     }
 
 
@@ -533,7 +612,14 @@ def _device_payload(device, start_time=None, end_time=None, exclude_schedule_id=
 
 
 def _lab_payload(test_type, name, related_orders=None, user=None):
-    schedules = SchedulePlan.objects.select_related('order', 'device').prefetch_related('sample_photos').filter(test_type=test_type).order_by('plan_start_time')
+    schedules = SchedulePlan.objects.select_related('order', 'device').prefetch_related(
+        Prefetch('sample_photos', queryset=SamplePhoto.objects.order_by('create_time', 'id'), to_attr='ordered_sample_photos'),
+        Prefetch(
+            'samples',
+            queryset=Sample.objects.select_related('quality_user', 'outbound_by').order_by('id'),
+            to_attr='ordered_samples',
+        ),
+    ).filter(test_type=test_type).order_by('plan_start_time')
     if related_orders is not None:
         schedules = schedules.filter(order__in=related_orders)
     if user is not None and not _is_chairman(user):
@@ -1095,7 +1181,12 @@ def _laboratory_schedule_queryset(request):
     schedules = SchedulePlan.objects.select_related(
         'order', 'order__sale_user', 'lab_manager', 'device'
     ).prefetch_related(
-        'sample_photos',
+        Prefetch('sample_photos', queryset=SamplePhoto.objects.order_by('create_time', 'id'), to_attr='ordered_sample_photos'),
+        Prefetch(
+            'samples',
+            queryset=Sample.objects.select_related('quality_user', 'outbound_by').order_by('id'),
+            to_attr='ordered_samples',
+        ),
         Prefetch('experiments', queryset=Experiment.objects.order_by('-create_time'), to_attr='ordered_experiments'),
     ).filter(_lab_schedule_query(lab_type)).distinct()
     keyword = (request.GET.get('keyword') or '').strip()
@@ -1189,7 +1280,8 @@ def laboratory_orders_export(request):
     sheet.title = '实验室订单'
     headers = [
         '序号', '订单号', '客户名称', '项目名称', '试验任务', '执行路径', '设备编号', '设备名称',
-        '计划开始', '计划结束', '到样状态', '到样确认时间', '排期状态', '订单状态', '负责人', '试验状态', '销售', '报价', '预计交付',
+        '计划开始', '计划结束', '预入库时间', '实际入库时间', '入库照片', '出库时间', '出库操作人',
+        '样品状态', '排期状态', '订单状态', '负责人', '试验状态', '销售', '报价', '预计交付',
     ]
     sheet.append(headers)
     header_fill = PatternFill('solid', fgColor='1F4E78')
@@ -1200,6 +1292,9 @@ def laboratory_orders_export(request):
     for index, schedule in enumerate(schedules[:5000], start=1):
         order = schedule.order
         experiment = schedule.ordered_experiments[0] if schedule.ordered_experiments else None
+        samples = _schedule_samples(schedule)
+        sample = samples[0] if samples else None
+        photos = getattr(schedule, 'ordered_sample_photos', [])
         sheet.append([
             index,
             order.order_no,
@@ -1211,8 +1306,12 @@ def laboratory_orders_export(request):
             schedule.device.device_name if schedule.device else '',
             schedule.plan_start_time.strftime('%Y-%m-%d') if schedule.plan_start_time else '',
             schedule.plan_end_time.strftime('%Y-%m-%d') if schedule.plan_end_time else '',
-            '样品已到' if schedule.sample_arrived else '样品未到',
-            schedule.sample_arrived_at.strftime('%Y-%m-%d %H:%M') if schedule.sample_arrived_at else '',
+            _display_datetime(order.expect_sample_arrive),
+            _display_datetime(sample.actual_arrive_time if sample else schedule.sample_arrived_at),
+            '、'.join(photo.original_name for photo in photos),
+            _display_datetime(sample.outbound_time) if sample else '',
+            _display_user(sample.outbound_by) if sample else '',
+            sample.get_sample_status_display() if sample else ('样品已到' if schedule.sample_arrived else '样品未到'),
             schedule.get_schedule_status_display(),
             order.get_order_status_display(),
             _display_user(schedule.lab_manager),
@@ -1221,7 +1320,7 @@ def laboratory_orders_export(request):
             float(order.total_quote),
             order.expect_delivery_time.strftime('%Y-%m-%d') if order.expect_delivery_time else '',
         ])
-    widths = [8, 20, 24, 30, 34, 18, 18, 22, 14, 14, 14, 18, 16, 16, 16, 16, 14, 14, 14]
+    widths = [8, 20, 24, 30, 34, 18, 18, 22, 14, 14, 18, 18, 28, 18, 16, 14, 16, 16, 16, 16, 14, 14, 14]
     for column, width in enumerate(widths, start=1):
         sheet.column_dimensions[chr(64 + column)].width = width
     sheet.freeze_panes = 'A2'
@@ -1467,6 +1566,7 @@ def lims_action(request):
         'start_test': _action_start_test,
         'outsource_result': _action_outsource_result,
         'submit_test': _action_submit_test,
+        'sample_outbound': _action_sample_outbound,
         'issue_report': _action_issue_report,
         'report_sales_pass': _action_report_sales_pass,
         'report_sales_reject': _action_report_sales_reject,
@@ -1739,19 +1839,30 @@ def _update_sample_arrival(request, payload, order, schedule):
             file_size=photo.size,
             uploaded_by=request.user,
         )
-    if arrived and not schedule.samples.exists():
-        Sample.objects.create(
+    if arrived:
+        sample, _ = Sample.objects.get_or_create(
             order=order,
             schedule=schedule,
-            sample_no=_next_sample_no(order),
-            sample_name=f'{order.project_name} 样品',
-            sample_spec='客户送检样品',
-            sample_count=1,
-            storage_condition='按试验要求存放',
-            actual_arrive_time=schedule.sample_arrived_at,
-            sample_status=Sample.Status.REGISTERED,
-            quality_user=request.user,
+            defaults={
+                'sample_no': _next_sample_no(order),
+                'sample_name': f'{order.project_name} 样品',
+                'sample_spec': '客户送检样品',
+                'sample_count': 1,
+                'storage_condition': '按试验要求存放',
+                'actual_arrive_time': schedule.sample_arrived_at,
+                'sample_status': Sample.Status.REGISTERED,
+                'quality_user': request.user,
+            },
         )
+        changed_fields = []
+        if not sample.actual_arrive_time:
+            sample.actual_arrive_time = schedule.sample_arrived_at
+            changed_fields.append('actual_arrive_time')
+        if not sample.quality_user_id:
+            sample.quality_user = request.user
+            changed_fields.append('quality_user')
+        if changed_fields:
+            sample.save(update_fields=[*changed_fields, 'update_time'])
     return None, {
         'sample_arrived': _audit_change('到样状态', '样品已到' if before_arrived else '样品未到', '样品已到' if arrived else '样品未到'),
         'sample_photos': _audit_change('新增样品照片', 0, len(photos)),
@@ -2104,6 +2215,51 @@ def _action_submit_test(request, payload):
     return _status_response('试验结果已提交', order)
 
 
+def _action_sample_outbound(request, payload):
+    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
+    if role_error:
+        return role_error
+    order, error = _get_order(payload)
+    if error:
+        return error
+    schedule = _schedule_for_actor(order, payload, request.user)
+    if not schedule or not _can_operate_schedule(request.user, schedule):
+        return JsonResponse(
+            {'ok': False, 'error': '没有分配给当前实验室人员的样品任务'},
+            status=403,
+            json_dumps_params={'ensure_ascii': False},
+        )
+    if not schedule.sample_arrived:
+        return JsonResponse({'ok': False, 'error': '样品尚未入库，不能办理出库'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if schedule.schedule_status != SchedulePlan.Status.FINISHED:
+        return JsonResponse({'ok': False, 'error': '试验尚未完成，不能办理样品出库'}, status=400, json_dumps_params={'ensure_ascii': False})
+    samples = list(schedule.samples.select_for_update().order_by('id'))
+    if not samples:
+        return JsonResponse({'ok': False, 'error': '当前任务没有可出库的样品记录'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if all(sample.outbound_time for sample in samples):
+        return JsonResponse({'ok': False, 'error': '当前任务样品已经出库'}, status=400, json_dumps_params={'ensure_ascii': False})
+
+    outbound_time = timezone.now()
+    for sample in samples:
+        sample.outbound_time = outbound_time
+        sample.outbound_by = request.user
+        sample.sample_status = Sample.Status.RETURNED
+        sample.save(update_fields=['outbound_time', 'outbound_by', 'sample_status', 'update_time'])
+    _event(
+        order,
+        request.user,
+        '实验室人员办理样品出库',
+        action_code='lab_sample_outbound',
+        changes={
+            'sample_status': _audit_change('样品状态', '试验完成', '已出库'),
+            'outbound_time': _audit_change('样品出库时间', '', outbound_time),
+            'outbound_by': _audit_change('出库操作人', '', _display_user(request.user)),
+        },
+        schedule=schedule,
+    )
+    return _status_response('样品出库已登记', order)
+
+
 def _action_issue_report(request, payload):
     order, error = _get_order(payload)
     if error:
@@ -2335,10 +2491,19 @@ def lims_dashboard(request):
             | Q(schedules__test_type=SchedulePlan.TestType.OUTSOURCE)
         ).distinct().order_by('-create_time')
     ]
-    schedules = SchedulePlan.objects.select_related('order', 'lab_manager', 'quality_user', 'device').prefetch_related('sample_photos').filter(
+    schedules = SchedulePlan.objects.select_related('order', 'lab_manager', 'quality_user', 'device').prefetch_related(
+        Prefetch('sample_photos', queryset=SamplePhoto.objects.order_by('create_time', 'id'), to_attr='ordered_sample_photos'),
+        Prefetch(
+            'samples',
+            queryset=Sample.objects.select_related('quality_user', 'outbound_by').order_by('id'),
+            to_attr='ordered_samples',
+        ),
+    ).filter(
         order__in=related_orders
     ).order_by('-plan_start_time', '-create_time')
-    samples = Sample.objects.select_related('order', 'schedule', 'quality_user').filter(
+    samples = Sample.objects.select_related('order', 'schedule', 'quality_user', 'outbound_by').prefetch_related(
+        'schedule__sample_photos'
+    ).filter(
         order__in=related_orders
     ).order_by('-actual_arrive_time', '-create_time')
     changes = ChangeRequest.objects.select_related('order', 'schedule', 'change_user').filter(

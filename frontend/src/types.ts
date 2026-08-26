@@ -41,6 +41,7 @@ export type OrderItem = {
   created_at?: string
   remark?: string
   documents: OrderDocumentItem[]
+  sample_records?: SampleLifecycleItem[]
 }
 
 export type OrderDocumentItem = {
@@ -72,6 +73,9 @@ export type ScheduleItem = {
   sample_arrived: boolean
   sample_arrival_status: string
   sample_arrived_at: string
+  expected_sample_arrival: string
+  sample_outbound_at: string
+  sample_status: string
   sample_photos: SamplePhotoItem[]
   experiment_status: string
   workflow_version: number
@@ -83,6 +87,20 @@ export type SamplePhotoItem = {
   name: string
   size: number
   url: string
+}
+
+export type SampleLifecycleItem = {
+  schedule_id: number
+  sample_no: string
+  test_type: string
+  task_name: string
+  expected_arrive_time: string
+  actual_arrive_time: string
+  outbound_time: string
+  sample_status: string
+  registered_by: string
+  outbound_by: string
+  photos: SamplePhotoItem[]
 }
 
 export type TestStandardItem = {
@@ -103,10 +121,14 @@ export type SampleItem = {
   sample_spec: string
   sample_count: number
   storage_condition: string
+  expected_arrive_time: string
   actual_arrive_time: string
+  outbound_time: string
   sample_status: string
   test_type: string
   quality_user: string
+  outbound_by: string
+  photos: SamplePhotoItem[]
 }
 
 export type ChangeItem = {

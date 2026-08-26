@@ -120,6 +120,18 @@ lims_lab_staff_profile    laboratory staff affiliation and position
 lims_sample_photo         protected sample-arrival photos by schedule
 ```
 
+Sample lifecycle fields in `lims_sample_info`:
+
+```text
+actual_arrive_time       actual warehouse check-in time recorded by laboratory staff
+outbound_time            sample warehouse check-out time after the assigned test finishes
+quality_user_id          check-in operator
+outbound_by_id           check-out operator
+sample_status            registered / testing / finished / checked out
+```
+
+The sales order `expect_sample_arrive` field is the planned warehouse check-in time. Sample arrival photos remain linked to the relevant schedule in `lims_sample_photo`. Order detail responses combine these records so laboratory, report-audit, general-manager, and finance views share one lifecycle display.
+
 Structured workflow audit fields in `lims_workflow_event`:
 
 ```text
@@ -271,6 +283,7 @@ process_change           质量部处理变更并闭环
 start_test               苏州/江阴实验室开始试验
 submit_test              苏州/江阴实验室提交试验结果
 outsource_result         质量部录入委外试验结果回传，生成委外试验记录
+sample_outbound          实验室负责人/操作员在试验完成后登记样品出库
 issue_report             质量部出具报告
 report_sales_pass        销售初审通过
 report_sales_reject      销售初审驳回
@@ -312,6 +325,7 @@ DashboardView.vue       role workbench and clickable metric order groups
 OrdersView.vue          order list, sales order creation, workflow order actions
 ScheduleView.vue        visible project schedules
 LabView.vue             Suzhou/Jiangyin equipment and lab task actions
+SamplesView.vue         sample lifecycle ledger for laboratory and management roles
 OutsourceView.vue       outsourced order list
 ReportsView.vue         report audit actions
 FinanceView.vue         invoice creation and payment-status update

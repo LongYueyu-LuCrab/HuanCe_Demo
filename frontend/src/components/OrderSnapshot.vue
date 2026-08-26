@@ -61,6 +61,41 @@ function formatQuote(value?: string) {
       <el-descriptions-item label="创建时间">{{ order.created_at || '未记录' }}</el-descriptions-item>
       <el-descriptions-item label="预计样品到达">{{ order.expected_sample_arrival || '待确认' }}</el-descriptions-item>
       <el-descriptions-item label="预计交付">{{ order.expected_delivery_date || '待确认' }}</el-descriptions-item>
+      <el-descriptions-item v-if="order.sample_records !== undefined" label="样品流转" :span="2">
+        <div v-if="order.sample_records.length" class="sample-lifecycle-list">
+          <section v-for="record in order.sample_records" :key="`${record.schedule_id}-${record.sample_no || 'pending'}`" class="sample-lifecycle-record">
+            <div class="sample-lifecycle-head">
+              <div>
+                <strong>{{ record.sample_no || '待生成样品编号' }}</strong>
+                <span>{{ record.test_type }}<template v-if="record.task_name"> · {{ record.task_name }}</template></span>
+              </div>
+              <el-tag size="small" effect="plain" :type="record.outbound_time ? 'info' : record.actual_arrive_time ? 'success' : 'warning'">
+                {{ record.sample_status }}
+              </el-tag>
+            </div>
+            <dl class="sample-lifecycle-times">
+              <div><dt>预入库时间</dt><dd>{{ record.expected_arrive_time || '待确认' }}</dd></div>
+              <div><dt>实际入库时间</dt><dd>{{ record.actual_arrive_time || '尚未入库' }}</dd></div>
+              <div><dt>出库时间</dt><dd>{{ record.outbound_time || '尚未出库' }}</dd></div>
+              <div><dt>操作人员</dt><dd>{{ record.outbound_by || record.registered_by || '未记录' }}</dd></div>
+            </dl>
+            <div v-if="record.photos.length" class="sample-photo-strip">
+              <el-image
+                v-for="photo in record.photos"
+                :key="photo.id"
+                :src="photo.url"
+                :preview-src-list="record.photos.map((item) => item.url)"
+                :alt="photo.name"
+                fit="cover"
+                preview-teleported
+                class="sample-photo"
+              />
+            </div>
+            <span v-else class="cell-sub">暂无入库照片</span>
+          </section>
+        </div>
+        <span v-else class="cell-sub">订单尚未分配实验室任务</span>
+      </el-descriptions-item>
       <el-descriptions-item label="试验需求" :span="2">
         <div class="snapshot-long-text">{{ order.test_demand || '未填写' }}</div>
       </el-descriptions-item>

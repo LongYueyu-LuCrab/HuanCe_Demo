@@ -411,7 +411,7 @@ class Sample(TimeStampedModel):
         REGISTERED = 1, '已登记待试验'
         TESTING = 2, '试验中'
         FINISHED = 3, '试验完成'
-        RETURNED = 4, '已归还客户'
+        RETURNED = 4, '已出库'
 
     order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='samples')
     schedule = models.ForeignKey(SchedulePlan, verbose_name='项目排期', on_delete=models.SET_NULL, null=True, blank=True, related_name='samples')
@@ -421,6 +421,15 @@ class Sample(TimeStampedModel):
     sample_count = models.PositiveIntegerField('样品数量', default=1)
     storage_condition = models.CharField('样品存储条件', max_length=200, blank=True)
     actual_arrive_time = models.DateTimeField('样品实际送达入库时间', null=True, blank=True)
+    outbound_time = models.DateTimeField('样品出库时间', null=True, blank=True)
+    outbound_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='样品出库操作人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_outbound_samples',
+    )
     sample_status = models.PositiveSmallIntegerField('样品状态', choices=Status.choices, default=Status.REGISTERED)
     quality_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
