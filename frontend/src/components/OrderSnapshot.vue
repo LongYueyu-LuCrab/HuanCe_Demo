@@ -16,6 +16,13 @@ function formatQuote(value?: string) {
   const amount = Number(value || 0)
   return Number.isFinite(amount) ? `¥${amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}` : value || '¥0.00'
 }
+
+function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info' {
+  if (result === 'pass') return 'success'
+  if (result === 'fail') return 'danger'
+  if (result === 'abnormal') return 'warning'
+  return 'info'
+}
 </script>
 
 <template>
@@ -95,6 +102,30 @@ function formatQuote(value?: string) {
           </section>
         </div>
         <span v-else class="cell-sub">订单尚未分配实验室任务</span>
+      </el-descriptions-item>
+      <el-descriptions-item v-if="order.experiment_records !== undefined" label="实验结果" :span="2">
+        <div v-if="order.experiment_records.length" class="sample-lifecycle-list">
+          <section v-for="record in order.experiment_records" :key="`${record.schedule_id}-${record.started_at}`" class="sample-lifecycle-record">
+            <div class="sample-lifecycle-head">
+              <div>
+                <strong>{{ record.test_type }}</strong>
+                <span>{{ record.task_name || '未填写实验项目' }}</span>
+              </div>
+              <el-space wrap :size="6">
+                <el-tag size="small" effect="plain">{{ record.status }}</el-tag>
+                <el-tag v-if="record.result" size="small" :type="resultTagType(record.result_key)">{{ record.result }}</el-tag>
+              </el-space>
+            </div>
+            <dl class="sample-lifecycle-times">
+              <div><dt>开始时间</dt><dd>{{ record.started_at || '未记录' }}</dd></div>
+              <div><dt>结束时间</dt><dd>{{ record.ended_at || '未结束' }}</dd></div>
+              <div><dt>操作人员</dt><dd>{{ record.operator || '未记录' }}</dd></div>
+              <div><dt>实验结论</dt><dd>{{ record.conclusion || '未填写' }}</dd></div>
+            </dl>
+            <div class="snapshot-long-text"><strong>原始数据：</strong>{{ record.raw_data || '未填写' }}</div>
+          </section>
+        </div>
+        <span v-else class="cell-sub">订单尚未开始实验</span>
       </el-descriptions-item>
       <el-descriptions-item label="试验需求" :span="2">
         <div class="snapshot-long-text">{{ order.test_demand || '未填写' }}</div>

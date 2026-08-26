@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
 
 from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabDevice, LabOrder, LabStaffProfile, OrderDocument, ReportAudit, Sample, SamplePhoto, SchedulePlan, TestReport, TestStandard, WorkflowEvent
 from .report_pdf import build_test_report_pdf
@@ -194,19 +195,30 @@ def _orders_for_user(user):
         query |= Q(order_status__in=[
             LabOrder.Status.SCHEDULING,
             LabOrder.Status.TESTING,
+            LabOrder.Status.TEST_FINISHED,
             LabOrder.Status.REPORT_REVIEW,
         ], workflow_version=LabOrder.WorkflowVersion.LEGACY_QUALITY)
     if ROLE_SUZHOU_LAB in roles or ROLE_JIANGYIN_LAB in roles:
         query |= Q(
             schedules__lab_manager=user,
-            order_status__in=[LabOrder.Status.SCHEDULING, LabOrder.Status.TESTING, LabOrder.Status.REPORT_REVIEW],
+            order_status__in=[
+                LabOrder.Status.SCHEDULING,
+                LabOrder.Status.TESTING,
+                LabOrder.Status.TEST_FINISHED,
+                LabOrder.Status.REPORT_REVIEW,
+            ],
         ) | Q(lead_lab_manager=user)
     if ROLE_LAB_OPERATOR in roles:
         lab_type = _user_lab_type(user)
         if lab_type:
             query |= Q(
                 schedules__in=SchedulePlan.objects.filter(_lab_schedule_query(lab_type)),
-                order_status__in=[LabOrder.Status.SCHEDULING, LabOrder.Status.TESTING, LabOrder.Status.REPORT_REVIEW],
+                order_status__in=[
+                    LabOrder.Status.SCHEDULING,
+                    LabOrder.Status.TESTING,
+                    LabOrder.Status.TEST_FINISHED,
+                    LabOrder.Status.REPORT_REVIEW,
+                ],
             )
     if ROLE_OUTSOURCE in roles:
         query |= Q(execution_mode__in=[LabOrder.ExecutionMode.OUTSOURCE, LabOrder.ExecutionMode.MIXED])
@@ -226,6 +238,13 @@ def _schedule_samples(schedule):
     if prefetched is not None:
         return prefetched
     return list(schedule.samples.select_related('quality_user', 'outbound_by').order_by('id'))
+
+
+def _schedule_experiment(schedule):
+    experiments = getattr(schedule, 'ordered_experiments', None)
+    if experiments is not None:
+        return experiments[0] if experiments else None
+    return schedule.experiments.select_related('test_operator').order_by('-create_time').first()
 
 
 def _sample_photo_payloads(schedule):
@@ -264,6 +283,29 @@ def _sample_lifecycle_payload(order):
                 'registered_by': _display_user(sample.quality_user) if sample else _display_user(schedule.sample_confirmed_by),
                 'outbound_by': _display_user(sample.outbound_by) if sample else '',
                 'photos': photos,
+            })
+    return records
+
+
+def _experiment_lifecycle_payload(order):
+    records = []
+    for schedule in order.schedules.all():
+        experiments = getattr(schedule, 'ordered_experiments', None)
+        if experiments is None:
+            experiments = schedule.experiments.select_related('test_operator').order_by('-create_time')
+        for experiment in experiments:
+            records.append({
+                'schedule_id': schedule.id,
+                'test_type': schedule.get_test_type_display(),
+                'task_name': experiment.test_item_list or schedule.remark,
+                'status': experiment.get_test_status_display(),
+                'result_key': experiment.result_status,
+                'result': experiment.get_result_status_display() if experiment.result_status else '',
+                'started_at': _display_datetime(experiment.test_start_time),
+                'ended_at': _display_datetime(experiment.test_end_time),
+                'operator': _display_user(experiment.test_operator),
+                'raw_data': experiment.test_raw_data,
+                'conclusion': experiment.test_conclusion_temp,
             })
     return records
 
@@ -326,6 +368,7 @@ def _order_payload(order, include_sample_records=False):
     }
     if include_sample_records:
         payload['sample_records'] = _sample_lifecycle_payload(order)
+        payload['experiment_records'] = _experiment_lifecycle_payload(order)
     return payload
 
 
@@ -344,6 +387,11 @@ def order_detail(request, order_no):
                 'samples',
                 queryset=Sample.objects.select_related('quality_user', 'outbound_by').order_by('id'),
                 to_attr='ordered_samples',
+            ),
+            Prefetch(
+                'experiments',
+                queryset=Experiment.objects.select_related('test_operator').order_by('-create_time'),
+                to_attr='ordered_experiments',
             ),
         )
         order = _orders_for_user(request.user).prefetch_related(
@@ -420,6 +468,7 @@ def _schedule_payload(schedule):
     order = schedule.order
     samples = _schedule_samples(schedule)
     sample = samples[0] if samples else None
+    experiment = _schedule_experiment(schedule)
     return {
         'id': schedule.id,
         'order_no': order.order_no,
@@ -444,7 +493,14 @@ def _schedule_payload(schedule):
         'sample_outbound_at': _display_datetime(sample.outbound_time) if sample else '',
         'sample_status': sample.get_sample_status_display() if sample else ('样品已到' if schedule.sample_arrived else '样品未到'),
         'sample_photos': _sample_photo_payloads(schedule),
-        'experiment_status': schedule.experiments.first().get_test_status_display() if schedule.experiments.exists() else '',
+        'experiment_status': experiment.get_test_status_display() if experiment else '',
+        'experiment_result_key': experiment.result_status if experiment else '',
+        'experiment_result': experiment.get_result_status_display() if experiment and experiment.result_status else '',
+        'experiment_conclusion': experiment.test_conclusion_temp if experiment else '',
+        'experiment_raw_data': experiment.test_raw_data if experiment else '',
+        'experiment_started_at': _display_datetime(experiment.test_start_time) if experiment else '',
+        'experiment_ended_at': _display_datetime(experiment.test_end_time) if experiment else '',
+        'experiment_operator': _display_user(experiment.test_operator) if experiment else '',
         'workflow_version': order.workflow_version,
         'remark': schedule.remark,
     }
@@ -618,6 +674,11 @@ def _lab_payload(test_type, name, related_orders=None, user=None):
             'samples',
             queryset=Sample.objects.select_related('quality_user', 'outbound_by').order_by('id'),
             to_attr='ordered_samples',
+        ),
+        Prefetch(
+            'experiments',
+            queryset=Experiment.objects.select_related('test_operator').order_by('-create_time'),
+            to_attr='ordered_experiments',
         ),
     ).filter(test_type=test_type).order_by('plan_start_time')
     if related_orders is not None:
@@ -1187,7 +1248,11 @@ def _laboratory_schedule_queryset(request):
             queryset=Sample.objects.select_related('quality_user', 'outbound_by').order_by('id'),
             to_attr='ordered_samples',
         ),
-        Prefetch('experiments', queryset=Experiment.objects.order_by('-create_time'), to_attr='ordered_experiments'),
+        Prefetch(
+            'experiments',
+            queryset=Experiment.objects.select_related('test_operator').order_by('-create_time'),
+            to_attr='ordered_experiments',
+        ),
     ).filter(_lab_schedule_query(lab_type)).distinct()
     keyword = (request.GET.get('keyword') or '').strip()
     if keyword:
@@ -1281,7 +1346,8 @@ def laboratory_orders_export(request):
     headers = [
         '序号', '订单号', '客户名称', '项目名称', '试验任务', '执行路径', '设备编号', '设备名称',
         '计划开始', '计划结束', '预入库时间', '实际入库时间', '入库照片', '出库时间', '出库操作人',
-        '样品状态', '排期状态', '订单状态', '负责人', '试验状态', '销售', '报价', '预计交付',
+        '样品状态', '排期状态', '订单状态', '负责人', '试验状态', '实验结果',
+        '实际开始', '实际结束', '实验操作人', '实验结论', '销售', '报价', '预计交付',
     ]
     sheet.append(headers)
     header_fill = PatternFill('solid', fgColor='1F4E78')
@@ -1316,13 +1382,18 @@ def laboratory_orders_export(request):
             order.get_order_status_display(),
             _display_user(schedule.lab_manager),
             experiment.get_test_status_display() if experiment else '',
+            experiment.get_result_status_display() if experiment and experiment.result_status else '',
+            _display_datetime(experiment.test_start_time) if experiment else '',
+            _display_datetime(experiment.test_end_time) if experiment else '',
+            _display_user(experiment.test_operator) if experiment else '',
+            experiment.test_conclusion_temp if experiment else '',
             _display_user(order.sale_user),
             float(order.total_quote),
             order.expect_delivery_time.strftime('%Y-%m-%d') if order.expect_delivery_time else '',
         ])
-    widths = [8, 20, 24, 30, 34, 18, 18, 22, 14, 14, 18, 18, 28, 18, 16, 14, 16, 16, 16, 16, 14, 14, 14]
+    widths = [8, 20, 24, 30, 34, 18, 18, 22, 14, 14, 18, 18, 28, 18, 16, 14, 16, 16, 16, 16, 14, 18, 18, 16, 28, 14, 14, 14]
     for column, width in enumerate(widths, start=1):
-        sheet.column_dimensions[chr(64 + column)].width = width
+        sheet.column_dimensions[get_column_letter(column)].width = width
     sheet.freeze_panes = 'A2'
     sheet.auto_filter.ref = sheet.dimensions
     output = BytesIO()
@@ -2026,6 +2097,8 @@ def _action_start_test(request, payload):
     schedule = _schedule_for_actor(order, payload, request.user)
     if not schedule:
         return JsonResponse({'ok': False, 'error': '没有分配给当前实验室负责人的排期'}, status=403, json_dumps_params={'ensure_ascii': False})
+    if schedule.schedule_status == SchedulePlan.Status.FINISHED:
+        return JsonResponse({'ok': False, 'error': '该试验任务已经结束，不能重复开始'}, status=400, json_dumps_params={'ensure_ascii': False})
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not order.sales_confirmed_at:
         return JsonResponse({'ok': False, 'error': '销售尚未确认需求，不能开始试验'}, status=400, json_dumps_params={'ensure_ascii': False})
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
@@ -2111,6 +2184,36 @@ def _action_standard_create(request, payload):
     )
 
 
+def _experiment_result_from_payload(payload):
+    result_status = str(payload.get('result_status') or '').strip()
+    if result_status not in Experiment.Result.values:
+        return None
+    return result_status
+
+
+def _all_test_paths_finished(order):
+    schedules = order.schedules.all()
+    if not schedules.exists() or schedules.exclude(schedule_status=SchedulePlan.Status.FINISHED).exists():
+        return False
+    if order.experiments.exclude(test_status=Experiment.Status.FINISHED).exists():
+        return False
+    return not schedules.exclude(experiments__test_status=Experiment.Status.FINISHED).exists()
+
+
+def _sync_order_test_completion(order, actor):
+    if _all_test_paths_finished(order):
+        if order.order_status != LabOrder.Status.TEST_FINISHED:
+            order.mark_status(
+                LabOrder.Status.TEST_FINISHED,
+                actor,
+                '全部执行路径实验结束，等待主责实验室负责人出具报告',
+            )
+        return True
+    if order.order_status != LabOrder.Status.TESTING:
+        order.mark_status(LabOrder.Status.TESTING, actor, '部分执行路径已结束，其他试验任务继续执行')
+    return False
+
+
 def _action_outsource_result(request, payload):
     order, error = _get_order(payload)
     if error:
@@ -2132,6 +2235,9 @@ def _action_outsource_result(request, payload):
         return JsonResponse({'ok': False, 'error': '销售尚未确认需求，不能回传委外试验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
     if not schedule.sample_arrived:
         return JsonResponse({'ok': False, 'error': '委外样品尚未到达，不能回传试验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
+    result_status = _experiment_result_from_payload(payload)
+    if not result_status:
+        return JsonResponse({'ok': False, 'error': '请选择实验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
     sample = order.samples.filter(schedule=schedule).first() or order.samples.first()
     experiment, _ = Experiment.objects.get_or_create(
         order=order,
@@ -2148,6 +2254,7 @@ def _action_outsource_result(request, payload):
     experiment.test_standard = payload.get('test_standard') or experiment.test_standard or '委外厂家回传标准'
     experiment.test_raw_data = payload.get('test_raw_data') or experiment.test_raw_data or '委外厂家已回传原始试验数据'
     experiment.test_conclusion_temp = payload.get('test_conclusion_temp') or experiment.test_conclusion_temp or '委外试验完成，等待主责实验室出具报告'
+    experiment.result_status = result_status
     experiment.test_start_time = experiment.test_start_time or schedule.plan_start_time or timezone.now()
     experiment.test_end_time = _parse_datetime(payload.get('test_end_time')) or timezone.now()
     experiment.test_operator = request.user
@@ -2169,11 +2276,13 @@ def _action_outsource_result(request, payload):
             'test_end_time': _audit_change('委外完成时间', '', experiment.test_end_time),
             'test_raw_data': _audit_change('回传数据摘要', '', experiment.test_raw_data[:500]),
             'test_conclusion': _audit_change('委外结论', '', experiment.test_conclusion_temp),
+            'result_status': _audit_change('实验结果', '', experiment.get_result_status_display()),
         },
         schedule=schedule,
     )
-    order.mark_status(LabOrder.Status.TESTING, request.user, '实验室负责人录入委外试验结果回传，委外试验已完成')
-    return _status_response('委外试验结果已回传，可出具报告', order)
+    all_finished = _sync_order_test_completion(order, request.user)
+    message = '委外试验结果已回传；全部实验已结束，可出具报告' if all_finished else '委外试验结果已回传，其他执行路径继续试验'
+    return _status_response(message, order)
 
 
 def _action_submit_test(request, payload):
@@ -2187,8 +2296,12 @@ def _action_submit_test(request, payload):
     experiment = order.experiments.filter(schedule=schedule).exclude(test_status=Experiment.Status.FINISHED).first() if schedule else None
     if not experiment:
         return JsonResponse({'ok': False, 'error': '没有待提交的试验记录'}, status=400, json_dumps_params={'ensure_ascii': False})
+    result_status = _experiment_result_from_payload(payload)
+    if not result_status:
+        return JsonResponse({'ok': False, 'error': '请选择实验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
     experiment.test_raw_data = payload.get('test_raw_data') or experiment.test_raw_data or '试验数据已录入。'
     experiment.test_conclusion_temp = payload.get('test_conclusion_temp') or '试验完成，等待主责实验室出报告。'
+    experiment.result_status = result_status
     experiment.test_end_time = timezone.now()
     experiment.test_status = Experiment.Status.FINISHED
     experiment.save()
@@ -2206,13 +2319,16 @@ def _action_submit_test(request, payload):
         changes={
             'test_raw_data': _audit_change('原始数据摘要', '', experiment.test_raw_data[:500]),
             'test_conclusion': _audit_change('试验结论', '', experiment.test_conclusion_temp),
+            'result_status': _audit_change('实验结果', '', experiment.get_result_status_display()),
             'test_status': _audit_change('试验状态', '试验中', experiment.get_test_status_display()),
             'test_end_time': _audit_change('实际结束时间', '', experiment.test_end_time),
         },
         schedule=experiment.schedule,
     )
-    _event(order, request.user, '实验室提交试验结果；全部路径完成后主责负责人可出具报告')
-    return _status_response('试验结果已提交', order)
+    all_finished = _sync_order_test_completion(order, request.user)
+    _event(order, request.user, '实验室结束试验；全部路径完成后主责负责人可出具报告')
+    message = '实验已结束；全部执行路径完成，可出具报告' if all_finished else '本试验任务已结束，其他执行路径继续试验'
+    return _status_response(message, order)
 
 
 def _action_sample_outbound(request, payload):
@@ -2274,6 +2390,7 @@ def _action_issue_report(request, payload):
             return JsonResponse({'ok': False, 'error': '仍有执行路径未完成，暂不能出具总报告'}, status=400, json_dumps_params={'ensure_ascii': False})
         if order.experiments.exclude(test_status=Experiment.Status.FINISHED).exists() or not order.experiments.exists():
             return JsonResponse({'ok': False, 'error': '请先完成全部试验记录'}, status=400, json_dumps_params={'ensure_ascii': False})
+        _sync_order_test_completion(order, request.user)
     else:
         role_error = _require_role(request.user, ROLE_QUALITY)
         if role_error:
@@ -2497,6 +2614,11 @@ def lims_dashboard(request):
             'samples',
             queryset=Sample.objects.select_related('quality_user', 'outbound_by').order_by('id'),
             to_attr='ordered_samples',
+        ),
+        Prefetch(
+            'experiments',
+            queryset=Experiment.objects.select_related('test_operator').order_by('-create_time'),
+            to_attr='ordered_experiments',
         ),
     ).filter(
         order__in=related_orders

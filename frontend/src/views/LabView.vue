@@ -34,6 +34,7 @@ const form = reactive({
   device_id: undefined as number | undefined,
   test_raw_data: '',
   test_conclusion_temp: '',
+  result_status: '',
   plan_start_time: '',
   plan_end_time: '',
   outsource_factory: '',
@@ -87,6 +88,7 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
     device_id: schedule.device_id || undefined,
     test_raw_data: '',
     test_conclusion_temp: '',
+    result_status: '',
     plan_start_time: schedule.start_time || '',
     plan_end_time: schedule.end_time || '',
     outsource_factory: '',
@@ -130,6 +132,10 @@ function resetDeviceSelection() {
 }
 
 async function submitWorkflow() {
+  if ((activeAction.value === 'submit_test' || activeAction.value === 'outsource_result') && !form.result_status) {
+    ElMessage.warning('请选择实验结果')
+    return
+  }
   if ((activeAction.value === 'schedule_assign' || activeAction.value === 'process_change')
     && form.sample_arrived && (activeSchedule.value?.sample_photos.length || 0) === 0 && samplePhotoFiles.value.length === 0) {
     ElMessage.warning('选择“样品已到”时必须上传至少一张样品照片')
@@ -250,8 +256,17 @@ async function submitWorkflow() {
           </el-form-item>
         </template>
         <template v-else-if="activeAction === 'submit_test'">
+          <el-form-item label="实验结果" class="form-wide" required>
+            <el-radio-group v-model="form.result_status">
+              <el-radio-button value="pass">合格</el-radio-button>
+              <el-radio-button value="fail">不合格</el-radio-button>
+              <el-radio-button value="abnormal">异常</el-radio-button>
+              <el-radio-button value="retest">待复测</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
           <el-form-item label="原始检测数据" class="form-wide"><el-input v-model="form.test_raw_data" type="textarea" :rows="4" /></el-form-item>
-          <el-form-item label="临时结论" class="form-wide"><el-input v-model="form.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
+          <el-form-item label="实验结论" class="form-wide"><el-input v-model="form.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
+          <el-alert class="form-wide" title="提交后本任务状态将变为“实验结束”" type="info" :closable="false" show-icon />
         </template>
         <template v-else-if="activeAction === 'sample_outbound'">
           <el-alert
@@ -266,6 +281,14 @@ async function submitWorkflow() {
         <template v-else-if="activeAction === 'outsource_result'">
           <el-form-item label="委外开始"><el-date-picker v-model="form.test_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
           <el-form-item label="委外完成"><el-date-picker v-model="form.test_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+          <el-form-item label="实验结果" class="form-wide" required>
+            <el-radio-group v-model="form.result_status">
+              <el-radio-button value="pass">合格</el-radio-button>
+              <el-radio-button value="fail">不合格</el-radio-button>
+              <el-radio-button value="abnormal">异常</el-radio-button>
+              <el-radio-button value="retest">待复测</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
           <el-form-item label="回传原始数据" class="form-wide"><el-input v-model="form.test_raw_data" type="textarea" :rows="4" /></el-form-item>
           <el-form-item label="委外结论" class="form-wide"><el-input v-model="form.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
         </template>

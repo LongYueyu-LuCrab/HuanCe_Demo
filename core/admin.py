@@ -238,8 +238,8 @@ class SamplePhotoAdmin(admin.ModelAdmin):
 
 @admin.register(Experiment)
 class ExperimentAdmin(admin.ModelAdmin):
-    list_display = ('order', 'sample', 'test_type', 'test_status', 'test_start_time', 'test_end_time', 'test_operator')
-    list_filter = ('test_type', 'test_status')
+    list_display = ('order', 'sample', 'test_type', 'test_status', 'result_status', 'test_start_time', 'test_end_time', 'test_operator')
+    list_filter = ('test_type', 'test_status', 'result_status')
     search_fields = ('order__order_no', 'sample__sample_no', 'test_item_list', 'test_standard', 'test_raw_data')
 
 

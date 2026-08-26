@@ -36,6 +36,7 @@ class LabOrder(TimeStampedModel):
         REPORT_REVIEW = 5, '报告审核中'
         INVOICED_CLOSED = 6, '已开票办结'
         CANCELLED = 7, '退单'
+        TEST_FINISHED = 8, '实验已结束待出报告'
 
     class ExecutionMode(models.IntegerChoices):
         SUZHOU = 1, '苏州内部实验室'
@@ -275,7 +276,7 @@ class SchedulePlan(TimeStampedModel):
         NEW = 1, '新建'
         CHANGE_PENDING = 2, '变更待调整'
         RUNNING = 3, '执行中'
-        FINISHED = 4, '试验完成'
+        FINISHED = 4, '实验结束'
 
     order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='schedules')
     test_type = models.PositiveSmallIntegerField('试验执行类型', choices=TestType.choices, default=TestType.SUZHOU)
@@ -454,7 +455,13 @@ class Experiment(TimeStampedModel):
     class Status(models.IntegerChoices):
         WAITING = 1, '待开展'
         RUNNING = 2, '试验中'
-        FINISHED = 3, '试验完成待出报告'
+        FINISHED = 3, '实验结束'
+
+    class Result(models.TextChoices):
+        PASS = 'pass', '合格'
+        FAIL = 'fail', '不合格'
+        ABNORMAL = 'abnormal', '异常'
+        RETEST = 'retest', '待复测'
 
     order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='experiments')
     schedule = models.ForeignKey(SchedulePlan, verbose_name='项目排期', on_delete=models.SET_NULL, null=True, blank=True, related_name='experiments')
@@ -473,6 +480,7 @@ class Experiment(TimeStampedModel):
     )
     test_raw_data = models.TextField('原始检测数据、数值记录', blank=True)
     test_conclusion_temp = models.CharField('试验临时初步结论', max_length=1000, blank=True)
+    result_status = models.CharField('实验结果', max_length=20, choices=Result.choices, blank=True)
     test_status = models.PositiveSmallIntegerField('试验状态', choices=Status.choices, default=Status.WAITING)
     test_type = models.PositiveSmallIntegerField('试验执行类型', choices=SchedulePlan.TestType.choices, default=SchedulePlan.TestType.SUZHOU)
 

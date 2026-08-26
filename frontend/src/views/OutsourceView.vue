@@ -16,6 +16,7 @@ const form = reactive({
   test_standard: '',
   test_raw_data: '',
   test_conclusion_temp: '',
+  result_status: '',
   test_start_time: '',
   test_end_time: '',
 })
@@ -28,6 +29,7 @@ function openWorkflow(action: string, order: OrderItem) {
     test_standard: '',
     test_raw_data: '',
     test_conclusion_temp: '',
+    result_status: '',
     test_start_time: '',
     test_end_time: '',
   })
@@ -36,6 +38,10 @@ function openWorkflow(action: string, order: OrderItem) {
 
 async function submitResult() {
   if (!activeOrder.value) return
+  if (!form.result_status) {
+    ElMessage.warning('请选择实验结果')
+    return
+  }
   submitting.value = true
   try {
     await workflowAction({
@@ -70,8 +76,16 @@ async function submitResult() {
       <el-form-item label="执行标准 / 报告依据"><el-input v-model="form.test_standard" /></el-form-item>
       <el-form-item label="委外开始时间"><el-date-picker v-model="form.test_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
       <el-form-item label="委外完成时间"><el-date-picker v-model="form.test_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+      <el-form-item label="实验结果" class="form-wide" required>
+        <el-radio-group v-model="form.result_status">
+          <el-radio-button value="pass">合格</el-radio-button>
+          <el-radio-button value="fail">不合格</el-radio-button>
+          <el-radio-button value="abnormal">异常</el-radio-button>
+          <el-radio-button value="retest">待复测</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
       <el-form-item label="委外原始数据 / 回传摘要" class="form-wide"><el-input v-model="form.test_raw_data" type="textarea" :rows="4" /></el-form-item>
-      <el-form-item label="委外临时结论" class="form-wide"><el-input v-model="form.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
+      <el-form-item label="委外实验结论" class="form-wide"><el-input v-model="form.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="dialogVisible = false">取消</el-button>

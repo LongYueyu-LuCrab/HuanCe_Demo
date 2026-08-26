@@ -122,6 +122,7 @@ def build_test_report_pdf(report, experiments):
         _paragraph('试验项目', styles['small']), _paragraph('类型', styles['small']),
         _paragraph('操作人', styles['small']), _paragraph('开始时间', styles['small']),
         _paragraph('结束时间', styles['small']), _paragraph('状态', styles['small']),
+        _paragraph('结果', styles['small']),
     ]]
     for experiment in experiments:
         experiment_rows.append([
@@ -131,8 +132,9 @@ def build_test_report_pdf(report, experiments):
             _paragraph(_datetime(experiment.test_start_time), styles['small']),
             _paragraph(_datetime(experiment.test_end_time), styles['small']),
             _paragraph(experiment.get_test_status_display(), styles['small']),
+            _paragraph(experiment.get_result_status_display() if experiment.result_status else '-', styles['small']),
         ])
-    experiment_table = Table(experiment_rows, repeatRows=1, colWidths=[42 * mm, 25 * mm, 25 * mm, 29 * mm, 29 * mm, 22 * mm])
+    experiment_table = Table(experiment_rows, repeatRows=1, colWidths=[34 * mm, 22 * mm, 22 * mm, 24 * mm, 24 * mm, 22 * mm, 22 * mm])
     experiment_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#dff3ed')),
@@ -147,6 +149,8 @@ def build_test_report_pdf(report, experiments):
         story.extend([
             Paragraph(f'{index}. {_text(experiment.test_item_list)}', styles['section']),
             Paragraph(f'<b>原始数据：</b>{_text(experiment.test_raw_data)}', styles['body']),
+            Spacer(1, 1.5 * mm),
+            Paragraph(f'<b>实验结果：</b>{_text(experiment.get_result_status_display() if experiment.result_status else "未记录")}', styles['body']),
             Spacer(1, 1.5 * mm),
             Paragraph(f'<b>试验结论：</b>{_text(experiment.test_conclusion_temp)}', styles['body']),
         ])

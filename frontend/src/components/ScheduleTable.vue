@@ -62,6 +62,13 @@ function resetPage() {
   page.value = 1
 }
 
+function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info' {
+  if (result === 'pass') return 'success'
+  if (result === 'fail') return 'danger'
+  if (result === 'abnormal') return 'warning'
+  return 'info'
+}
+
 function handleSelection(rows: ScheduleItem[]) {
   selectedRows.value = rows
 }
@@ -165,27 +172,43 @@ async function exportOrders(selectedOnly: boolean) {
           </el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="实验结果" min-width="220">
+        <template #default="{ row }">
+          <template v-if="row.experiment_status">
+            <div class="row-actions">
+              <el-tag size="small" effect="plain">{{ row.experiment_status }}</el-tag>
+              <el-tag v-if="row.experiment_result" size="small" :type="resultTagType(row.experiment_result_key)">
+                {{ row.experiment_result }}
+              </el-tag>
+            </div>
+            <div v-if="row.experiment_ended_at" class="cell-sub mt-8">结束：{{ row.experiment_ended_at }}</div>
+            <div v-if="row.experiment_operator" class="cell-sub">操作：{{ row.experiment_operator }}</div>
+            <div v-if="row.experiment_conclusion" class="cell-sub">结论：{{ row.experiment_conclusion }}</div>
+          </template>
+          <span v-else class="cell-sub">尚未开始</span>
+        </template>
+      </el-table-column>
       <el-table-column label="订单信息 / 试验操作" fixed="right" min-width="300">
         <template #default="{ row }">
           <div class="row-actions">
             <el-button size="small" plain @click="emit('detail', row)">订单详情</el-button>
             <template v-if="canLabOperate">
               <template v-if="row.workflow_version === 2">
-                <el-button size="small" type="primary" plain @click="emit('workflow', 'schedule_assign', row)">排期 / 排台</el-button>
+                <el-button v-if="row.status_key === 3 || row.status_key === 4" size="small" type="primary" plain @click="emit('workflow', 'schedule_assign', row)">排期 / 排台</el-button>
                 <el-button v-if="row.schedule_status.includes('变更')" size="small" type="warning" plain @click="emit('workflow', 'process_change', row)">处理变更</el-button>
-                <el-button v-if="row.test_type.includes('委外')" size="small" type="success" plain @click="emit('workflow', 'outsource_result', row)">委外回传</el-button>
+                <el-button v-if="row.test_type.includes('委外') && !row.experiment_status.includes('结束')" size="small" type="success" plain @click="emit('workflow', 'outsource_result', row)">委外回传</el-button>
                 <template v-else>
                   <el-button v-if="row.sample_arrived && row.device_id && !row.experiment_status" size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
-                  <el-button v-if="row.experiment_status.includes('试验中')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">提交结果</el-button>
+                  <el-button v-if="row.experiment_status.includes('试验中')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">填写结果 / 结束实验</el-button>
                 </template>
                 <el-button v-if="row.sample_arrived && row.schedule_status_key === 4 && !row.sample_outbound_at" size="small" plain @click="emit('workflow', 'sample_outbound', row)">样品出库</el-button>
-                <el-button v-if="row.is_lead && canIssueReport" size="small" type="primary" plain @click="emit('workflow', 'issue_report', row)">汇总出报告</el-button>
+                <el-button v-if="row.is_lead && canIssueReport && (row.status_key === 8 || row.status_key === 5)" size="small" type="primary" plain @click="emit('workflow', 'issue_report', row)">汇总出报告</el-button>
               </template>
               <template v-else>
                 <el-button size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
-                <el-button size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">提交结果</el-button>
+                <el-button v-if="row.experiment_status.includes('试验中')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">填写结果 / 结束实验</el-button>
               </template>
-              <el-button size="small" type="warning" plain @click="emit('workflow', 'create_change', row)">试验中变更</el-button>
+              <el-button v-if="row.status_key === 4" size="small" type="warning" plain @click="emit('workflow', 'create_change', row)">试验中变更</el-button>
             </template>
           </div>
         </template>

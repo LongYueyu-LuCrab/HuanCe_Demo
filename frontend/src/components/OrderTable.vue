@@ -96,7 +96,7 @@ function actionsFor(order: OrderItem) {
   }
   if (order.workflow_version === 1 && [3, 4].includes(order.status_key) && (hasRole('苏州实验室') || hasRole('江阴实验室'))) {
     actions.push({ key: 'start_test', label: '开始试验', type: 'primary' })
-    actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
+    actions.push({ key: 'submit_test', label: '填写结果 / 结束实验', type: 'success' })
     actions.push({ key: 'create_change', label: '试验中变更', type: 'warning' })
   }
   if (

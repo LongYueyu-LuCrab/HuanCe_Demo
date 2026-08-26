@@ -235,6 +235,7 @@ Order statuses in `LabOrder.Status`:
 5 报告审核中
 6 已开票办结
 7 退单
+8 实验已结束待出报告
 ```
 
 Report statuses in `TestReport.Status`:
@@ -281,10 +282,10 @@ create_change            销售/质量/实验室创建更改单
 schedule_assign          质量部排期分配
 process_change           质量部处理变更并闭环
 start_test               苏州/江阴实验室开始试验
-submit_test              苏州/江阴实验室提交试验结果
-outsource_result         质量部录入委外试验结果回传，生成委外试验记录
+submit_test              实验室负责人/操作员填写结构化实验结果并结束实验任务
+outsource_result         主责实验室录入委外结果回传并结束委外实验任务
 sample_outbound          实验室负责人/操作员在试验完成后登记样品出库
-issue_report             质量部出具报告
+issue_report             V2 主责实验室负责人汇总出具报告；V1 质量部出具报告
 report_sales_pass        销售初审通过
 report_sales_reject      销售初审驳回
 report_gm_pass           总经理终审通过

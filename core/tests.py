@@ -627,17 +627,29 @@ class LimsV2DirectLabWorkflowTests(TestCase):
             )
             self.assertEqual(schedule.experiments.get().test_standard, 'GB/T 2423')
             self.assertEqual(
-                self.action(user_key, 'submit_test', test_raw_data='原始数据完整', test_conclusion_temp='合格').status_code,
+                self.action(
+                    user_key,
+                    'submit_test',
+                    result_status=Experiment.Result.PASS,
+                    test_raw_data='原始数据完整',
+                    test_conclusion_temp='合格',
+                ).status_code,
                 200,
             )
+
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.order_status, LabOrder.Status.TESTING)
 
         self.assertEqual(
             self.action(
                 'suzhou_v2', 'outsource_result', schedule_id=outsource_schedule.id,
+                result_status=Experiment.Result.PASS,
                 test_raw_data='委外报告数据', test_conclusion_temp='合格',
             ).status_code,
             200,
         )
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.order_status, LabOrder.Status.TEST_FINISHED)
         denied_report = self.action('jiangyin_v2', 'issue_report', final_conclusion='全部合格')
         self.assertEqual(denied_report.status_code, 403)
         issued_report = self.action('suzhou_v2', 'issue_report', final_conclusion='三条路径全部完成，结论合格')
@@ -797,9 +809,17 @@ class LaboratoryOperatorTests(TestCase):
             sample_photos=SimpleUploadedFile('operator-sample.png', b'fake-png-content', content_type='image/png'),
         ).status_code, 200)
         self.assertEqual(self.action('start_test').status_code, 200)
+        missing_result = self.action(
+            'submit_test', test_raw_data='缺少结构化结果', test_conclusion_temp='不应结束',
+        )
+        self.assertEqual(missing_result.status_code, 400)
+        self.assertIn('请选择实验结果', missing_result.json()['error'])
         self.assertEqual(self.action(
-            'submit_test', test_raw_data='振动数据记录完整', test_conclusion_temp='试验合格',
+            'submit_test', result_status=Experiment.Result.PASS,
+            test_raw_data='振动数据记录完整', test_conclusion_temp='试验合格',
         ).status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.order_status, LabOrder.Status.TEST_FINISHED)
         denied_report = self.action('issue_report', final_conclusion='检测项目全部合格')
         self.assertEqual(denied_report.status_code, 403)
         self.client.force_login(self.manager)
@@ -859,7 +879,8 @@ class LaboratoryOperatorTests(TestCase):
 
         self.assertEqual(self.action('start_test').status_code, 200)
         self.assertEqual(self.action(
-            'submit_test', test_raw_data='出库流程试验数据', test_conclusion_temp='试验完成',
+            'submit_test', result_status=Experiment.Result.PASS,
+            test_raw_data='出库流程试验数据', test_conclusion_temp='试验完成',
         ).status_code, 200)
         outbound = self.action('sample_outbound')
         self.assertEqual(outbound.status_code, 200)
@@ -885,6 +906,11 @@ class LaboratoryOperatorTests(TestCase):
         self.assertTrue(records[0]['outbound_time'])
         self.assertEqual(records[0]['outbound_by'], self.operator.username)
         self.assertEqual(records[0]['photos'][0]['name'], 'outbound-sample.png')
+        experiment_records = detail.json()['order']['experiment_records']
+        self.assertEqual(len(experiment_records), 1)
+        self.assertEqual(experiment_records[0]['result'], '合格')
+        self.assertEqual(experiment_records[0]['operator'], self.operator.username)
+        self.assertTrue(experiment_records[0]['ended_at'])
 
     def test_arrived_status_requires_sample_photo(self):
         response = self.action(

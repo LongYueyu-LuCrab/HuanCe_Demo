@@ -42,6 +42,7 @@ export type OrderItem = {
   remark?: string
   documents: OrderDocumentItem[]
   sample_records?: SampleLifecycleItem[]
+  experiment_records?: ExperimentLifecycleItem[]
 }
 
 export type OrderDocumentItem = {
@@ -78,6 +79,13 @@ export type ScheduleItem = {
   sample_status: string
   sample_photos: SamplePhotoItem[]
   experiment_status: string
+  experiment_result_key: string
+  experiment_result: string
+  experiment_conclusion: string
+  experiment_raw_data: string
+  experiment_started_at: string
+  experiment_ended_at: string
+  experiment_operator: string
   workflow_version: number
   remark: string
 }
@@ -101,6 +109,20 @@ export type SampleLifecycleItem = {
   registered_by: string
   outbound_by: string
   photos: SamplePhotoItem[]
+}
+
+export type ExperimentLifecycleItem = {
+  schedule_id: number
+  test_type: string
+  task_name: string
+  status: string
+  result_key: string
+  result: string
+  started_at: string
+  ended_at: string
+  operator: string
+  raw_data: string
+  conclusion: string
 }
 
 export type TestStandardItem = {

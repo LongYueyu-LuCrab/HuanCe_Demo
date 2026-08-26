@@ -24,7 +24,7 @@ const form = reactive({
   plan_start_time: '', plan_end_time: '', outsource_factory: '', outsource_price: '', outsource_cycle: '',
   device_id: undefined as number | undefined,
   sample_arrived: false,
-  test_item_list: '', test_standard: '', test_raw_data: '', test_conclusion_temp: '',
+  test_item_list: '', test_standard: '', test_raw_data: '', test_conclusion_temp: '', result_status: '',
   test_start_time: '', test_end_time: '', change_scene: 2, new_test_demand: '', change_content: '',
   report_no: '', report_type: 'formal', final_conclusion: '',
 })
@@ -55,7 +55,7 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
     sample_arrived: schedule.sample_arrived,
     outsource_factory: '', outsource_price: '', outsource_cycle: '',
     test_item_list: schedule.remark || schedule.project_name,
-    test_standard: '', test_raw_data: '', test_conclusion_temp: '', test_start_time: '', test_end_time: '',
+    test_standard: '', test_raw_data: '', test_conclusion_temp: '', result_status: '', test_start_time: '', test_end_time: '',
     change_scene: 2, new_test_demand: '', change_content: '', report_no: '', report_type: 'formal', final_conclusion: '',
   })
   dialogVisible.value = true
@@ -91,6 +91,10 @@ async function queryAvailableDevices() {
 
 async function submitWorkflow() {
   if (!activeSchedule.value) return
+  if ((activeAction.value === 'submit_test' || activeAction.value === 'outsource_result') && !form.result_status) {
+    ElMessage.warning('请选择实验结果')
+    return
+  }
   if ((activeAction.value === 'schedule_assign' || activeAction.value === 'process_change')
     && form.sample_arrived && activeSchedule.value.sample_photos.length === 0 && samplePhotoFiles.value.length === 0) {
     ElMessage.warning('选择“样品已到”时必须上传至少一张样品照片')
@@ -178,8 +182,17 @@ async function submitWorkflow() {
         <template v-else-if="activeAction === 'submit_test' || activeAction === 'outsource_result'">
           <el-form-item v-if="activeAction === 'outsource_result'" label="开始时间"><el-date-picker v-model="form.test_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
           <el-form-item v-if="activeAction === 'outsource_result'" label="完成时间"><el-date-picker v-model="form.test_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+          <el-form-item label="实验结果" class="form-wide" required>
+            <el-radio-group v-model="form.result_status">
+              <el-radio-button value="pass">合格</el-radio-button>
+              <el-radio-button value="fail">不合格</el-radio-button>
+              <el-radio-button value="abnormal">异常</el-radio-button>
+              <el-radio-button value="retest">待复测</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
           <el-form-item label="原始数据 / 回传摘要" class="form-wide"><el-input v-model="form.test_raw_data" type="textarea" :rows="4" /></el-form-item>
           <el-form-item label="试验结论" class="form-wide"><el-input v-model="form.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
+          <el-alert class="form-wide" title="提交后本任务状态将变为“实验结束”" type="info" :closable="false" show-icon />
         </template>
         <template v-else-if="activeAction === 'create_change'">
           <el-form-item label="变更后需求" class="form-wide"><el-input v-model="form.new_test_demand" type="textarea" :rows="3" /></el-form-item>

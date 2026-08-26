@@ -94,7 +94,7 @@ const actionTitleMap: Record<string, string> = {
   schedule_assign: '排期分配',
   process_change: '处理变更',
   start_test: '开始试验',
-  submit_test: '提交试验结果',
+  submit_test: '填写结果 / 结束实验',
   outsource_result: '委外试验结果回传',
   issue_report: '出具检测报告',
 }
@@ -137,6 +137,7 @@ function openWorkflow(action: string, order: OrderItem) {
     test_standard: order.test_standard || '',
     test_raw_data: '',
     test_conclusion_temp: '',
+    result_status: '',
     test_start_time: '',
     test_end_time: '',
     report_no: '',
@@ -148,6 +149,10 @@ function openWorkflow(action: string, order: OrderItem) {
 
 async function submitWorkflow() {
   if (!activeOrder.value || !activeAction.value) return
+  if ((activeAction.value === 'submit_test' || activeAction.value === 'outsource_result') && !actionForm.result_status) {
+    ElMessage.warning('请选择实验结果')
+    return
+  }
   actionSubmitting.value = true
   try {
     await workflowAction({
@@ -405,8 +410,16 @@ async function submit() {
         </template>
 
         <template v-else-if="activeAction === 'submit_test'">
+          <el-form-item label="实验结果" class="form-wide" required>
+            <el-radio-group v-model="actionForm.result_status">
+              <el-radio-button value="pass">合格</el-radio-button>
+              <el-radio-button value="fail">不合格</el-radio-button>
+              <el-radio-button value="abnormal">异常</el-radio-button>
+              <el-radio-button value="retest">待复测</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
           <el-form-item label="原始检测数据" class="form-wide"><el-input v-model="actionForm.test_raw_data" type="textarea" :rows="4" /></el-form-item>
-          <el-form-item label="临时结论" class="form-wide"><el-input v-model="actionForm.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
+          <el-form-item label="实验结论" class="form-wide"><el-input v-model="actionForm.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
         </template>
 
         <template v-else-if="activeAction === 'outsource_result'">
@@ -414,8 +427,16 @@ async function submit() {
           <el-form-item label="执行标准"><el-input v-model="actionForm.test_standard" placeholder="例如：委外厂家报告编号 / 执行标准" /></el-form-item>
           <el-form-item label="委外开始时间"><el-date-picker v-model="actionForm.test_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
           <el-form-item label="委外完成时间"><el-date-picker v-model="actionForm.test_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
+          <el-form-item label="实验结果" class="form-wide" required>
+            <el-radio-group v-model="actionForm.result_status">
+              <el-radio-button value="pass">合格</el-radio-button>
+              <el-radio-button value="fail">不合格</el-radio-button>
+              <el-radio-button value="abnormal">异常</el-radio-button>
+              <el-radio-button value="retest">待复测</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
           <el-form-item label="委外原始数据 / 回传摘要" class="form-wide"><el-input v-model="actionForm.test_raw_data" type="textarea" :rows="4" /></el-form-item>
-          <el-form-item label="委外临时结论" class="form-wide"><el-input v-model="actionForm.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
+          <el-form-item label="委外实验结论" class="form-wide"><el-input v-model="actionForm.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
         </template>
 
         <template v-else-if="activeAction === 'issue_report'">
