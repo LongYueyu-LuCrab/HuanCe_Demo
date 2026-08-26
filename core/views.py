@@ -11,7 +11,7 @@ from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.models import Group
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Case, Count, F, IntegerField, Prefetch, Q, Value, When
 from django.http import FileResponse, HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -1124,7 +1124,23 @@ def _laboratory_schedule_queryset(request):
     selected_ids = [value for value in (request.GET.get('schedule_ids') or '').split(',') if value.isdigit()]
     if selected_ids:
         schedules = schedules.filter(id__in=selected_ids)
-    return schedules.order_by('-plan_start_time', '-create_time'), lab_type, None
+    schedules = schedules.annotate(
+        operation_priority=Case(
+            When(schedule_status=SchedulePlan.Status.CHANGE_PENDING, then=Value(0)),
+            When(schedule_status=SchedulePlan.Status.NEW, sample_arrived=True, then=Value(1)),
+            When(schedule_status=SchedulePlan.Status.RUNNING, then=Value(2)),
+            When(schedule_status=SchedulePlan.Status.NEW, sample_arrived=False, then=Value(3)),
+            When(schedule_status=SchedulePlan.Status.FINISHED, then=Value(4)),
+            default=Value(5),
+            output_field=IntegerField(),
+        )
+    )
+    return schedules.order_by(
+        'operation_priority',
+        F('plan_start_time').asc(nulls_last=True),
+        '-create_time',
+        '-id',
+    ), lab_type, None
 
 
 def laboratory_orders(request):

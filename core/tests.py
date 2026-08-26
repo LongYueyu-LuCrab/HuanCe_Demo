@@ -872,6 +872,72 @@ class LaboratoryOperatorTests(TestCase):
         rows = list(workbook.active.iter_rows(values_only=True))
         self.assertEqual(rows[1][1], self.order.order_no)
 
+    def test_laboratory_orders_use_operation_priority_and_keep_filters(self):
+        def create_schedule(suffix, status, arrived, start_day):
+            order = LabOrder.objects.create(
+                order_no=f'LAB-SORT-{suffix}',
+                customer_name=f'排序客户-{suffix}',
+                project_name=f'排序验证-{suffix}',
+                test_demand='实验室列表排序验证',
+                total_quote='1000.00',
+                order_status=(
+                    LabOrder.Status.TESTING
+                    if status == SchedulePlan.Status.RUNNING
+                    else LabOrder.Status.SCHEDULING
+                ),
+                workflow_version=LabOrder.WorkflowVersion.LAB_DIRECT,
+                lead_lab_manager=self.manager,
+            )
+            return SchedulePlan.objects.create(
+                order=order,
+                test_type=SchedulePlan.TestType.SUZHOU,
+                lab_manager=self.manager,
+                quality_user=self.manager,
+                plan_start_time=timezone.make_aware(timezone.datetime(2026, 10, start_day)),
+                plan_end_time=timezone.make_aware(timezone.datetime(2026, 10, start_day + 1)),
+                sample_arrived=arrived,
+                schedule_status=status,
+                remark=f'排序验证-{suffix}',
+            )
+
+        change_pending = create_schedule('CHANGE', SchedulePlan.Status.CHANGE_PENDING, False, 5)
+        ready_later = create_schedule('READY-LATER', SchedulePlan.Status.NEW, True, 8)
+        ready_earlier = create_schedule('READY-EARLIER', SchedulePlan.Status.NEW, True, 3)
+        running = create_schedule('RUNNING', SchedulePlan.Status.RUNNING, True, 2)
+        waiting_sample = create_schedule('WAITING-SAMPLE', SchedulePlan.Status.NEW, False, 1)
+        finished = create_schedule('FINISHED', SchedulePlan.Status.FINISHED, True, 1)
+
+        self.client.force_login(self.operator)
+        response = self.client.get(reverse('laboratory_orders'), {
+            'lab_type': 1,
+            'keyword': '排序验证',
+            'page_size': 100,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [item['id'] for item in response.json()['items']],
+            [
+                change_pending.id,
+                ready_earlier.id,
+                ready_later.id,
+                running.id,
+                waiting_sample.id,
+                finished.id,
+            ],
+        )
+
+        filtered = self.client.get(reverse('laboratory_orders'), {
+            'lab_type': 1,
+            'keyword': '排序验证',
+            'schedule_status': SchedulePlan.Status.NEW,
+            'page_size': 100,
+        })
+        self.assertEqual(filtered.status_code, 200)
+        self.assertEqual(
+            [item['id'] for item in filtered.json()['items']],
+            [ready_earlier.id, ready_later.id, waiting_sample.id],
+        )
+
     def test_operator_cannot_manage_devices(self):
         self.client.force_login(self.operator)
         response = self.client.post(
