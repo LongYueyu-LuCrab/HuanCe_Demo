@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { OrderItem } from '../types'
 import WorkflowProgress from './WorkflowProgress.vue'
+import OutsourceBadge from './OutsourceBadge.vue'
 
 defineProps<{
   order?: OrderItem | null
@@ -44,7 +45,12 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
     <template v-else>
       <WorkflowProgress v-if="order.workflow_progress" :progress="order.workflow_progress" />
       <el-descriptions :column="2" border class="snapshot-descriptions">
-      <el-descriptions-item label="订单号">{{ order.order_no }}</el-descriptions-item>
+      <el-descriptions-item label="订单号">
+        <span class="order-reference">
+          <strong>{{ order.order_no }}</strong>
+          <OutsourceBadge :visible="order.is_outsource" />
+        </span>
+      </el-descriptions-item>
       <el-descriptions-item label="销售">{{ order.sales_owner || '未记录' }}</el-descriptions-item>
       <el-descriptions-item label="客户单位">{{ order.customer }}</el-descriptions-item>
       <el-descriptions-item label="联系人 / 电话">

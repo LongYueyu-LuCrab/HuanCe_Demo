@@ -104,6 +104,7 @@ class LimsDashboardTests(TestCase):
         order = response.json()['order']
         self.assertEqual(order['industry_label'], '军工')
         self.assertEqual(order['execution_attributes'], ['自主', '委外'])
+        self.assertTrue(order['is_outsource'])
         self.assertEqual(order['contact'], self.order.customer_contact)
         self.assertEqual(order['test_method'], '振动扫频后进行定频耐久试验')
         self.assertEqual(order['test_standard'], 'GB/T 2423.10-2019')

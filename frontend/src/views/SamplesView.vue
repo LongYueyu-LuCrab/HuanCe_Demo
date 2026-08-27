@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
+import OutsourceBadge from '../components/OutsourceBadge.vue'
 import { fetchOrderDetail } from '../services/api'
 import { useSession } from '../stores/session'
 import type { OrderItem, SampleItem } from '../types'
@@ -85,7 +86,10 @@ async function openOrderDetail(sample: SampleItem) {
         <el-table-column prop="sample_no" label="样品编号" min-width="150" />
         <el-table-column label="订单 / 客户" min-width="280">
           <template #default="{ row }">
-            <div class="cell-main">{{ row.order_no }}</div>
+            <div class="order-reference cell-main">
+              <span>{{ row.order_no }}</span>
+              <OutsourceBadge :visible="row.is_outsource" />
+            </div>
             <div class="cell-sub">{{ row.customer }}</div>
           </template>
         </el-table-column>

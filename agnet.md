@@ -678,6 +678,9 @@ Sales-order fields are shared workflow context, not sales-only presentation data
   payloads do not grow with document metadata.
 - When adding future sales-order fields, update `_order_payload`, `OrderItem`, `OrderSnapshot`,
   relevant tests, and every downstream workflow view in the same change.
+- Order-derived list payloads expose the authoritative boolean `is_outsource`. Every role-facing
+  order reference must show the shared red `OutsourceBadge.vue` marker when this value is true;
+  do not infer the marker from localized execution-path text in individual pages.
 - Full order details include `workflow_progress`, a 13-node authoritative process trace covering
   sales order, parallel business/technical review, routing, scheduling, sales confirmation, sample
   arrival, experiment execution, result submission, report creation, two-level report approval,

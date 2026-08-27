@@ -5,6 +5,7 @@ import type { UploadUserFile } from 'element-plus'
 import { useRoute } from 'vue-router'
 import ScheduleTable from '../components/ScheduleTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
+import OutsourceBadge from '../components/OutsourceBadge.vue'
 import { fetchAvailableDevices, fetchLaboratoryOrders, fetchOrderDetail, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
 import type { LabDevice, OrderItem, ScheduleItem } from '../types'
@@ -178,15 +179,19 @@ async function submitWorkflow() {
           <h3>{{ device.name }}</h3>
           <el-tag :type="device.status === '实验中' || device.status === '设备正常' ? 'success' : device.status === '维修中' ? 'warning' : 'danger'" effect="plain">{{ device.status }}</el-tag>
         </div>
-        <p v-if="device.order_no" class="device-current">
-          {{ device.order_no }} / {{ device.project_name }}
+        <p v-if="device.order_no" class="device-current order-reference">
+          <span>{{ device.order_no }} / {{ device.project_name }}</span>
+          <OutsourceBadge :visible="device.is_outsource" />
         </p>
         <p v-else class="device-current muted">当前无执行订单</p>
         <p class="cell-sub">预计结束：{{ device.end_time || '暂无' }}</p>
         <el-divider />
         <ul class="future-list">
           <li v-for="future in device.future_orders" :key="future.order_no">
-            <span>{{ future.order_no }}</span>
+            <span class="order-reference">
+              <span>{{ future.order_no }}</span>
+              <OutsourceBadge :visible="future.is_outsource" />
+            </span>
             <small>{{ future.start_time || '待排' }} - {{ future.end_time || '待定' }}</small>
           </li>
           <li v-if="device.future_orders.length === 0" class="muted">暂无未来排期</li>

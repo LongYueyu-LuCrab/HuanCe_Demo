@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import OutsourceBadge from '../components/OutsourceBadge.vue'
 import { useSession } from '../stores/session'
 
 const session = useSession()
@@ -77,7 +78,14 @@ const pagedEvents = computed(() => {
 
       <el-table :data="pagedEvents" stripe height="460" empty-text="暂无流程日志">
         <el-table-column prop="create_time" label="时间" min-width="150" />
-        <el-table-column prop="order_no" label="订单号" min-width="150" />
+        <el-table-column prop="order_no" label="订单号" min-width="165">
+          <template #default="{ row }">
+            <span class="order-reference">
+              <span>{{ row.order_no }}</span>
+              <OutsourceBadge :visible="row.is_outsource" />
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column label="客户 / 项目" min-width="300">
           <template #default="{ row }">
             <div class="cell-main">{{ row.customer }}</div>
@@ -112,7 +120,14 @@ const pagedEvents = computed(() => {
       <el-card shadow="never" class="hc-card">
         <template #header><h2>变更回流记录</h2></template>
         <el-table :data="changes" stripe height="320" empty-text="暂无变更单">
-          <el-table-column prop="order_no" label="订单号" min-width="140" />
+          <el-table-column prop="order_no" label="订单号" min-width="155">
+            <template #default="{ row }">
+              <span class="order-reference">
+                <span>{{ row.order_no }}</span>
+                <OutsourceBadge :visible="row.is_outsource" />
+              </span>
+            </template>
+          </el-table-column>
           <el-table-column prop="scene" label="场景" min-width="150" />
           <el-table-column prop="status" label="状态" min-width="130" />
           <el-table-column prop="change_user" label="发起人" min-width="110" />
@@ -123,7 +138,14 @@ const pagedEvents = computed(() => {
       <el-card shadow="never" class="hc-card">
         <template #header><h2>商务技术评审</h2></template>
         <el-table :data="reviews" stripe height="320" empty-text="暂无评审记录">
-          <el-table-column prop="order_no" label="订单号" min-width="140" />
+          <el-table-column prop="order_no" label="订单号" min-width="155">
+            <template #default="{ row }">
+              <span class="order-reference">
+                <span>{{ row.order_no }}</span>
+                <OutsourceBadge :visible="row.is_outsource" />
+              </span>
+            </template>
+          </el-table-column>
           <el-table-column prop="result" label="结果" min-width="90" />
           <el-table-column prop="tech_feasible" label="技术" min-width="90" />
           <el-table-column prop="biz_user" label="商务" min-width="110" />

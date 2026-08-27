@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import OrderSnapshot from './OrderSnapshot.vue'
+import OutsourceBadge from './OutsourceBadge.vue'
 import { fetchOrderDetail } from '../services/api'
 import type { OrderItem, User } from '../types'
 
@@ -153,8 +154,11 @@ function actionsFor(order: OrderItem) {
     <el-table :data="pagedOrders" stripe height="540" empty-text="暂无匹配订单" @row-click="openOrder">
       <el-table-column prop="order_no" label="订单号" min-width="150">
         <template #default="{ row }">
-          <strong>{{ row.order_no }}</strong>
-          <el-tag v-if="row.is_urgent" size="small" type="warning" class="ml-8">加急</el-tag>
+          <span class="order-reference">
+            <strong>{{ row.order_no }}</strong>
+            <OutsourceBadge :visible="row.is_outsource" />
+            <el-tag v-if="row.is_urgent" size="small" type="warning">加急</el-tag>
+          </span>
         </template>
       </el-table-column>
       <el-table-column label="客户 / 项目" min-width="300">

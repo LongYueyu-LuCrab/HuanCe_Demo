@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { exportLaboratoryOrders } from '../services/api'
 import type { ScheduleItem, User } from '../types'
+import OutsourceBadge from './OutsourceBadge.vue'
 
 const props = defineProps<{
   orders: ScheduleItem[]
@@ -136,7 +137,14 @@ async function exportOrders(selectedOnly: boolean) {
     </div>
     <el-table :data="pagedOrders" stripe height="420" empty-text="暂无匹配任务" @selection-change="handleSelection">
       <el-table-column v-if="exportable" type="selection" width="48" />
-      <el-table-column prop="order_no" label="订单号" min-width="150" />
+      <el-table-column prop="order_no" label="订单号" min-width="165">
+        <template #default="{ row }">
+          <span class="order-reference">
+            <strong>{{ row.order_no }}</strong>
+            <OutsourceBadge :visible="row.is_outsource" />
+          </span>
+        </template>
+      </el-table-column>
       <el-table-column label="客户 / 项目" min-width="300">
         <template #default="{ row }">
           <div class="cell-main">{{ row.customer }}</div>

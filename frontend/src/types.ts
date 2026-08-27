@@ -15,6 +15,7 @@ export type User = {
 
 export type OrderItem = {
   order_no: string
+  is_outsource: boolean
   customer: string
   contact?: string
   phone?: string
@@ -83,6 +84,7 @@ export type OrderDocumentItem = {
 export type ScheduleItem = {
   id: number
   order_no: string
+  is_outsource: boolean
   customer: string
   project_name: string
   status: string
@@ -163,6 +165,7 @@ export type TestStandardItem = {
 export type SampleItem = {
   sample_no: string
   order_no: string
+  is_outsource: boolean
   customer: string
   project_name: string
   sample_name: string
@@ -181,6 +184,7 @@ export type SampleItem = {
 
 export type ChangeItem = {
   order_no: string
+  is_outsource: boolean
   customer: string
   project_name: string
   scene: string
@@ -192,6 +196,7 @@ export type ChangeItem = {
 
 export type ReviewItem = {
   order_no: string
+  is_outsource: boolean
   customer: string
   project_name: string
   biz_user: string
@@ -204,6 +209,7 @@ export type ReviewItem = {
 
 export type WorkflowEventItem = {
   order_no: string
+  is_outsource: boolean
   customer: string
   project_name: string
   actor: string
@@ -233,6 +239,7 @@ export type LabDevice = {
   available: boolean
   unavailable_reason: string
   order_no: string
+  is_outsource: boolean
   project_name: string
   end_time: string
   future_orders: ScheduleItem[]
@@ -248,6 +255,7 @@ export type ReportItem = {
   id: number
   report_no: string
   order_no: string
+  is_outsource: boolean
   customer: string
   project_name: string
   status: string
@@ -265,6 +273,7 @@ export type ReportItem = {
 export type InvoiceItem = {
   invoice_no?: string
   order_no: string
+  is_outsource: boolean
   report_no: string
   customer: string
   project_name: string

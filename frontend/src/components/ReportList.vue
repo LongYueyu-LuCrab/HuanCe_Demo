@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { ReportItem, User } from '../types'
+import OutsourceBadge from './OutsourceBadge.vue'
 
 const props = defineProps<{ reports: ReportItem[]; user?: User }>()
 const emit = defineEmits<{
@@ -67,7 +68,14 @@ function downloadReport(report: ReportItem) {
     </template>
     <el-table :data="pagedReports" stripe height="520" empty-text="当前没有可查看的报告">
       <el-table-column prop="report_no" label="报告号" min-width="170" />
-      <el-table-column prop="order_no" label="订单号" min-width="150" />
+      <el-table-column prop="order_no" label="订单号" min-width="165">
+        <template #default="{ row }">
+          <span class="order-reference">
+            <span>{{ row.order_no }}</span>
+            <OutsourceBadge :visible="row.is_outsource" />
+          </span>
+        </template>
+      </el-table-column>
       <el-table-column label="客户 / 项目" min-width="300">
         <template #default="{ row }">
           <div class="cell-main">{{ row.customer }}</div>

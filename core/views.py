@@ -609,6 +609,7 @@ def _order_payload(order, include_sample_records=False):
 
     payload = {
         'order_no': order.order_no,
+        'is_outsource': order.outsourced_execution,
         'customer': order.customer_name,
         'contact': order.customer_contact,
         'phone': order.customer_phone,
@@ -701,6 +702,7 @@ def _report_payload(report):
         'id': report.id,
         'report_no': report.report_no,
         'order_no': report.order.order_no,
+        'is_outsource': report.order.outsourced_execution,
         'customer': report.order.customer_name,
         'project_name': report.order.project_name,
         'status': report.get_report_status_display(),
@@ -787,6 +789,7 @@ def _invoice_payload(invoice):
     return {
         'invoice_no': invoice.invoice_no,
         'order_no': order.order_no,
+        'is_outsource': order.outsourced_execution,
         'report_no': report.report_no if report else '',
         'customer': order.customer_name,
         'project_name': order.project_name,
@@ -814,6 +817,7 @@ def _pending_final_invoice_payload(report):
         'invoice_no': '',
         'report_no': report.report_no,
         'order_no': order.order_no,
+        'is_outsource': order.outsourced_execution,
         'customer': order.customer_name,
         'project_name': order.project_name,
         'invoice_amount': str(remaining_amount),
@@ -838,6 +842,7 @@ def _pending_preinvoice_payload(order):
         'invoice_no': '',
         'report_no': '',
         'order_no': order.order_no,
+        'is_outsource': order.outsourced_execution,
         'customer': order.customer_name,
         'project_name': order.project_name,
         'invoice_amount': '',
@@ -863,6 +868,7 @@ def _schedule_payload(schedule):
     return {
         'id': schedule.id,
         'order_no': order.order_no,
+        'is_outsource': order.outsourced_execution,
         'customer': order.customer_name,
         'project_name': order.project_name,
         'status': order.get_order_status_display(),
@@ -903,6 +909,7 @@ def _sample_payload(sample):
     return {
         'sample_no': sample.sample_no,
         'order_no': order.order_no,
+        'is_outsource': order.outsourced_execution,
         'customer': order.customer_name,
         'project_name': order.project_name,
         'sample_name': sample.sample_name,
@@ -924,6 +931,7 @@ def _change_payload(change):
     order = change.order
     return {
         'order_no': order.order_no,
+        'is_outsource': order.outsourced_execution,
         'customer': order.customer_name,
         'project_name': order.project_name,
         'scene': change.get_change_scene_display(),
@@ -938,6 +946,7 @@ def _review_payload(review):
     order = review.order
     return {
         'order_no': order.order_no,
+        'is_outsource': order.outsourced_execution,
         'customer': order.customer_name,
         'project_name': order.project_name,
         'biz_user': _display_user(review.biz_review_user),
@@ -953,6 +962,7 @@ def _workflow_payload(event):
     order = event.order
     return {
         'order_no': order.order_no,
+        'is_outsource': order.outsourced_execution,
         'customer': order.customer_name,
         'project_name': order.project_name,
         'actor': _display_user(event.actor),
@@ -1052,6 +1062,7 @@ def _device_payload(device, start_time=None, end_time=None, exclude_schedule_id=
         'available': available,
         'unavailable_reason': reason,
         'order_no': running.order.order_no if running else '',
+        'is_outsource': running.order.outsourced_execution if running else False,
         'project_name': running.order.project_name if running else '',
         'end_time': running.plan_end_time.strftime('%Y-%m-%d') if running and running.plan_end_time else '',
         'future_orders': [_schedule_payload(item) for item in future],

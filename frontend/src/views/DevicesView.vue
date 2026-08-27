@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { createLabDevice, deleteLabDevice, fetchLabDevices, updateLabDevice } from '../services/api'
 import { useSession } from '../stores/session'
 import type { LabDevice } from '../types'
+import OutsourceBadge from '../components/OutsourceBadge.vue'
 
 const session = useSession()
 const devices = ref<LabDevice[]>([])
@@ -128,7 +129,10 @@ onMounted(loadDevices)
         <el-table-column label="当前任务" min-width="210">
           <template #default="{ row }">
             <template v-if="row.order_no">
-              <div class="cell-main">{{ row.order_no }}</div>
+              <div class="order-reference cell-main">
+                <span>{{ row.order_no }}</span>
+                <OutsourceBadge :visible="row.is_outsource" />
+              </div>
               <div class="cell-sub">预计结束 {{ row.end_time || '待定' }}</div>
             </template>
             <span v-else class="muted">当前无执行订单</span>

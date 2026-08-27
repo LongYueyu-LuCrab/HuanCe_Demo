@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { InvoiceItem } from '../types'
+import OutsourceBadge from './OutsourceBadge.vue'
 
 const props = defineProps<{
   invoices: InvoiceItem[]
@@ -67,8 +68,12 @@ const pagedInvoices = computed(() => {
     <el-table :data="pagedInvoices" stripe height="360" empty-text="暂无匹配记录">
       <el-table-column :label="mode === 'history' ? '发票 / 订单' : '订单 / 报告'" min-width="210">
         <template #default="{ row }">
-          <div class="cell-main">{{ mode === 'history' ? row.invoice_no : row.order_no }}</div>
-          <div class="cell-sub">{{ row.report_no || row.order_no }}</div>
+          <div v-if="mode === 'history'" class="cell-main">{{ row.invoice_no }}</div>
+          <div :class="['order-reference', mode === 'history' ? 'cell-sub' : 'cell-main']">
+            <span>{{ row.order_no }}</span>
+            <OutsourceBadge :visible="row.is_outsource" />
+          </div>
+          <div v-if="mode !== 'history'" class="cell-sub">{{ row.report_no || '暂未生成报告' }}</div>
         </template>
       </el-table-column>
       <el-table-column label="客户 / 项目" min-width="300">
