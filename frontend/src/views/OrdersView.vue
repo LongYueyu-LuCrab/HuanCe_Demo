@@ -94,7 +94,8 @@ const actionTitleMap: Record<string, string> = {
   schedule_assign: '排期分配',
   process_change: '处理变更',
   start_test: '开始试验',
-  submit_test: '填写结果 / 结束实验',
+  end_test: '实验结束',
+  submit_test: '提交实验结果',
   outsource_result: '委外试验结果回传',
   issue_report: '出具检测报告',
 }
@@ -149,7 +150,7 @@ function openWorkflow(action: string, order: OrderItem) {
 
 async function submitWorkflow() {
   if (!activeOrder.value || !activeAction.value) return
-  if ((activeAction.value === 'submit_test' || activeAction.value === 'outsource_result') && !actionForm.result_status) {
+  if ((activeAction.value === 'end_test' || activeAction.value === 'outsource_result') && !actionForm.result_status) {
     ElMessage.warning('请选择实验结果')
     return
   }
@@ -409,7 +410,7 @@ async function submit() {
           <el-form-item label="试验项目" class="form-wide"><el-input v-model="actionForm.test_item_list" disabled type="textarea" :rows="3" /></el-form-item>
         </template>
 
-        <template v-else-if="activeAction === 'submit_test'">
+        <template v-else-if="activeAction === 'end_test'">
           <el-form-item label="实验结果" class="form-wide" required>
             <el-radio-group v-model="actionForm.result_status">
               <el-radio-button value="pass">合格</el-radio-button>
@@ -420,6 +421,18 @@ async function submit() {
           </el-form-item>
           <el-form-item label="原始检测数据" class="form-wide"><el-input v-model="actionForm.test_raw_data" type="textarea" :rows="4" /></el-form-item>
           <el-form-item label="实验结论" class="form-wide"><el-input v-model="actionForm.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
+          <el-alert class="form-wide" title="本操作只结束实验并保存结果，之后仍需点击“提交结果”" type="info" :closable="false" show-icon />
+        </template>
+
+        <template v-else-if="activeAction === 'submit_test'">
+          <el-alert
+            class="form-wide"
+            title="确认正式提交实验结果"
+            type="warning"
+            :closable="false"
+            description="全部执行路径都提交结果后，订单才会进入待出报告。"
+            show-icon
+          />
         </template>
 
         <template v-else-if="activeAction === 'outsource_result'">
@@ -437,6 +450,7 @@ async function submit() {
           </el-form-item>
           <el-form-item label="委外原始数据 / 回传摘要" class="form-wide"><el-input v-model="actionForm.test_raw_data" type="textarea" :rows="4" /></el-form-item>
           <el-form-item label="委外实验结论" class="form-wide"><el-input v-model="actionForm.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
+          <el-alert class="form-wide" title="回传并结束委外实验后，仍需点击“提交结果”" type="info" :closable="false" show-icon />
         </template>
 
         <template v-else-if="activeAction === 'issue_report'">

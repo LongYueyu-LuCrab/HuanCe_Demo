@@ -1285,9 +1285,10 @@ def _laboratory_schedule_queryset(request):
             When(schedule_status=SchedulePlan.Status.CHANGE_PENDING, then=Value(0)),
             When(schedule_status=SchedulePlan.Status.NEW, sample_arrived=True, then=Value(1)),
             When(schedule_status=SchedulePlan.Status.RUNNING, then=Value(2)),
-            When(schedule_status=SchedulePlan.Status.NEW, sample_arrived=False, then=Value(3)),
-            When(schedule_status=SchedulePlan.Status.FINISHED, then=Value(4)),
-            default=Value(5),
+            When(schedule_status=SchedulePlan.Status.ENDED, then=Value(3)),
+            When(schedule_status=SchedulePlan.Status.NEW, sample_arrived=False, then=Value(4)),
+            When(schedule_status=SchedulePlan.Status.FINISHED, then=Value(5)),
+            default=Value(6),
             output_field=IntegerField(),
         )
     )
@@ -1635,6 +1636,7 @@ def lims_action(request):
         'schedule_assign': _action_schedule_assign,
         'process_change': _action_process_change,
         'start_test': _action_start_test,
+        'end_test': _action_end_test,
         'outsource_result': _action_outsource_result,
         'submit_test': _action_submit_test,
         'sample_outbound': _action_sample_outbound,
@@ -1956,6 +1958,12 @@ def _action_schedule_assign(request, payload):
         schedule = _schedule_for_actor(order, payload, request.user)
         if not schedule:
             return JsonResponse({'ok': False, 'error': '没有分配给当前负责人的任务'}, status=403, json_dumps_params={'ensure_ascii': False})
+        if schedule.schedule_status in [SchedulePlan.Status.ENDED, SchedulePlan.Status.FINISHED]:
+            return JsonResponse(
+                {'ok': False, 'error': '实验已结束，不能重新排期或更换设备'},
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            )
         before_start = schedule.plan_start_time
         before_end = schedule.plan_end_time
         before_device = schedule.device.device_name if schedule.device else ''
@@ -2097,7 +2105,7 @@ def _action_start_test(request, payload):
     schedule = _schedule_for_actor(order, payload, request.user)
     if not schedule:
         return JsonResponse({'ok': False, 'error': '没有分配给当前实验室负责人的排期'}, status=403, json_dumps_params={'ensure_ascii': False})
-    if schedule.schedule_status == SchedulePlan.Status.FINISHED:
+    if schedule.schedule_status in [SchedulePlan.Status.ENDED, SchedulePlan.Status.FINISHED]:
         return JsonResponse({'ok': False, 'error': '该试验任务已经结束，不能重复开始'}, status=400, json_dumps_params={'ensure_ascii': False})
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not order.sales_confirmed_at:
         return JsonResponse({'ok': False, 'error': '销售尚未确认需求，不能开始试验'}, status=400, json_dumps_params={'ensure_ascii': False})
@@ -2112,6 +2120,13 @@ def _action_start_test(request, payload):
             )
     if not schedule.sample_arrived:
         return JsonResponse({'ok': False, 'error': '样品尚未到达，不能开始试验'}, status=400, json_dumps_params={'ensure_ascii': False})
+    existing_experiment = order.experiments.filter(schedule=schedule).order_by('-create_time').first()
+    if existing_experiment and existing_experiment.test_status in [Experiment.Status.ENDED, Experiment.Status.FINISHED]:
+        return JsonResponse(
+            {'ok': False, 'error': '该实验已结束，不能重复开始'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        )
     sample = order.samples.filter(schedule=schedule).first()
     if sample:
         sample.sample_status = Sample.Status.TESTING
@@ -2206,7 +2221,7 @@ def _sync_order_test_completion(order, actor):
             order.mark_status(
                 LabOrder.Status.TEST_FINISHED,
                 actor,
-                '全部执行路径实验结束，等待主责实验室负责人出具报告',
+                '全部执行路径的实验结果均已提交，等待主责实验室负责人出具报告',
             )
         return True
     if order.order_status != LabOrder.Status.TESTING:
@@ -2225,6 +2240,8 @@ def _action_outsource_result(request, payload):
     if role_error:
         return role_error
     schedules = order.schedules.filter(test_type=SchedulePlan.TestType.OUTSOURCE)
+    if payload.get('schedule_id'):
+        schedules = schedules.filter(id=payload.get('schedule_id'))
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not _is_chairman(request.user):
         schedule = next((item for item in schedules if _can_operate_schedule(request.user, item)), None)
     else:
@@ -2235,6 +2252,19 @@ def _action_outsource_result(request, payload):
         return JsonResponse({'ok': False, 'error': '销售尚未确认需求，不能回传委外试验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
     if not schedule.sample_arrived:
         return JsonResponse({'ok': False, 'error': '委外样品尚未到达，不能回传试验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
+    existing_experiment = order.experiments.filter(schedule=schedule).order_by('-create_time').first()
+    if existing_experiment and existing_experiment.test_status == Experiment.Status.ENDED:
+        return JsonResponse(
+            {'ok': False, 'error': '委外实验已结束并保存结果，请直接点击“提交结果”'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        )
+    if existing_experiment and existing_experiment.test_status == Experiment.Status.FINISHED:
+        return JsonResponse(
+            {'ok': False, 'error': '委外实验结果已经提交，不能重复回传'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        )
     result_status = _experiment_result_from_payload(payload)
     if not result_status:
         return JsonResponse({'ok': False, 'error': '请选择实验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
@@ -2258,19 +2288,19 @@ def _action_outsource_result(request, payload):
     experiment.test_start_time = experiment.test_start_time or schedule.plan_start_time or timezone.now()
     experiment.test_end_time = _parse_datetime(payload.get('test_end_time')) or timezone.now()
     experiment.test_operator = request.user
-    experiment.test_status = Experiment.Status.FINISHED
+    experiment.test_status = Experiment.Status.ENDED
     experiment.test_type = SchedulePlan.TestType.OUTSOURCE
     experiment.save()
     if sample:
         sample.sample_status = Sample.Status.FINISHED
         sample.save(update_fields=['sample_status', 'update_time'])
-    schedule.schedule_status = SchedulePlan.Status.FINISHED
+    schedule.schedule_status = SchedulePlan.Status.ENDED
     schedule.save(update_fields=['schedule_status', 'update_time'])
     _event(
         order,
         request.user,
-        '实验室人员录入委外试验结果',
-        action_code='lab_outsource_result',
+        '实验室人员录入委外试验结果，等待正式提交',
+        action_code='lab_outsource_result_recorded',
         changes={
             'test_status': _audit_change('委外试验状态', '待回传', experiment.get_test_status_display()),
             'test_end_time': _audit_change('委外完成时间', '', experiment.test_end_time),
@@ -2280,12 +2310,12 @@ def _action_outsource_result(request, payload):
         },
         schedule=schedule,
     )
-    all_finished = _sync_order_test_completion(order, request.user)
-    message = '委外试验结果已回传；全部实验已结束，可出具报告' if all_finished else '委外试验结果已回传，其他执行路径继续试验'
-    return _status_response(message, order)
+    if order.order_status != LabOrder.Status.TESTING:
+        order.mark_status(LabOrder.Status.TESTING, request.user, '委外实验已结束，等待提交结果')
+    return _status_response('委外实验已结束并记录结果，请确认后点击“提交结果”', order)
 
 
-def _action_submit_test(request, payload):
+def _action_end_test(request, payload):
     role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
     if role_error:
         return role_error
@@ -2293,9 +2323,9 @@ def _action_submit_test(request, payload):
     if error:
         return error
     schedule = _schedule_for_actor(order, payload, request.user)
-    experiment = order.experiments.filter(schedule=schedule).exclude(test_status=Experiment.Status.FINISHED).first() if schedule else None
+    experiment = order.experiments.filter(schedule=schedule, test_status=Experiment.Status.RUNNING).first() if schedule else None
     if not experiment:
-        return JsonResponse({'ok': False, 'error': '没有待提交的试验记录'}, status=400, json_dumps_params={'ensure_ascii': False})
+        return JsonResponse({'ok': False, 'error': '没有正在进行的实验记录'}, status=400, json_dumps_params={'ensure_ascii': False})
     result_status = _experiment_result_from_payload(payload)
     if not result_status:
         return JsonResponse({'ok': False, 'error': '请选择实验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
@@ -2303,19 +2333,19 @@ def _action_submit_test(request, payload):
     experiment.test_conclusion_temp = payload.get('test_conclusion_temp') or '试验完成，等待主责实验室出报告。'
     experiment.result_status = result_status
     experiment.test_end_time = timezone.now()
-    experiment.test_status = Experiment.Status.FINISHED
+    experiment.test_status = Experiment.Status.ENDED
     experiment.save()
     if experiment.sample:
         experiment.sample.sample_status = Sample.Status.FINISHED
         experiment.sample.save(update_fields=['sample_status', 'update_time'])
     if experiment.schedule:
-        experiment.schedule.schedule_status = SchedulePlan.Status.FINISHED
+        experiment.schedule.schedule_status = SchedulePlan.Status.ENDED
         experiment.schedule.save(update_fields=['schedule_status', 'update_time'])
     _event(
         order,
         request.user,
-        '实验室人员提交试验结果',
-        action_code='lab_test_submit',
+        '实验室人员结束实验并记录结果',
+        action_code='lab_test_end',
         changes={
             'test_raw_data': _audit_change('原始数据摘要', '', experiment.test_raw_data[:500]),
             'test_conclusion': _audit_change('试验结论', '', experiment.test_conclusion_temp),
@@ -2325,9 +2355,48 @@ def _action_submit_test(request, payload):
         },
         schedule=experiment.schedule,
     )
+    _event(order, request.user, '实验已结束并保存结果，尚未触发后续报告流程')
+    return _status_response('实验已结束，结果已保存；请确认后点击“提交结果”', order)
+
+
+def _action_submit_test(request, payload):
+    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_QUALITY)
+    if role_error:
+        return role_error
+    order, error = _get_order(payload)
+    if error:
+        return error
+    schedule = _schedule_for_actor(order, payload, request.user)
+    if not schedule:
+        return JsonResponse({'ok': False, 'error': '没有分配给当前人员的实验任务'}, status=403, json_dumps_params={'ensure_ascii': False})
+    experiment = order.experiments.filter(schedule=schedule).order_by('-create_time').first()
+    if not experiment:
+        return JsonResponse({'ok': False, 'error': '请先开始并结束实验'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if experiment.test_status == Experiment.Status.FINISHED:
+        return JsonResponse({'ok': False, 'error': '该实验结果已经提交'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if experiment.test_status != Experiment.Status.ENDED:
+        return JsonResponse({'ok': False, 'error': '实验尚未结束，不能提交结果'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if not experiment.result_status:
+        return JsonResponse({'ok': False, 'error': '实验结果不完整，请先执行“实验结束”并填写结果'}, status=400, json_dumps_params={'ensure_ascii': False})
+
+    experiment.test_status = Experiment.Status.FINISHED
+    experiment.save(update_fields=['test_status', 'update_time'])
+    schedule.schedule_status = SchedulePlan.Status.FINISHED
+    schedule.save(update_fields=['schedule_status', 'update_time'])
+    _event(
+        order,
+        request.user,
+        '实验室人员正式提交实验结果',
+        action_code='lab_test_result_submit',
+        changes={
+            'test_status': _audit_change('实验状态', '实验已结束待提交结果', experiment.get_test_status_display()),
+            'result_status': _audit_change('实验结果', '', experiment.get_result_status_display()),
+            'test_conclusion': _audit_change('实验结论', '', experiment.test_conclusion_temp),
+        },
+        schedule=schedule,
+    )
     all_finished = _sync_order_test_completion(order, request.user)
-    _event(order, request.user, '实验室结束试验；全部路径完成后主责负责人可出具报告')
-    message = '实验已结束；全部执行路径完成，可出具报告' if all_finished else '本试验任务已结束，其他执行路径继续试验'
+    message = '结果已提交；全部执行路径均已提交，可出具报告' if all_finished else '本任务结果已提交，等待其他执行路径提交结果'
     return _status_response(message, order)
 
 
@@ -2347,7 +2416,7 @@ def _action_sample_outbound(request, payload):
         )
     if not schedule.sample_arrived:
         return JsonResponse({'ok': False, 'error': '样品尚未入库，不能办理出库'}, status=400, json_dumps_params={'ensure_ascii': False})
-    if schedule.schedule_status != SchedulePlan.Status.FINISHED:
+    if schedule.schedule_status not in [SchedulePlan.Status.ENDED, SchedulePlan.Status.FINISHED]:
         return JsonResponse({'ok': False, 'error': '试验尚未完成，不能办理样品出库'}, status=400, json_dumps_params={'ensure_ascii': False})
     samples = list(schedule.samples.select_for_update().order_by('id'))
     if not samples:
@@ -2387,9 +2456,9 @@ def _action_issue_report(request, payload):
         if not _is_chairman(request.user) and order.lead_lab_manager_id != request.user.id:
             return JsonResponse({'ok': False, 'error': '仅本订单主责实验室负责人可以汇总出具报告'}, status=403, json_dumps_params={'ensure_ascii': False})
         if order.schedules.exclude(schedule_status=SchedulePlan.Status.FINISHED).exists():
-            return JsonResponse({'ok': False, 'error': '仍有执行路径未完成，暂不能出具总报告'}, status=400, json_dumps_params={'ensure_ascii': False})
+            return JsonResponse({'ok': False, 'error': '仍有执行路径未提交实验结果，暂不能出具总报告'}, status=400, json_dumps_params={'ensure_ascii': False})
         if order.experiments.exclude(test_status=Experiment.Status.FINISHED).exists() or not order.experiments.exists():
-            return JsonResponse({'ok': False, 'error': '请先完成全部试验记录'}, status=400, json_dumps_params={'ensure_ascii': False})
+            return JsonResponse({'ok': False, 'error': '请先提交全部实验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
         _sync_order_test_completion(order, request.user)
     else:
         role_error = _require_role(request.user, ROLE_QUALITY)

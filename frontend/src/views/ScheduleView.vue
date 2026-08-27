@@ -91,7 +91,7 @@ async function queryAvailableDevices() {
 
 async function submitWorkflow() {
   if (!activeSchedule.value) return
-  if ((activeAction.value === 'submit_test' || activeAction.value === 'outsource_result') && !form.result_status) {
+  if ((activeAction.value === 'end_test' || activeAction.value === 'outsource_result') && !form.result_status) {
     ElMessage.warning('请选择实验结果')
     return
   }
@@ -179,7 +179,7 @@ async function submitWorkflow() {
             show-icon
           />
         </template>
-        <template v-else-if="activeAction === 'submit_test' || activeAction === 'outsource_result'">
+        <template v-else-if="activeAction === 'end_test' || activeAction === 'outsource_result'">
           <el-form-item v-if="activeAction === 'outsource_result'" label="开始时间"><el-date-picker v-model="form.test_start_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
           <el-form-item v-if="activeAction === 'outsource_result'" label="完成时间"><el-date-picker v-model="form.test_end_time" value-format="YYYY-MM-DD" type="date" /></el-form-item>
           <el-form-item label="实验结果" class="form-wide" required>
@@ -192,7 +192,17 @@ async function submitWorkflow() {
           </el-form-item>
           <el-form-item label="原始数据 / 回传摘要" class="form-wide"><el-input v-model="form.test_raw_data" type="textarea" :rows="4" /></el-form-item>
           <el-form-item label="试验结论" class="form-wide"><el-input v-model="form.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
-          <el-alert class="form-wide" title="提交后本任务状态将变为“实验结束”" type="info" :closable="false" show-icon />
+          <el-alert class="form-wide" title="本操作只结束实验并保存结果，之后仍需点击“提交结果”" type="info" :closable="false" show-icon />
+        </template>
+        <template v-else-if="activeAction === 'submit_test'">
+          <el-alert
+            class="form-wide"
+            title="确认正式提交实验结果"
+            type="warning"
+            :closable="false"
+            description="全部执行路径都提交结果后，订单才会进入待出报告。"
+            show-icon
+          />
         </template>
         <template v-else-if="activeAction === 'create_change'">
           <el-form-item label="变更后需求" class="form-wide"><el-input v-model="form.new_test_demand" type="textarea" :rows="3" /></el-form-item>

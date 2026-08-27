@@ -89,14 +89,16 @@ function actionsFor(order: OrderItem) {
     actions.push({ key: 'process_change', label: '处理变更', type: 'warning' })
     if (order.execution_mode.includes('委外')) {
       actions.push({ key: 'outsource_result', label: '委外结果回传', type: 'success' })
+      actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
     }
   }
-  if (order.workflow_version === 1 && [4, 5].includes(order.status_key) && hasRole('质量部')) {
+  if (order.workflow_version === 1 && [5, 8].includes(order.status_key) && hasRole('质量部')) {
     actions.push({ key: 'issue_report', label: '出具报告', type: 'primary' })
   }
   if (order.workflow_version === 1 && [3, 4].includes(order.status_key) && (hasRole('苏州实验室') || hasRole('江阴实验室'))) {
     actions.push({ key: 'start_test', label: '开始试验', type: 'primary' })
-    actions.push({ key: 'submit_test', label: '填写结果 / 结束实验', type: 'success' })
+    actions.push({ key: 'end_test', label: '实验结束', type: 'warning' })
+    actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
     actions.push({ key: 'create_change', label: '试验中变更', type: 'warning' })
   }
   if (
@@ -106,10 +108,11 @@ function actionsFor(order: OrderItem) {
     && (hasRole('苏州实验室') || hasRole('江阴实验室'))
   ) {
     actions.push({ key: 'outsource_result', label: '委外结果回传', type: 'success' })
+    actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
   }
   if (
     order.workflow_version === 2
-    && [4, 5].includes(order.status_key)
+    && [5, 8].includes(order.status_key)
     && order.lead_lab_manager_username === props.user?.username
   ) {
     actions.push({ key: 'issue_report', label: '汇总出报告', type: 'primary' })

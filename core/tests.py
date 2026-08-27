@@ -629,11 +629,19 @@ class LimsV2DirectLabWorkflowTests(TestCase):
             self.assertEqual(
                 self.action(
                     user_key,
-                    'submit_test',
+                    'end_test',
                     result_status=Experiment.Result.PASS,
                     test_raw_data='原始数据完整',
                     test_conclusion_temp='合格',
                 ).status_code,
+                200,
+            )
+            schedule.refresh_from_db()
+            self.assertEqual(schedule.schedule_status, SchedulePlan.Status.ENDED)
+            self.order.refresh_from_db()
+            self.assertEqual(self.order.order_status, LabOrder.Status.TESTING)
+            self.assertEqual(
+                self.action(user_key, 'submit_test', schedule_id=schedule.id).status_code,
                 200,
             )
 
@@ -646,6 +654,14 @@ class LimsV2DirectLabWorkflowTests(TestCase):
                 result_status=Experiment.Result.PASS,
                 test_raw_data='委外报告数据', test_conclusion_temp='合格',
             ).status_code,
+            200,
+        )
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.order_status, LabOrder.Status.TESTING)
+        outsource_schedule.refresh_from_db()
+        self.assertEqual(outsource_schedule.schedule_status, SchedulePlan.Status.ENDED)
+        self.assertEqual(
+            self.action('suzhou_v2', 'submit_test', schedule_id=outsource_schedule.id).status_code,
             200,
         )
         self.order.refresh_from_db()
@@ -810,14 +826,33 @@ class LaboratoryOperatorTests(TestCase):
         ).status_code, 200)
         self.assertEqual(self.action('start_test').status_code, 200)
         missing_result = self.action(
-            'submit_test', test_raw_data='缺少结构化结果', test_conclusion_temp='不应结束',
+            'end_test', test_raw_data='缺少结构化结果', test_conclusion_temp='不应结束',
         )
         self.assertEqual(missing_result.status_code, 400)
         self.assertIn('请选择实验结果', missing_result.json()['error'])
         self.assertEqual(self.action(
-            'submit_test', result_status=Experiment.Result.PASS,
+            'end_test', result_status=Experiment.Result.PASS,
             test_raw_data='振动数据记录完整', test_conclusion_temp='试验合格',
         ).status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.order_status, LabOrder.Status.TESTING)
+        self.schedule.refresh_from_db()
+        self.assertEqual(self.schedule.schedule_status, SchedulePlan.Status.ENDED)
+        self.client.force_login(self.manager)
+        report_before_submit = self.client.post(
+            reverse('lims_action'),
+            data={
+                'action': 'issue_report',
+                'order_no': self.order.order_no,
+                'report_type': TestReport.ReportType.DATA_ONLY,
+                'final_conclusion': '尚未提交结果',
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(report_before_submit.status_code, 400)
+        self.assertIn('未提交', report_before_submit.json()['error'])
+        self.client.force_login(self.operator)
+        self.assertEqual(self.action('submit_test').status_code, 200)
         self.order.refresh_from_db()
         self.assertEqual(self.order.order_status, LabOrder.Status.TEST_FINISHED)
         denied_report = self.action('issue_report', final_conclusion='检测项目全部合格')
@@ -839,7 +874,7 @@ class LaboratoryOperatorTests(TestCase):
             .values_list('action_code', flat=True)
         )
         self.assertTrue({
-            'lab_schedule_assign', 'lab_test_start', 'lab_test_submit',
+            'lab_schedule_assign', 'lab_test_start', 'lab_test_end', 'lab_test_result_submit',
         }.issubset(action_codes))
         self.assertNotIn('lab_report_issue', action_codes)
         self.assertTrue(WorkflowEvent.objects.filter(
@@ -879,11 +914,14 @@ class LaboratoryOperatorTests(TestCase):
 
         self.assertEqual(self.action('start_test').status_code, 200)
         self.assertEqual(self.action(
-            'submit_test', result_status=Experiment.Result.PASS,
+            'end_test', result_status=Experiment.Result.PASS,
             test_raw_data='出库流程试验数据', test_conclusion_temp='试验完成',
         ).status_code, 200)
         outbound = self.action('sample_outbound')
         self.assertEqual(outbound.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.order_status, LabOrder.Status.TESTING)
+        self.assertEqual(self.action('submit_test').status_code, 200)
 
         sample = self.schedule.samples.get()
         self.assertEqual(sample.sample_status, Sample.Status.RETURNED)
@@ -972,6 +1010,7 @@ class LaboratoryOperatorTests(TestCase):
         ready_later = create_schedule('READY-LATER', SchedulePlan.Status.NEW, True, 8)
         ready_earlier = create_schedule('READY-EARLIER', SchedulePlan.Status.NEW, True, 3)
         running = create_schedule('RUNNING', SchedulePlan.Status.RUNNING, True, 2)
+        ended = create_schedule('ENDED', SchedulePlan.Status.ENDED, True, 4)
         waiting_sample = create_schedule('WAITING-SAMPLE', SchedulePlan.Status.NEW, False, 1)
         finished = create_schedule('FINISHED', SchedulePlan.Status.FINISHED, True, 1)
 
@@ -989,6 +1028,7 @@ class LaboratoryOperatorTests(TestCase):
                 ready_earlier.id,
                 ready_later.id,
                 running.id,
+                ended.id,
                 waiting_sample.id,
                 finished.id,
             ],

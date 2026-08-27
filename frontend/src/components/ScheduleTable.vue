@@ -194,21 +194,25 @@ async function exportOrders(selectedOnly: boolean) {
             <el-button size="small" plain @click="emit('detail', row)">订单详情</el-button>
             <template v-if="canLabOperate">
               <template v-if="row.workflow_version === 2">
-                <el-button v-if="row.status_key === 3 || row.status_key === 4" size="small" type="primary" plain @click="emit('workflow', 'schedule_assign', row)">排期 / 排台</el-button>
+                <el-button v-if="(row.status_key === 3 || row.status_key === 4) && ![4, 5].includes(row.schedule_status_key)" size="small" type="primary" plain @click="emit('workflow', 'schedule_assign', row)">排期 / 排台</el-button>
                 <el-button v-if="row.schedule_status.includes('变更')" size="small" type="warning" plain @click="emit('workflow', 'process_change', row)">处理变更</el-button>
-                <el-button v-if="row.test_type.includes('委外') && !row.experiment_status.includes('结束')" size="small" type="success" plain @click="emit('workflow', 'outsource_result', row)">委外回传</el-button>
+                <template v-if="row.test_type.includes('委外')">
+                  <el-button v-if="!row.experiment_status.includes('结束') && !row.experiment_status.includes('提交')" size="small" type="success" plain @click="emit('workflow', 'outsource_result', row)">委外回传 / 结束实验</el-button>
+                </template>
                 <template v-else>
                   <el-button v-if="row.sample_arrived && row.device_id && !row.experiment_status" size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
-                  <el-button v-if="row.experiment_status.includes('试验中')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">填写结果 / 结束实验</el-button>
+                  <el-button v-if="row.experiment_status.includes('试验中')" size="small" type="warning" plain @click="emit('workflow', 'end_test', row)">实验结束</el-button>
                 </template>
-                <el-button v-if="row.sample_arrived && row.schedule_status_key === 4 && !row.sample_outbound_at" size="small" plain @click="emit('workflow', 'sample_outbound', row)">样品出库</el-button>
+                <el-button v-if="row.experiment_status.includes('待提交结果')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">提交结果</el-button>
+                <el-button v-if="row.sample_arrived && [4, 5].includes(row.schedule_status_key) && !row.sample_outbound_at" size="small" plain @click="emit('workflow', 'sample_outbound', row)">样品出库</el-button>
                 <el-button v-if="row.is_lead && canIssueReport && (row.status_key === 8 || row.status_key === 5)" size="small" type="primary" plain @click="emit('workflow', 'issue_report', row)">汇总出报告</el-button>
               </template>
               <template v-else>
-                <el-button size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
-                <el-button v-if="row.experiment_status.includes('试验中')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">填写结果 / 结束实验</el-button>
+                <el-button v-if="!row.experiment_status" size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
+                <el-button v-if="row.experiment_status.includes('试验中')" size="small" type="warning" plain @click="emit('workflow', 'end_test', row)">实验结束</el-button>
+                <el-button v-if="row.experiment_status.includes('待提交结果')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">提交结果</el-button>
               </template>
-              <el-button v-if="row.status_key === 4" size="small" type="warning" plain @click="emit('workflow', 'create_change', row)">试验中变更</el-button>
+              <el-button v-if="row.status_key === 4 && (!row.experiment_status || row.experiment_status.includes('试验中'))" size="small" type="warning" plain @click="emit('workflow', 'create_change', row)">试验中变更</el-button>
             </template>
           </div>
         </template>

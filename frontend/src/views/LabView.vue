@@ -132,7 +132,7 @@ function resetDeviceSelection() {
 }
 
 async function submitWorkflow() {
-  if ((activeAction.value === 'submit_test' || activeAction.value === 'outsource_result') && !form.result_status) {
+  if ((activeAction.value === 'end_test' || activeAction.value === 'outsource_result') && !form.result_status) {
     ElMessage.warning('请选择实验结果')
     return
   }
@@ -255,7 +255,7 @@ async function submitWorkflow() {
             <el-input v-model="form.test_item_list" disabled type="textarea" :rows="3" />
           </el-form-item>
         </template>
-        <template v-else-if="activeAction === 'submit_test'">
+        <template v-else-if="activeAction === 'end_test'">
           <el-form-item label="实验结果" class="form-wide" required>
             <el-radio-group v-model="form.result_status">
               <el-radio-button value="pass">合格</el-radio-button>
@@ -266,7 +266,17 @@ async function submitWorkflow() {
           </el-form-item>
           <el-form-item label="原始检测数据" class="form-wide"><el-input v-model="form.test_raw_data" type="textarea" :rows="4" /></el-form-item>
           <el-form-item label="实验结论" class="form-wide"><el-input v-model="form.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
-          <el-alert class="form-wide" title="提交后本任务状态将变为“实验结束”" type="info" :closable="false" show-icon />
+          <el-alert class="form-wide" title="本操作只结束实验并保存结果，不会进入报告流程" type="info" :closable="false" description="实验结束后，请复核数据并再次点击“提交结果”。" show-icon />
+        </template>
+        <template v-else-if="activeAction === 'submit_test'">
+          <el-alert
+            class="form-wide"
+            title="确认正式提交实验结果"
+            type="warning"
+            :closable="false"
+            description="提交后结果将计入订单完成判断；全部执行路径都提交后，订单才进入待出报告。"
+            show-icon
+          />
         </template>
         <template v-else-if="activeAction === 'sample_outbound'">
           <el-alert
@@ -291,6 +301,7 @@ async function submitWorkflow() {
           </el-form-item>
           <el-form-item label="回传原始数据" class="form-wide"><el-input v-model="form.test_raw_data" type="textarea" :rows="4" /></el-form-item>
           <el-form-item label="委外结论" class="form-wide"><el-input v-model="form.test_conclusion_temp" type="textarea" :rows="3" /></el-form-item>
+          <el-alert class="form-wide" title="回传后仍需点击“提交结果”" type="info" :closable="false" show-icon />
         </template>
         <template v-else-if="activeAction === 'issue_report'">
           <el-form-item label="报告编号"><el-input v-model="form.report_no" placeholder="留空自动生成" /></el-form-item>
