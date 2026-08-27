@@ -10,7 +10,7 @@ This document is the development baseline for the Suzhou HuanCe LIMS project. Fu
 - Domain: aroundtest.com / www.aroundtest.com
 - Production server: 119.45.220.99
 - Git remote: git@github.com:LongYueyu-LuCrab/HuanCe_Demo.git
-- Current verified sales-order upgrade commit: `4b7d6f0`
+- Use `git log -1 --oneline` as the authoritative deployed baseline revision; do not hard-code a commit that will become stale.
 
 ## 2. Architecture
 
