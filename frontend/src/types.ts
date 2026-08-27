@@ -243,11 +243,17 @@ export type InvoiceItem = {
   customer: string
   project_name: string
   invoice_amount: string
+  invoice_stage: 'pre_review' | 'pre_experiment' | 'final'
+  invoice_stage_label: string
+  order_total: string
+  invoiced_total: string
+  remaining_amount: string
   invoice_type: string
   invoice_date: string
   pay_status: string
   finish_status: string
   finance_user: string
+  experiment_result_status: string
 }
 
 export type Dashboard = {
@@ -279,6 +285,7 @@ export type Dashboard = {
   }
   pending_reports: ReportItem[]
   finance: {
+    preinvoice_candidates: InvoiceItem[]
     pending_invoices: InvoiceItem[]
     issued_invoices: InvoiceItem[]
   }

@@ -8,8 +8,12 @@ import { useSession } from '../stores/session'
 import type { InvoiceItem, OrderItem } from '../types'
 
 const session = useSession()
+const preinvoiceCandidates = computed(() => session.state.dashboard?.finance?.preinvoice_candidates ?? [])
 const pendingInvoices = computed(() => session.state.dashboard?.finance?.pending_invoices ?? [])
 const issuedInvoices = computed(() => session.state.dashboard?.finance?.issued_invoices ?? [])
+const canOperateFinance = computed(() => Boolean(
+  session.state.user?.is_chairman || session.state.user?.roles?.includes('会计'),
+))
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const activeAction = ref('')
@@ -22,7 +26,7 @@ const form = reactive({
   invoice_amount: '',
   invoice_type: '增值税专票',
   invoice_date: '',
-  pay_status: 1,
+  pay_status: 0,
 })
 
 function openWorkflow(action: string, invoice: InvoiceItem) {
@@ -30,10 +34,10 @@ function openWorkflow(action: string, invoice: InvoiceItem) {
   activeInvoice.value = invoice
   Object.assign(form, {
     invoice_no: invoice.invoice_no || '',
-    invoice_amount: invoice.invoice_amount || '',
+    invoice_amount: action === 'preinvoice_create' ? '' : invoice.invoice_amount || '',
     invoice_type: invoice.invoice_type && invoice.invoice_type !== '待确认' ? invoice.invoice_type : '增值税专票',
     invoice_date: invoice.invoice_date || '',
-    pay_status: 1,
+    pay_status: action === 'invoice_pay' && invoice.pay_status === '已回款' ? 1 : 0,
   })
   dialogVisible.value = true
   void loadOrderContext(invoice.order_no)
@@ -58,10 +62,22 @@ function openOrderDetail(invoice: InvoiceItem) {
 
 async function submitWorkflow() {
   if (!activeInvoice.value) return
+  if (activeAction.value !== 'invoice_pay' && (!form.invoice_amount || Number(form.invoice_amount) <= 0)) {
+    ElMessage.warning('请填写大于 0 的开票金额')
+    return
+  }
+  if (
+    activeAction.value === 'preinvoice_create'
+    && Number(form.invoice_amount) >= Number(activeInvoice.value.remaining_amount)
+  ) {
+    ElMessage.warning('预开票必须为最终总开票保留余额')
+    return
+  }
   submitting.value = true
   try {
     await workflowAction({
       action: activeAction.value,
+      order_no: activeInvoice.value.order_no,
       report_no: activeInvoice.value.report_no,
       invoice_no: activeInvoice.value.invoice_no || form.invoice_no,
       invoice_amount: form.invoice_amount,
@@ -69,7 +85,13 @@ async function submitWorkflow() {
       invoice_date: form.invoice_date,
       pay_status: form.pay_status,
     })
-    ElMessage.success(activeAction.value === 'invoice_create' ? '开票办结完成' : '回款状态已更新')
+    ElMessage.success(
+      activeAction.value === 'preinvoice_create'
+        ? '预开票已记录，订单继续流转'
+        : activeAction.value === 'invoice_create'
+          ? '最终总开票办结完成'
+          : '回款状态已更新',
+    )
     dialogVisible.value = false
     await session.refreshDashboard()
   } catch (error) {
@@ -83,25 +105,50 @@ async function submitWorkflow() {
 <template>
   <div class="page-stack">
     <InvoiceTable
-      pending
-      title="待开票订单"
-      subtitle="总经理终审通过后进入这里，供会计核对并开票。"
-      :invoices="pendingInvoices"
+      mode="preinvoice"
+      title="可预开票订单"
+      subtitle="商务与技术双评审通过后可预开票；全部实验结束后可再次预开票。"
+      :invoices="preinvoiceCandidates"
+      :can-operate="canOperateFinance"
       @workflow="openWorkflow"
       @detail="openOrderDetail"
     />
     <InvoiceTable
+      mode="final"
+      title="待最终总开票"
+      subtitle="总经理终审通过后进入这里，最终总开票完成后订单办结。"
+      :invoices="pendingInvoices"
+      :can-operate="canOperateFinance"
+      @workflow="openWorkflow"
+      @detail="openOrderDetail"
+    />
+    <InvoiceTable
+      mode="history"
       title="已开票记录"
-      subtitle="追溯发票号码、金额、回款状态和流程办结状态。"
+      subtitle="统一追溯预开票、最终总开票、金额和回款状态。"
       :invoices="issuedInvoices"
+      :can-operate="canOperateFinance"
       @workflow="openWorkflow"
       @detail="openOrderDetail"
     />
 
-    <el-dialog v-model="dialogVisible" :title="activeAction === 'invoice_create' ? '开票办结' : '更新回款状态'" width="min(960px, 94vw)">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="activeAction === 'preinvoice_create' ? '预开票' : activeAction === 'invoice_create' ? '最终总开票' : '更新回款状态'"
+      width="min(960px, 94vw)"
+    >
       <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="开票关联订单信息" />
+      <el-alert
+        v-if="activeInvoice"
+        class="mt-16"
+        :title="activeInvoice.invoice_stage_label"
+        :description="`订单金额 ${activeInvoice.order_total} 元，已开 ${activeInvoice.invoiced_total} 元，剩余 ${activeInvoice.remaining_amount} 元。${activeInvoice.experiment_result_status}`"
+        :type="activeAction === 'invoice_create' ? 'success' : 'info'"
+        :closable="false"
+        show-icon
+      />
       <el-form label-position="top" class="form-grid mt-16">
-        <template v-if="activeAction === 'invoice_create'">
+        <template v-if="activeAction === 'preinvoice_create' || activeAction === 'invoice_create'">
           <el-form-item label="发票号"><el-input v-model="form.invoice_no" placeholder="留空自动生成" /></el-form-item>
           <el-form-item label="开票金额"><el-input v-model="form.invoice_amount" type="number" /></el-form-item>
           <el-form-item label="发票类型"><el-input v-model="form.invoice_type" /></el-form-item>

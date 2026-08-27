@@ -267,8 +267,8 @@ class ReportAuditAdmin(admin.ModelAdmin):
 
 @admin.register(Invoice)
 class InvoiceAdmin(admin.ModelAdmin):
-    list_display = ('invoice_no', 'order', 'report', 'invoice_amount', 'invoice_type', 'pay_status', 'order_finish_flag')
-    list_filter = ('invoice_type', 'pay_status', 'order_finish_flag')
+    list_display = ('invoice_no', 'order', 'invoice_stage', 'report', 'invoice_amount', 'invoice_type', 'pay_status', 'order_finish_flag')
+    list_filter = ('invoice_stage', 'invoice_type', 'pay_status', 'order_finish_flag')
     search_fields = ('invoice_no', 'order__order_no', 'report__report_no')
 
 

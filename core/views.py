@@ -11,7 +11,7 @@ from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.models import Group
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Case, Count, F, IntegerField, Prefetch, Q, Value, When
+from django.db.models import Case, Count, F, IntegerField, Prefetch, Q, Sum, Value, When
 from django.http import FileResponse, HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -229,7 +229,17 @@ def _orders_for_user(user):
         query |= Q()
         return orders
     if ROLE_ACCOUNTING in roles:
-        query |= Q(reports__report_status=TestReport.Status.APPROVED) | Q(invoices__isnull=False)
+        business_pass_orders = BusinessReview.objects.filter(
+            review_result=True,
+            biz_review_user__isnull=False,
+        ).values('order_id')
+        tech_pass_orders = BusinessReview.objects.filter(
+            review_result=True,
+            tech_review_user__isnull=False,
+        ).values('order_id')
+        query |= (
+            Q(id__in=business_pass_orders) & Q(id__in=tech_pass_orders)
+        ) | Q(invoices__isnull=False)
 
     if not query:
         return orders.none()
@@ -431,9 +441,72 @@ def _report_payload(report):
     }
 
 
+def _invoice_amounts(order):
+    prefetched_invoices = getattr(order, '_prefetched_objects_cache', {}).get('invoices')
+    if prefetched_invoices is not None:
+        invoiced_total = sum((invoice.invoice_amount for invoice in prefetched_invoices), Decimal('0.00'))
+    else:
+        invoiced_total = order.invoices.aggregate(total=Sum('invoice_amount'))['total'] or Decimal('0.00')
+    remaining_amount = max(Decimal('0.00'), order.total_quote - invoiced_total)
+    return invoiced_total, remaining_amount
+
+
+def _has_dual_review_pass(order):
+    prefetched_reviews = getattr(order, '_prefetched_objects_cache', {}).get('reviews')
+    if prefetched_reviews is not None:
+        approved_reviews = [review for review in prefetched_reviews if review.review_result]
+        return (
+            any(review.biz_review_user_id for review in approved_reviews)
+            and any(review.tech_review_user_id for review in approved_reviews)
+        )
+    reviews = order.reviews.filter(review_result=True)
+    return reviews.filter(biz_review_user__isnull=False).exists() and reviews.filter(tech_review_user__isnull=False).exists()
+
+
+def _preinvoice_stage(order):
+    if not _has_dual_review_pass(order):
+        return None
+    if order.order_status in [LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]:
+        return None
+    prefetched_reports = getattr(order, '_prefetched_objects_cache', {}).get('reports')
+    has_approved_report = (
+        any(report.report_status == TestReport.Status.APPROVED for report in prefetched_reports)
+        if prefetched_reports is not None
+        else order.reports.filter(report_status=TestReport.Status.APPROVED).exists()
+    )
+    if has_approved_report:
+        return None
+    if order.order_status in [
+        LabOrder.Status.RESULT_PENDING,
+        LabOrder.Status.TEST_FINISHED,
+        LabOrder.Status.REPORT_REVIEW,
+    ]:
+        return Invoice.Stage.PRE_EXPERIMENT
+    if order.order_status in [LabOrder.Status.SCHEDULING, LabOrder.Status.TESTING]:
+        return Invoice.Stage.PRE_REVIEW
+    return None
+
+
+def _experiment_finance_status(order):
+    if order.order_status == LabOrder.Status.RESULT_PENDING:
+        return '实验已结束，结果待提交'
+    if order.order_status in [LabOrder.Status.TEST_FINISHED, LabOrder.Status.REPORT_REVIEW, LabOrder.Status.INVOICED_CLOSED]:
+        return '实验结果已提交'
+    prefetched_experiments = getattr(order, '_prefetched_objects_cache', {}).get('experiments')
+    has_running_experiment = (
+        any(experiment.test_status == Experiment.Status.RUNNING for experiment in prefetched_experiments)
+        if prefetched_experiments is not None
+        else order.experiments.filter(test_status=Experiment.Status.RUNNING).exists()
+    )
+    if has_running_experiment:
+        return '实验进行中'
+    return '实验未结束'
+
+
 def _invoice_payload(invoice):
     order = invoice.order
     report = invoice.report
+    invoiced_total, remaining_amount = _invoice_amounts(order)
     return {
         'invoice_no': invoice.invoice_no,
         'order_no': order.order_no,
@@ -441,6 +514,11 @@ def _invoice_payload(invoice):
         'customer': order.customer_name,
         'project_name': order.project_name,
         'invoice_amount': str(invoice.invoice_amount),
+        'invoice_stage': invoice.invoice_stage,
+        'invoice_stage_label': invoice.get_invoice_stage_display(),
+        'order_total': str(order.total_quote),
+        'invoiced_total': str(invoiced_total),
+        'remaining_amount': str(remaining_amount),
         'invoice_type': invoice.invoice_type,
         'invoice_date': invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '',
         'pay_status': invoice.get_pay_status_display(),
@@ -448,22 +526,55 @@ def _invoice_payload(invoice):
         'finance_user': invoice.finance_user.first_name or invoice.finance_user.username
         if invoice.finance_user
         else '',
+        'experiment_result_status': _experiment_finance_status(order),
     }
 
 
-def _pending_invoice_payload(report):
+def _pending_final_invoice_payload(report):
     order = report.order
+    invoiced_total, remaining_amount = _invoice_amounts(order)
     return {
+        'invoice_no': '',
         'report_no': report.report_no,
         'order_no': order.order_no,
         'customer': order.customer_name,
         'project_name': order.project_name,
-        'invoice_amount': str(order.total_quote),
+        'invoice_amount': str(remaining_amount),
+        'invoice_stage': Invoice.Stage.FINAL,
+        'invoice_stage_label': Invoice.Stage.FINAL.label,
+        'order_total': str(order.total_quote),
+        'invoiced_total': str(invoiced_total),
+        'remaining_amount': str(remaining_amount),
         'invoice_type': '待确认',
         'invoice_date': '',
         'pay_status': '待开票',
         'finish_status': order.get_order_status_display(),
         'finance_user': '',
+        'experiment_result_status': _experiment_finance_status(order),
+    }
+
+
+def _pending_preinvoice_payload(order):
+    stage = _preinvoice_stage(order)
+    invoiced_total, remaining_amount = _invoice_amounts(order)
+    return {
+        'invoice_no': '',
+        'report_no': '',
+        'order_no': order.order_no,
+        'customer': order.customer_name,
+        'project_name': order.project_name,
+        'invoice_amount': '',
+        'invoice_stage': stage,
+        'invoice_stage_label': Invoice.Stage(stage).label if stage else '',
+        'order_total': str(order.total_quote),
+        'invoiced_total': str(invoiced_total),
+        'remaining_amount': str(remaining_amount),
+        'invoice_type': '待确认',
+        'invoice_date': '',
+        'pay_status': '待预开票',
+        'finish_status': order.get_order_status_display(),
+        'finance_user': '',
+        'experiment_result_status': _experiment_finance_status(order),
     }
 
 
@@ -1648,6 +1759,7 @@ def lims_action(request):
         'report_sales_reject': _action_report_sales_reject,
         'report_gm_pass': _action_report_gm_pass,
         'report_gm_reject': _action_report_gm_reject,
+        'preinvoice_create': _action_preinvoice_create,
         'invoice_create': _action_invoice_create,
         'invoice_pay': _action_invoice_pay,
         'standard_create': _action_standard_create,
@@ -2591,6 +2703,100 @@ def _action_report_gm_reject(request, payload):
     return _audit_report(request, payload, TestReport.Status.GM_REVIEW, ReportAudit.Level.GENERAL_MANAGER, ReportAudit.Result.REJECTED, TestReport.Status.REJECTED, '总经理终审驳回，退回质量部重制')
 
 
+def _invoice_amount_from_payload(payload, default_amount=None):
+    raw_amount = payload.get('invoice_amount')
+    if raw_amount in [None, '']:
+        if default_amount is None:
+            return None, '请填写开票金额'
+        amount = Decimal(str(default_amount)).quantize(Decimal('0.01'))
+        if amount <= 0:
+            return None, '订单已无剩余可开票金额'
+        return amount, None
+    try:
+        amount = Decimal(str(raw_amount)).quantize(Decimal('0.01'))
+    except (InvalidOperation, TypeError, ValueError):
+        return None, '开票金额格式不正确'
+    if amount <= 0:
+        return None, '开票金额必须大于 0'
+    return amount, None
+
+
+def _invoice_payment_status(payload):
+    raw_status = payload.get('pay_status')
+    if raw_status in [None, '']:
+        return Invoice.PayStatus.UNPAID, None
+    try:
+        status = int(raw_status)
+    except (TypeError, ValueError):
+        return None, '回款状态不正确'
+    if status not in Invoice.PayStatus.values:
+        return None, '回款状态不正确'
+    return status, None
+
+
+def _action_preinvoice_create(request, payload):
+    role_error = _require_role(request.user, ROLE_ACCOUNTING)
+    if role_error:
+        return role_error
+    order, error = _get_order(payload)
+    if error:
+        return error
+
+    with transaction.atomic():
+        order = LabOrder.objects.select_for_update().get(pk=order.pk)
+        stage = _preinvoice_stage(order)
+        if not stage:
+            return JsonResponse(
+                {'ok': False, 'error': '该订单尚未满足双评审通过或当前不允许预开票'},
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            )
+        invoiced_total, remaining_amount = _invoice_amounts(order)
+        amount, amount_error = _invoice_amount_from_payload(payload)
+        if amount_error:
+            return JsonResponse({'ok': False, 'error': amount_error}, status=400, json_dumps_params={'ensure_ascii': False})
+        if amount >= remaining_amount:
+            return JsonResponse(
+                {
+                    'ok': False,
+                    'error': f'预开票后必须为最终总开票保留余额；当前可用余额为 {remaining_amount:.2f} 元',
+                },
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            )
+        pay_status, pay_error = _invoice_payment_status(payload)
+        if pay_error:
+            return JsonResponse({'ok': False, 'error': pay_error}, status=400, json_dumps_params={'ensure_ascii': False})
+        invoice_no = (payload.get('invoice_no') or _next_invoice_no(order)).strip()
+        if Invoice.objects.filter(invoice_no=invoice_no).exists():
+            return JsonResponse({'ok': False, 'error': '发票号码已存在'}, status=400, json_dumps_params={'ensure_ascii': False})
+        invoice = Invoice.objects.create(
+            order=order,
+            report=None,
+            invoice_stage=stage,
+            invoice_no=invoice_no,
+            invoice_amount=amount,
+            invoice_type=payload.get('invoice_type') or '增值税专票',
+            invoice_date=_parse_datetime(payload.get('invoice_date')) or timezone.now(),
+            pay_status=pay_status,
+            finance_user=request.user,
+            order_finish_flag=Invoice.FinishFlag.UNFINISHED,
+        )
+        _event(
+            order,
+            request.user,
+            f'{invoice.get_invoice_stage_display()}：{invoice.invoice_no}，金额 {invoice.invoice_amount:.2f} 元；订单继续流转',
+            action_code='finance_preinvoice_create',
+            changes={
+                'invoice_stage': _audit_change('开票阶段', '', invoice.get_invoice_stage_display()),
+                'invoice_no': _audit_change('发票号', '', invoice.invoice_no),
+                'invoice_amount': _audit_change('开票金额', invoiced_total, invoiced_total + invoice.invoice_amount),
+                'remaining_amount': _audit_change('剩余可开', remaining_amount, remaining_amount - invoice.invoice_amount),
+            },
+        )
+    return JsonResponse({'ok': True, 'message': '预开票已记录，订单继续原流程', 'invoice': _invoice_payload(invoice)}, json_dumps_params={'ensure_ascii': False})
+
+
 def _action_invoice_create(request, payload):
     role_error = _require_role(request.user, ROLE_ACCOUNTING)
     if role_error:
@@ -2600,20 +2806,52 @@ def _action_invoice_create(request, payload):
         return error
     if report.report_status != TestReport.Status.APPROVED:
         return JsonResponse({'ok': False, 'error': '只有终审通过的报告可以开票'}, status=400, json_dumps_params={'ensure_ascii': False})
-    if report.invoices.exists():
+    if report.invoices.filter(invoice_stage=Invoice.Stage.FINAL).exists():
         return JsonResponse({'ok': False, 'error': '该报告已开票'}, status=400, json_dumps_params={'ensure_ascii': False})
-    invoice = Invoice.objects.create(
-        order=report.order,
-        report=report,
-        invoice_no=payload.get('invoice_no') or _next_invoice_no(report.order),
-        invoice_amount=Decimal(str(payload.get('invoice_amount') or report.order.total_quote)),
-        invoice_type=payload.get('invoice_type') or '增值税专票',
-        invoice_date=_parse_datetime(payload.get('invoice_date')) or timezone.now(),
-        pay_status=int(payload.get('pay_status') or Invoice.PayStatus.UNPAID),
-        finance_user=request.user,
-        order_finish_flag=Invoice.FinishFlag.FINISHED,
-    )
-    report.order.mark_status(LabOrder.Status.INVOICED_CLOSED, request.user, f'会计开票办结：{invoice.invoice_no}')
+    with transaction.atomic():
+        order = LabOrder.objects.select_for_update().get(pk=report.order_id)
+        if Invoice.objects.filter(report=report, invoice_stage=Invoice.Stage.FINAL).exists():
+            return JsonResponse({'ok': False, 'error': '该报告已完成最终总开票'}, status=400, json_dumps_params={'ensure_ascii': False})
+        invoiced_total, remaining_amount = _invoice_amounts(order)
+        amount, amount_error = _invoice_amount_from_payload(payload, default_amount=remaining_amount)
+        if amount_error:
+            return JsonResponse({'ok': False, 'error': amount_error}, status=400, json_dumps_params={'ensure_ascii': False})
+        if amount > remaining_amount:
+            return JsonResponse(
+                {'ok': False, 'error': f'开票累计金额不能超过订单金额；当前剩余 {remaining_amount:.2f} 元'},
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            )
+        pay_status, pay_error = _invoice_payment_status(payload)
+        if pay_error:
+            return JsonResponse({'ok': False, 'error': pay_error}, status=400, json_dumps_params={'ensure_ascii': False})
+        invoice_no = (payload.get('invoice_no') or _next_invoice_no(order)).strip()
+        if Invoice.objects.filter(invoice_no=invoice_no).exists():
+            return JsonResponse({'ok': False, 'error': '发票号码已存在'}, status=400, json_dumps_params={'ensure_ascii': False})
+        invoice = Invoice.objects.create(
+            order=order,
+            report=report,
+            invoice_stage=Invoice.Stage.FINAL,
+            invoice_no=invoice_no,
+            invoice_amount=amount,
+            invoice_type=payload.get('invoice_type') or '增值税专票',
+            invoice_date=_parse_datetime(payload.get('invoice_date')) or timezone.now(),
+            pay_status=pay_status,
+            finance_user=request.user,
+            order_finish_flag=Invoice.FinishFlag.FINISHED,
+        )
+        _event(
+            order,
+            request.user,
+            f'最终总开票：{invoice.invoice_no}，金额 {invoice.invoice_amount:.2f} 元',
+            action_code='finance_final_invoice',
+            changes={
+                'invoice_no': _audit_change('发票号', '', invoice.invoice_no),
+                'invoice_amount': _audit_change('累计已开', invoiced_total, invoiced_total + invoice.invoice_amount),
+                'remaining_amount': _audit_change('剩余可开', remaining_amount, remaining_amount - invoice.invoice_amount),
+            },
+        )
+        order.mark_status(LabOrder.Status.INVOICED_CLOSED, request.user, f'会计最终总开票办结：{invoice.invoice_no}')
     return JsonResponse({'ok': True, 'message': '开票办结完成', 'invoice': _invoice_payload(invoice)}, json_dumps_params={'ensure_ascii': False})
 
 
@@ -2626,10 +2864,22 @@ def _action_invoice_pay(request, payload):
         invoice = Invoice.objects.select_related('order', 'report', 'finance_user').get(invoice_no=invoice_no)
     except Invoice.DoesNotExist:
         return JsonResponse({'ok': False, 'error': '发票不存在'}, status=404, json_dumps_params={'ensure_ascii': False})
-    invoice.pay_status = int(payload.get('pay_status') or Invoice.PayStatus.PAID)
+    pay_status, pay_error = _invoice_payment_status(payload)
+    if pay_error:
+        return JsonResponse({'ok': False, 'error': pay_error}, status=400, json_dumps_params={'ensure_ascii': False})
+    before_status = invoice.get_pay_status_display()
+    invoice.pay_status = pay_status
     invoice.finance_user = request.user
     invoice.save()
-    _event(invoice.order, request.user, '会计更新回款状态')
+    _event(
+        invoice.order,
+        request.user,
+        f'会计更新回款状态：{invoice.invoice_no}',
+        action_code='finance_payment_update',
+        changes={
+            'pay_status': _audit_change('回款状态', before_status, invoice.get_pay_status_display()),
+        },
+    )
     return JsonResponse({'ok': True, 'message': '回款状态已更新', 'invoice': _invoice_payload(invoice)}, json_dumps_params={'ensure_ascii': False})
 
 
@@ -2676,16 +2926,30 @@ def lims_dashboard(request):
     ]
     can_view_finance = _can_view_finance(request.user)
     finance_order_ids = []
+    preinvoice_candidate_orders = []
     if can_view_finance:
+        preinvoice_scope = related_orders.filter(order_status__in=[
+            LabOrder.Status.SCHEDULING,
+            LabOrder.Status.TESTING,
+            LabOrder.Status.RESULT_PENDING,
+            LabOrder.Status.TEST_FINISHED,
+            LabOrder.Status.REPORT_REVIEW,
+        ]).prefetch_related('reviews', 'reports', 'invoices', 'experiments').order_by('-create_time')
+        for order in preinvoice_scope:
+            if _preinvoice_stage(order):
+                _, remaining_amount = _invoice_amounts(order)
+                if remaining_amount > Decimal('0.01'):
+                    preinvoice_candidate_orders.append(order)
         finance_order_ids = list(
             TestReport.objects.filter(
                 order__in=related_orders,
                 report_status=TestReport.Status.APPROVED,
-                invoices__isnull=True,
+            ).exclude(
+                invoices__invoice_stage=Invoice.Stage.FINAL,
             ).values_list('order_id', flat=True)
         ) + list(
             Invoice.objects.filter(order__in=related_orders).values_list('order_id', flat=True)
-        )
+        ) + [order.id for order in preinvoice_candidate_orders]
     finance_orders = [
         _order_payload(order)
         for order in related_orders.filter(id__in=finance_order_ids).distinct().order_by('-create_time')
@@ -2742,12 +3006,17 @@ def lims_dashboard(request):
     pending_invoice_reports = TestReport.objects.none()
     invoices = Invoice.objects.none()
     if can_view_finance:
-        pending_invoice_reports = TestReport.objects.select_related('order').filter(
+        pending_invoice_reports = TestReport.objects.select_related('order').prefetch_related(
+            'order__invoices', 'order__experiments',
+        ).filter(
             order__in=related_orders,
             report_status=TestReport.Status.APPROVED,
-            invoices__isnull=True,
+        ).exclude(
+            invoices__invoice_stage=Invoice.Stage.FINAL,
         ).order_by('-create_time')
-        invoices = Invoice.objects.select_related('order', 'report', 'finance_user').filter(
+        invoices = Invoice.objects.select_related('order', 'report', 'finance_user').prefetch_related(
+            'order__invoices', 'order__experiments',
+        ).filter(
             order__in=related_orders,
         ).order_by('-invoice_date', '-create_time')
 
@@ -2805,7 +3074,11 @@ def lims_dashboard(request):
         },
         'pending_reports': [_report_payload(report) for report in _limit_queryset(pending_reports.order_by('-create_time'), list_limit)],
         'finance': {
-            'pending_invoices': [_pending_invoice_payload(report) for report in _limit_queryset(pending_invoice_reports, list_limit)],
+            'preinvoice_candidates': [
+                _pending_preinvoice_payload(order)
+                for order in preinvoice_candidate_orders[:list_limit]
+            ],
+            'pending_invoices': [_pending_final_invoice_payload(report) for report in _limit_queryset(pending_invoice_reports, list_limit)],
             'issued_invoices': [_invoice_payload(invoice) for invoice in _limit_queryset(invoices, list_limit)],
         },
         'roles': _roles(request.user),

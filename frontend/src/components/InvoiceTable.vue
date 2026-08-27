@@ -6,7 +6,8 @@ const props = defineProps<{
   invoices: InvoiceItem[]
   title: string
   subtitle: string
-  pending?: boolean
+  mode: 'preinvoice' | 'final' | 'history'
+  canOperate?: boolean
 }>()
 const emit = defineEmits<{
   workflow: [action: string, invoice: InvoiceItem]
@@ -28,11 +29,16 @@ const filteredInvoices = computed(() => {
       invoice.customer,
       invoice.project_name,
       invoice.invoice_amount,
+      invoice.invoice_stage_label,
+      invoice.order_total,
+      invoice.invoiced_total,
+      invoice.remaining_amount,
       invoice.invoice_type,
       invoice.invoice_date,
       invoice.pay_status,
       invoice.finish_status,
       invoice.finance_user,
+      invoice.experiment_result_status,
     ]
       .filter(Boolean)
       .join(' ')
@@ -59,9 +65,9 @@ const pagedInvoices = computed(() => {
       </div>
     </template>
     <el-table :data="pagedInvoices" stripe height="360" empty-text="暂无匹配记录">
-      <el-table-column :label="pending ? '订单 / 报告' : '发票 / 订单'" min-width="210">
+      <el-table-column :label="mode === 'history' ? '发票 / 订单' : '订单 / 报告'" min-width="210">
         <template #default="{ row }">
-          <div class="cell-main">{{ pending ? row.order_no : row.invoice_no }}</div>
+          <div class="cell-main">{{ mode === 'history' ? row.invoice_no : row.order_no }}</div>
           <div class="cell-sub">{{ row.report_no || row.order_no }}</div>
         </template>
       </el-table-column>
@@ -71,7 +77,18 @@ const pagedInvoices = computed(() => {
           <div class="cell-sub">{{ row.project_name }}</div>
         </template>
       </el-table-column>
-      <el-table-column prop="invoice_amount" label="金额" min-width="120" />
+      <el-table-column label="开票阶段" min-width="190">
+        <template #default="{ row }">
+          <el-tag :type="row.invoice_stage === 'final' ? 'success' : 'warning'" effect="plain">{{ row.invoice_stage_label }}</el-tag>
+          <div class="cell-sub mt-8">{{ row.experiment_result_status }}</div>
+        </template>
+      </el-table-column>
+      <el-table-column label="金额" min-width="210">
+        <template #default="{ row }">
+          <div class="cell-main">{{ mode === 'history' ? row.invoice_amount : row.remaining_amount }}</div>
+          <div class="cell-sub">订单 {{ row.order_total }} · 已开 {{ row.invoiced_total }} · 余额 {{ row.remaining_amount }}</div>
+        </template>
+      </el-table-column>
       <el-table-column label="状态" min-width="190">
         <template #default="{ row }">
           <el-tag :type="row.pay_status.includes('已') ? 'success' : 'warning'" effect="plain">{{ row.pay_status }}</el-tag>
@@ -84,8 +101,9 @@ const pagedInvoices = computed(() => {
         <template #default="{ row }">
           <div class="row-actions">
             <el-button size="small" plain @click="emit('detail', row)">订单详情</el-button>
-            <el-button v-if="pending" size="small" type="primary" plain @click="emit('workflow', 'invoice_create', row)">开票办结</el-button>
-            <el-button v-else size="small" type="success" plain @click="emit('workflow', 'invoice_pay', row)">更新回款</el-button>
+            <el-button v-if="canOperate && mode === 'preinvoice'" size="small" type="warning" plain @click="emit('workflow', 'preinvoice_create', row)">预开票</el-button>
+            <el-button v-if="canOperate && mode === 'final'" size="small" type="primary" plain @click="emit('workflow', 'invoice_create', row)">最终总开票</el-button>
+            <el-button v-if="canOperate && mode === 'history'" size="small" type="success" plain @click="emit('workflow', 'invoice_pay', row)">更新回款</el-button>
           </div>
         </template>
       </el-table-column>

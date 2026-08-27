@@ -104,6 +104,18 @@ lims_report_audit         sales and general-manager report audit
 lims_finance_invoice      finance invoice and settlement
 ```
 
+Finance invoice stage fields in `lims_finance_invoice`:
+
+```text
+invoice_stage           pre_review / pre_experiment / final
+report_id               null for pre-invoices; required by the final invoice workflow
+order_finish_flag       always unfinished for pre-invoices; finished only by the final invoice
+invoice_amount          contributes to the order-level cumulative invoiced amount
+```
+
+Existing invoice rows are migrated to `invoice_stage=final`. Only one final invoice may be linked
+to a report, while an order may have multiple pre-invoices.
+
 Workflow log:
 
 ```text
@@ -292,7 +304,8 @@ report_sales_pass        销售初审通过
 report_sales_reject      销售初审驳回
 report_gm_pass           总经理终审通过
 report_gm_reject         总经理终审驳回
-invoice_create           会计开票办结
+preinvoice_create        会计预开票，不改变订单流程状态
+invoice_create           会计最终总开票并办结订单
 invoice_pay              会计更新回款状态
 standard_create          实验室/质量部/董事长新增或更新试验标准
 ```
@@ -331,7 +344,7 @@ LabView.vue             Suzhou/Jiangyin equipment and lab task actions
 SamplesView.vue         sample lifecycle ledger for laboratory and management roles
 OutsourceView.vue       outsourced order list
 ReportsView.vue         report audit actions
-FinanceView.vue         invoice creation and payment-status update
+FinanceView.vue         pre-invoice, final-invoice, invoice history, and payment-status update
 AuditView.vue           workflow logs, change records, review ledger
 EmployeesView.vue       chairman-only employee creation
 LoginView.vue           login page
@@ -364,7 +377,7 @@ Data access is currently role-filtered in `_orders_for_user()` and related dashb
 - 苏州实验室: schedules assigned to current Suzhou lab manager
 - 江阴实验室: schedules assigned to current Jiangyin lab manager
 - 总经理: all business data, with report final-audit action
-- 会计: approved reports, invoices, and finance-related orders
+- 会计: dual-review-approved orders, experiment-ended orders, approved reports, invoices, and finance-related orders
 
 Do not add a new menu or workflow button without checking role visibility and row-level access.
 
@@ -694,8 +707,20 @@ sales order
 -> lead laboratory manager consolidates and issues the final report
 -> sales report review
 -> general-manager final review
--> accounting invoice and closure
+-> accounting final invoice and closure
 ```
+
+Accounting visibility runs alongside the business flow:
+
+```text
+business + technical reviews both approved -> review-stage pre-invoice allowed
+all experiments ended -> experiment-stage pre-invoice allowed; result-submission state is visible
+general-manager report approval -> final invoice allowed -> order closed
+```
+
+Pre-invoices never advance or close an order. Multiple pre-invoices are allowed, but every
+pre-invoice must leave a positive remaining balance for the final invoice. The final invoice may
+use the remaining balance, and cumulative invoice amount must never exceed the order quote.
 
 ### 19.3 Responsibility Rules
 
@@ -727,6 +752,11 @@ Every workflow change must preserve both test paths:
 - V2 order completes through business review, technical route assignment, per-lab scheduling,
   sales confirmation, per-route sample-arrival/test/outsource handling, lead report creation, report audit,
   and finance closure.
+- Accounting may create pre-invoices only after strict business-and-technical dual approval. A later
+  pre-invoice view must distinguish `实验已结束，结果待提交` from `实验结果已提交`.
+- Pre-invoice actions must leave `LabOrder.order_status` unchanged; only the final invoice after
+  general-manager approval may set `INVOICED_CLOSED`.
+- Order-level invoice creation must lock the order row and recheck the cumulative amount server-side.
 - Quality role receives HTTP 403 for V2 operational actions.
 - Non-assigned laboratory managers cannot operate another manager's route.
 - Non-lead laboratory managers cannot issue the final report.

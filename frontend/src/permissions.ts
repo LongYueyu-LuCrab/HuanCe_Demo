@@ -190,11 +190,12 @@ export function getMetricCards(user: User, dashboard: Dashboard | null) {
     ]
   }
   if (hasRole(user, '会计') && !canSeeAllBusiness(user)) {
+    const preinvoiceCandidates = dashboard?.finance?.preinvoice_candidates?.length ?? 0
     const pendingInvoices = dashboard?.finance?.pending_invoices?.length ?? 0
     const issuedInvoices = dashboard?.finance?.issued_invoices?.length ?? 0
     return [
-      { key: 'finance_orders', label: '待/已开票订单', value: pendingInvoices + issuedInvoices },
-      { key: 'finance_orders', label: '待开票订单', value: pendingInvoices },
+      { key: 'finance_orders', label: '可预开票订单', value: preinvoiceCandidates },
+      { key: 'finance_orders', label: '待最终总开票', value: pendingInvoices },
       { key: 'finance_orders', label: '已开票记录', value: issuedInvoices },
     ]
   }

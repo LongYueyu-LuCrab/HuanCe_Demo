@@ -568,6 +568,11 @@ class ReportAudit(TimeStampedModel):
 
 
 class Invoice(TimeStampedModel):
+    class Stage(models.TextChoices):
+        PRE_REVIEW = 'pre_review', '评审后预开票'
+        PRE_EXPERIMENT = 'pre_experiment', '实验结束后预开票'
+        FINAL = 'final', '最终总开票'
+
     class PayStatus(models.IntegerChoices):
         UNPAID = 0, '未收款'
         PAID = 1, '已回款'
@@ -578,6 +583,7 @@ class Invoice(TimeStampedModel):
 
     order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='invoices')
     report = models.ForeignKey(TestReport, verbose_name='检测报告', on_delete=models.SET_NULL, null=True, blank=True, related_name='invoices')
+    invoice_stage = models.CharField('开票阶段', max_length=24, choices=Stage.choices, default=Stage.FINAL)
     invoice_no = models.CharField('发票号码', max_length=64, unique=True)
     invoice_amount = models.DecimalField('开票金额', max_digits=12, decimal_places=2)
     invoice_type = models.CharField('发票类型', max_length=32, blank=True)
@@ -590,6 +596,13 @@ class Invoice(TimeStampedModel):
         db_table = 'lims_finance_invoice'
         verbose_name = '财务开票结算'
         verbose_name_plural = '财务开票结算'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['report'],
+                condition=models.Q(invoice_stage='final', report__isnull=False),
+                name='unique_final_invoice_per_report',
+            ),
+        ]
 
     def __str__(self):
         return self.invoice_no

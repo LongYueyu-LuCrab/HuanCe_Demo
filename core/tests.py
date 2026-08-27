@@ -1,11 +1,14 @@
+from decimal import Decimal
+from io import BytesIO
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db.models import Sum
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from openpyxl import load_workbook
-from io import BytesIO
 
 from .models import (
     BusinessReview,
@@ -486,6 +489,174 @@ class LimsFullRoleWorkflowTests(TestCase):
             set(Group.objects.values_list('name', flat=True)),
             set(self.roles.values()) | {'实验操作员'},
         )
+
+
+class InvoiceWorkflowTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.business = user_model.objects.create_user(
+            username='invoice_business', password='password123', first_name='商务评审员',
+        )
+        self.technical = user_model.objects.create_user(
+            username='invoice_technical', password='password123', first_name='技术评审员',
+        )
+        self.accountant = user_model.objects.create_user(
+            username='invoice_accountant', password='password123', first_name='会计',
+        )
+        self.business.groups.add(Group.objects.create(name='商务'))
+        self.technical.groups.add(Group.objects.create(name='技术'))
+        self.accountant.groups.add(Group.objects.create(name='会计'))
+        self.order = LabOrder.objects.create(
+            order_no='INVOICE-FLOW-001',
+            customer_name='预开票流程测试客户',
+            project_name='预开票与最终总开票验证',
+            test_demand='验证双评审、实验结果状态、累计金额和最终办结。',
+            total_quote=Decimal('1000.00'),
+            order_status=LabOrder.Status.SCHEDULING,
+        )
+        BusinessReview.objects.create(
+            order=self.order,
+            biz_review_user=self.business,
+            tech_review_user=self.technical,
+            biz_quote_detail='商务与技术均通过',
+            tech_feasible=True,
+            review_result=True,
+            review_time=timezone.now(),
+        )
+
+    def action(self, action, **payload):
+        self.client.force_login(self.accountant)
+        return self.client.post(
+            reverse('lims_action'),
+            data={'action': action, 'order_no': self.order.order_no, **payload},
+            content_type='application/json',
+        )
+
+    def dashboard(self):
+        self.client.force_login(self.accountant)
+        response = self.client.get(reverse('lims_dashboard'))
+        self.assertEqual(response.status_code, 200)
+        return response.json()
+
+    def test_preinvoices_do_not_close_order_and_final_invoice_closes_it(self):
+        initial = self.dashboard()['finance']['preinvoice_candidates']
+        candidate = next(item for item in initial if item['order_no'] == self.order.order_no)
+        self.assertEqual(candidate['invoice_stage'], Invoice.Stage.PRE_REVIEW)
+        self.assertEqual(candidate['remaining_amount'], '1000.00')
+
+        first = self.action(
+            'preinvoice_create',
+            invoice_no='PRE-REVIEW-001',
+            invoice_amount='400.00',
+            pay_status=Invoice.PayStatus.UNPAID,
+        )
+        self.assertEqual(first.status_code, 200)
+        self.order.refresh_from_db()
+        first_invoice = Invoice.objects.get(invoice_no='PRE-REVIEW-001')
+        self.assertEqual(first_invoice.invoice_stage, Invoice.Stage.PRE_REVIEW)
+        self.assertEqual(first_invoice.order_finish_flag, Invoice.FinishFlag.UNFINISHED)
+        self.assertEqual(self.order.order_status, LabOrder.Status.SCHEDULING)
+
+        consume_all = self.action(
+            'preinvoice_create', invoice_no='PRE-TOO-MUCH', invoice_amount='600.00',
+        )
+        self.assertEqual(consume_all.status_code, 400)
+        self.assertFalse(Invoice.objects.filter(invoice_no='PRE-TOO-MUCH').exists())
+
+        self.order.order_status = LabOrder.Status.RESULT_PENDING
+        self.order.save(update_fields=['order_status', 'update_time'])
+        after_experiment = self.dashboard()['finance']['preinvoice_candidates']
+        candidate = next(item for item in after_experiment if item['order_no'] == self.order.order_no)
+        self.assertEqual(candidate['invoice_stage'], Invoice.Stage.PRE_EXPERIMENT)
+        self.assertEqual(candidate['experiment_result_status'], '实验已结束，结果待提交')
+
+        second = self.action(
+            'preinvoice_create',
+            invoice_no='PRE-EXPERIMENT-001',
+            invoice_amount='300.00',
+            pay_status=Invoice.PayStatus.PAID,
+        )
+        self.assertEqual(second.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.order_status, LabOrder.Status.RESULT_PENDING)
+
+        self.order.order_status = LabOrder.Status.REPORT_REVIEW
+        self.order.save(update_fields=['order_status', 'update_time'])
+        report = TestReport.objects.create(
+            order=self.order,
+            report_no='INVOICE-REPORT-001',
+            final_conclusion='检测结论符合要求。',
+            report_status=TestReport.Status.APPROVED,
+        )
+        finance = self.dashboard()['finance']
+        self.assertFalse(any(item['order_no'] == self.order.order_no for item in finance['preinvoice_candidates']))
+        final_candidate = next(item for item in finance['pending_invoices'] if item['report_no'] == report.report_no)
+        self.assertEqual(final_candidate['invoice_stage'], Invoice.Stage.FINAL)
+        self.assertEqual(final_candidate['remaining_amount'], '300.00')
+        self.assertEqual(final_candidate['experiment_result_status'], '实验结果已提交')
+
+        over_limit = self.action(
+            'invoice_create',
+            report_no=report.report_no,
+            invoice_no='FINAL-TOO-MUCH',
+            invoice_amount='300.01',
+        )
+        self.assertEqual(over_limit.status_code, 400)
+
+        final = self.action(
+            'invoice_create',
+            report_no=report.report_no,
+            invoice_no='FINAL-001',
+            invoice_amount='300.00',
+        )
+        self.assertEqual(final.status_code, 200)
+        self.order.refresh_from_db()
+        final_invoice = Invoice.objects.get(invoice_no='FINAL-001')
+        self.assertEqual(final_invoice.invoice_stage, Invoice.Stage.FINAL)
+        self.assertEqual(final_invoice.order_finish_flag, Invoice.FinishFlag.FINISHED)
+        self.assertEqual(self.order.order_status, LabOrder.Status.INVOICED_CLOSED)
+        self.assertEqual(
+            self.order.invoices.aggregate(total=Sum('invoice_amount'))['total'],
+            Decimal('1000.00'),
+        )
+
+    def test_preinvoice_requires_both_reviews_and_payment_can_return_to_unpaid(self):
+        order_without_dual_review = LabOrder.objects.create(
+            order_no='INVOICE-NO-DUAL-001',
+            customer_name='未双评审客户',
+            test_demand='缺少技术评审。',
+            total_quote=Decimal('500.00'),
+            order_status=LabOrder.Status.SCHEDULING,
+        )
+        BusinessReview.objects.create(
+            order=order_without_dual_review,
+            biz_review_user=self.business,
+            biz_quote_detail='仅商务通过',
+            review_result=True,
+            review_time=timezone.now(),
+        )
+        self.client.force_login(self.accountant)
+        denied = self.client.post(
+            reverse('lims_action'),
+            data={
+                'action': 'preinvoice_create',
+                'order_no': order_without_dual_review.order_no,
+                'invoice_no': 'PRE-DENIED-001',
+                'invoice_amount': '100.00',
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(denied.status_code, 400)
+
+        created = self.action(
+            'preinvoice_create', invoice_no='PRE-PAY-001', invoice_amount='100.00', pay_status=0,
+        )
+        self.assertEqual(created.status_code, 200)
+        paid = self.action('invoice_pay', invoice_no='PRE-PAY-001', pay_status=1)
+        self.assertEqual(paid.status_code, 200)
+        unpaid = self.action('invoice_pay', invoice_no='PRE-PAY-001', pay_status=0)
+        self.assertEqual(unpaid.status_code, 200)
+        self.assertEqual(Invoice.objects.get(invoice_no='PRE-PAY-001').pay_status, Invoice.PayStatus.UNPAID)
 
 
 class LimsV2DirectLabWorkflowTests(TestCase):
