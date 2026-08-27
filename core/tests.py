@@ -657,7 +657,7 @@ class LimsV2DirectLabWorkflowTests(TestCase):
             200,
         )
         self.order.refresh_from_db()
-        self.assertEqual(self.order.order_status, LabOrder.Status.TESTING)
+        self.assertEqual(self.order.order_status, LabOrder.Status.RESULT_PENDING)
         outsource_schedule.refresh_from_db()
         self.assertEqual(outsource_schedule.schedule_status, SchedulePlan.Status.ENDED)
         self.assertEqual(
@@ -835,9 +835,14 @@ class LaboratoryOperatorTests(TestCase):
             test_raw_data='振动数据记录完整', test_conclusion_temp='试验合格',
         ).status_code, 200)
         self.order.refresh_from_db()
-        self.assertEqual(self.order.order_status, LabOrder.Status.TESTING)
+        self.assertEqual(self.order.order_status, LabOrder.Status.RESULT_PENDING)
         self.schedule.refresh_from_db()
         self.assertEqual(self.schedule.schedule_status, SchedulePlan.Status.ENDED)
+        dashboard = self.client.get(reverse('lims_dashboard'))
+        self.assertEqual(dashboard.status_code, 200)
+        dashboard_order = dashboard.json()['order_groups']['orders'][0]
+        self.assertEqual(dashboard_order['status_key'], LabOrder.Status.RESULT_PENDING)
+        self.assertEqual(dashboard_order['status'], '实验已结束待提交结果')
         self.client.force_login(self.manager)
         report_before_submit = self.client.post(
             reverse('lims_action'),
@@ -920,7 +925,7 @@ class LaboratoryOperatorTests(TestCase):
         outbound = self.action('sample_outbound')
         self.assertEqual(outbound.status_code, 200)
         self.order.refresh_from_db()
-        self.assertEqual(self.order.order_status, LabOrder.Status.TESTING)
+        self.assertEqual(self.order.order_status, LabOrder.Status.RESULT_PENDING)
         self.assertEqual(self.action('submit_test').status_code, 200)
 
         sample = self.schedule.samples.get()

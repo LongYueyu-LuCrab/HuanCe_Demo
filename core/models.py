@@ -37,6 +37,7 @@ class LabOrder(TimeStampedModel):
         INVOICED_CLOSED = 6, '已开票办结'
         CANCELLED = 7, '退单'
         TEST_FINISHED = 8, '实验结果已提交待出报告'
+        RESULT_PENDING = 9, '实验已结束待提交结果'
 
     class ExecutionMode(models.IntegerChoices):
         SUZHOU = 1, '苏州内部实验室'

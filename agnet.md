@@ -236,6 +236,7 @@ Order statuses in `LabOrder.Status`:
 6 已开票办结
 7 退单
 8 实验结果已提交待出报告
+9 实验已结束待提交结果
 ```
 
 Report statuses in `TestReport.Status`:

@@ -195,6 +195,7 @@ def _orders_for_user(user):
         query |= Q(order_status__in=[
             LabOrder.Status.SCHEDULING,
             LabOrder.Status.TESTING,
+            LabOrder.Status.RESULT_PENDING,
             LabOrder.Status.TEST_FINISHED,
             LabOrder.Status.REPORT_REVIEW,
         ], workflow_version=LabOrder.WorkflowVersion.LEGACY_QUALITY)
@@ -204,6 +205,7 @@ def _orders_for_user(user):
             order_status__in=[
                 LabOrder.Status.SCHEDULING,
                 LabOrder.Status.TESTING,
+                LabOrder.Status.RESULT_PENDING,
                 LabOrder.Status.TEST_FINISHED,
                 LabOrder.Status.REPORT_REVIEW,
             ],
@@ -216,6 +218,7 @@ def _orders_for_user(user):
                 order_status__in=[
                     LabOrder.Status.SCHEDULING,
                     LabOrder.Status.TESTING,
+                    LabOrder.Status.RESULT_PENDING,
                     LabOrder.Status.TEST_FINISHED,
                     LabOrder.Status.REPORT_REVIEW,
                 ],
@@ -2224,6 +2227,24 @@ def _sync_order_test_completion(order, actor):
                 '全部执行路径的实验结果均已提交，等待主责实验室负责人出具报告',
             )
         return True
+
+    schedules = order.schedules.all()
+    all_paths_ended = (
+        schedules.exists()
+        and not schedules.exclude(
+            schedule_status__in=[SchedulePlan.Status.ENDED, SchedulePlan.Status.FINISHED]
+        ).exists()
+    )
+    has_unsubmitted_result = schedules.filter(schedule_status=SchedulePlan.Status.ENDED).exists()
+    if all_paths_ended and has_unsubmitted_result:
+        if order.order_status != LabOrder.Status.RESULT_PENDING:
+            order.mark_status(
+                LabOrder.Status.RESULT_PENDING,
+                actor,
+                '全部实验已结束，尚有实验结果待提交',
+            )
+        return False
+
     if order.order_status != LabOrder.Status.TESTING:
         order.mark_status(LabOrder.Status.TESTING, actor, '部分执行路径已结束，其他试验任务继续执行')
     return False
@@ -2310,8 +2331,7 @@ def _action_outsource_result(request, payload):
         },
         schedule=schedule,
     )
-    if order.order_status != LabOrder.Status.TESTING:
-        order.mark_status(LabOrder.Status.TESTING, request.user, '委外实验已结束，等待提交结果')
+    _sync_order_test_completion(order, request.user)
     return _status_response('委外实验已结束并记录结果，请确认后点击“提交结果”', order)
 
 
@@ -2356,6 +2376,7 @@ def _action_end_test(request, payload):
         schedule=experiment.schedule,
     )
     _event(order, request.user, '实验已结束并保存结果，尚未触发后续报告流程')
+    _sync_order_test_completion(order, request.user)
     return _status_response('实验已结束，结果已保存；请确认后点击“提交结果”', order)
 
 
