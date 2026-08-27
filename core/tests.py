@@ -706,6 +706,15 @@ class InvoiceWorkflowTests(TestCase):
         )
         self.assertEqual(over_limit.status_code, 400)
 
+        under_limit = self.action(
+            'invoice_create',
+            report_no=report.report_no,
+            invoice_no='FINAL-NOT-ENOUGH',
+            invoice_amount='299.99',
+        )
+        self.assertEqual(under_limit.status_code, 400)
+        self.assertFalse(Invoice.objects.filter(invoice_no='FINAL-NOT-ENOUGH').exists())
+
         final = self.action(
             'invoice_create',
             report_no=report.report_no,

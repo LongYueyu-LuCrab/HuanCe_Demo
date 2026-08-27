@@ -739,8 +739,9 @@ general-manager report approval -> final invoice allowed -> order closed
 ```
 
 Pre-invoices never advance or close an order. Multiple pre-invoices are allowed, but every
-pre-invoice must leave a positive remaining balance for the final invoice. The final invoice may
-use the remaining balance, and cumulative invoice amount must never exceed the order quote.
+pre-invoice must leave a positive remaining balance for the final invoice. The final invoice must
+equal the full remaining balance and closes the order only after that balance is invoiced. The
+cumulative invoice amount must never exceed the order quote.
 
 ### 19.3 Responsibility Rules
 

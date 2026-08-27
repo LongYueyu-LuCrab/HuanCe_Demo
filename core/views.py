@@ -3196,9 +3196,9 @@ def _action_invoice_create(request, payload):
         amount, amount_error = _invoice_amount_from_payload(payload, default_amount=remaining_amount)
         if amount_error:
             return JsonResponse({'ok': False, 'error': amount_error}, status=400, json_dumps_params={'ensure_ascii': False})
-        if amount > remaining_amount:
+        if amount != remaining_amount:
             return JsonResponse(
-                {'ok': False, 'error': f'开票累计金额不能超过订单金额；当前剩余 {remaining_amount:.2f} 元'},
+                {'ok': False, 'error': f'最终总开票必须一次性开完订单剩余金额；本次应开 {remaining_amount:.2f} 元'},
                 status=400,
                 json_dumps_params={'ensure_ascii': False},
             )

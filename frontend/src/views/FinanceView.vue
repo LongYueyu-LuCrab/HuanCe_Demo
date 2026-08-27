@@ -73,6 +73,13 @@ async function submitWorkflow() {
     ElMessage.warning('预开票必须为最终总开票保留余额')
     return
   }
+  if (
+    activeAction.value === 'invoice_create'
+    && Number(form.invoice_amount) !== Number(activeInvoice.value.remaining_amount)
+  ) {
+    ElMessage.warning(`最终总开票必须一次性开完剩余 ${activeInvoice.value.remaining_amount} 元`)
+    return
+  }
   submitting.value = true
   try {
     await workflowAction({
@@ -150,7 +157,16 @@ async function submitWorkflow() {
       <el-form label-position="top" class="form-grid mt-16">
         <template v-if="activeAction === 'preinvoice_create' || activeAction === 'invoice_create'">
           <el-form-item label="发票号"><el-input v-model="form.invoice_no" placeholder="留空自动生成" /></el-form-item>
-          <el-form-item label="开票金额"><el-input v-model="form.invoice_amount" type="number" /></el-form-item>
+          <el-form-item label="开票金额">
+            <el-input
+              v-model="form.invoice_amount"
+              type="number"
+              :readonly="activeAction === 'invoice_create'"
+            />
+            <el-text v-if="activeAction === 'invoice_create'" type="info" size="small">
+              最终总开票须一次性开完全部剩余金额
+            </el-text>
+          </el-form-item>
           <el-form-item label="发票类型"><el-input v-model="form.invoice_type" /></el-form-item>
           <el-form-item label="开票日期"><el-date-picker v-model="form.invoice_date" value-format="YYYY-MM-DD" type="date" /></el-form-item>
         </template>
