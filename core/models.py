@@ -622,6 +622,10 @@ class Invoice(TimeStampedModel):
         UNFINISHED = 0, '未办结'
         FINISHED = 1, '全部流程完成'
 
+    class RecordStatus(models.TextChoices):
+        VALID = 'valid', '有效'
+        VOIDED = 'voided', '已作废'
+
     order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='invoices')
     report = models.ForeignKey(TestReport, verbose_name='检测报告', on_delete=models.SET_NULL, null=True, blank=True, related_name='invoices')
     invoice_stage = models.CharField('开票阶段', max_length=24, choices=Stage.choices, default=Stage.FINAL)
@@ -632,6 +636,17 @@ class Invoice(TimeStampedModel):
     pay_status = models.PositiveSmallIntegerField('回款状态', choices=PayStatus.choices, default=PayStatus.UNPAID)
     finance_user = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='操作开票会计', on_delete=models.SET_NULL, null=True, blank=True)
     order_finish_flag = models.PositiveSmallIntegerField('订单办结标记', choices=FinishFlag.choices, default=FinishFlag.UNFINISHED)
+    record_status = models.CharField('发票状态', max_length=16, choices=RecordStatus.choices, default=RecordStatus.VALID)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='作废操作人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='voided_lims_invoices',
+    )
+    voided_at = models.DateTimeField('作废时间', null=True, blank=True)
+    void_reason = models.CharField('作废原因', max_length=500, blank=True)
 
     class Meta:
         db_table = 'lims_finance_invoice'
@@ -640,7 +655,7 @@ class Invoice(TimeStampedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=['report'],
-                condition=models.Q(invoice_stage='final', report__isnull=False),
+                condition=models.Q(invoice_stage='final', record_status='valid', report__isnull=False),
                 name='unique_final_invoice_per_report',
             ),
         ]

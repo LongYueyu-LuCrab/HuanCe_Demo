@@ -350,7 +350,11 @@ def _workflow_progress_payload(order):
     latest_sales_audit = max(sales_audits, key=lambda audit: audit.audit_time, default=None)
     latest_gm_audit = max(gm_audits, key=lambda audit: audit.audit_time, default=None)
     final_invoice = max(
-        (invoice for invoice in invoices if invoice.invoice_stage == Invoice.Stage.FINAL),
+        (
+            invoice for invoice in invoices
+            if invoice.invoice_stage == Invoice.Stage.FINAL
+            and invoice.record_status == Invoice.RecordStatus.VALID
+        ),
         key=lambda invoice: invoice.invoice_date or invoice.create_time,
         default=None,
     )
@@ -745,9 +749,17 @@ def _report_payload(report):
 def _invoice_amounts(order):
     prefetched_invoices = getattr(order, '_prefetched_objects_cache', {}).get('invoices')
     if prefetched_invoices is not None:
-        invoiced_total = sum((invoice.invoice_amount for invoice in prefetched_invoices), Decimal('0.00'))
+        invoiced_total = sum(
+            (
+                invoice.invoice_amount for invoice in prefetched_invoices
+                if invoice.record_status == Invoice.RecordStatus.VALID
+            ),
+            Decimal('0.00'),
+        )
     else:
-        invoiced_total = order.invoices.aggregate(total=Sum('invoice_amount'))['total'] or Decimal('0.00')
+        invoiced_total = order.invoices.filter(
+            record_status=Invoice.RecordStatus.VALID,
+        ).aggregate(total=Sum('invoice_amount'))['total'] or Decimal('0.00')
     remaining_amount = max(Decimal('0.00'), order.total_quote - invoiced_total)
     return invoiced_total, remaining_amount
 
@@ -804,7 +816,7 @@ def _experiment_finance_status(order):
     return '实验未结束'
 
 
-def _invoice_payload(invoice):
+def _invoice_payload(invoice, current_user=None):
     order = invoice.order
     report = invoice.report
     invoiced_total, remaining_amount = _invoice_amounts(order)
@@ -825,9 +837,21 @@ def _invoice_payload(invoice):
         'invoice_date': invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '',
         'pay_status': invoice.get_pay_status_display(),
         'finish_status': invoice.get_order_finish_flag_display(),
+        'record_status': invoice.record_status,
+        'record_status_label': invoice.get_record_status_display(),
         'finance_user': invoice.finance_user.first_name or invoice.finance_user.username
         if invoice.finance_user
         else '',
+        'can_void': bool(
+            current_user
+            and invoice.record_status == Invoice.RecordStatus.VALID
+            and invoice.finance_user_id == current_user.id
+        ),
+        'voided_by': invoice.voided_by.first_name or invoice.voided_by.username
+        if invoice.voided_by
+        else '',
+        'voided_at': invoice.voided_at.strftime('%Y-%m-%d %H:%M') if invoice.voided_at else '',
+        'void_reason': invoice.void_reason,
         'experiment_result_status': _experiment_finance_status(order),
     }
 
@@ -852,7 +876,13 @@ def _pending_final_invoice_payload(report):
         'invoice_date': '',
         'pay_status': '待开票',
         'finish_status': order.get_order_status_display(),
+        'record_status': Invoice.RecordStatus.VALID,
+        'record_status_label': Invoice.RecordStatus.VALID.label,
         'finance_user': '',
+        'can_void': False,
+        'voided_by': '',
+        'voided_at': '',
+        'void_reason': '',
         'experiment_result_status': _experiment_finance_status(order),
     }
 
@@ -877,7 +907,13 @@ def _pending_preinvoice_payload(order):
         'invoice_date': '',
         'pay_status': '待预开票',
         'finish_status': order.get_order_status_display(),
+        'record_status': Invoice.RecordStatus.VALID,
+        'record_status_label': Invoice.RecordStatus.VALID.label,
         'finance_user': '',
+        'can_void': False,
+        'voided_by': '',
+        'voided_at': '',
+        'void_reason': '',
         'experiment_result_status': _experiment_finance_status(order),
     }
 
@@ -2142,6 +2178,7 @@ def lims_action(request):
         'preinvoice_create': _action_preinvoice_create,
         'invoice_create': _action_invoice_create,
         'invoice_pay': _action_invoice_pay,
+        'invoice_void': _action_invoice_void,
         'standard_create': _action_standard_create,
     }
     handler = handlers.get(action)
@@ -3186,11 +3223,18 @@ def _action_invoice_create(request, payload):
         return error
     if report.report_status != TestReport.Status.APPROVED:
         return JsonResponse({'ok': False, 'error': '只有终审通过的报告可以开票'}, status=400, json_dumps_params={'ensure_ascii': False})
-    if report.invoices.filter(invoice_stage=Invoice.Stage.FINAL).exists():
+    if report.invoices.filter(
+        invoice_stage=Invoice.Stage.FINAL,
+        record_status=Invoice.RecordStatus.VALID,
+    ).exists():
         return JsonResponse({'ok': False, 'error': '该报告已开票'}, status=400, json_dumps_params={'ensure_ascii': False})
     with transaction.atomic():
         order = LabOrder.objects.select_for_update().get(pk=report.order_id)
-        if Invoice.objects.filter(report=report, invoice_stage=Invoice.Stage.FINAL).exists():
+        if Invoice.objects.filter(
+            report=report,
+            invoice_stage=Invoice.Stage.FINAL,
+            record_status=Invoice.RecordStatus.VALID,
+        ).exists():
             return JsonResponse({'ok': False, 'error': '该报告已完成最终总开票'}, status=400, json_dumps_params={'ensure_ascii': False})
         invoiced_total, remaining_amount = _invoice_amounts(order)
         amount, amount_error = _invoice_amount_from_payload(payload, default_amount=remaining_amount)
@@ -3232,7 +3276,7 @@ def _action_invoice_create(request, payload):
             },
         )
         order.mark_status(LabOrder.Status.INVOICED_CLOSED, request.user, f'会计最终总开票办结：{invoice.invoice_no}')
-    return JsonResponse({'ok': True, 'message': '开票办结完成', 'invoice': _invoice_payload(invoice)}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'ok': True, 'message': '开票办结完成', 'invoice': _invoice_payload(invoice, request.user)}, json_dumps_params={'ensure_ascii': False})
 
 
 def _action_invoice_pay(request, payload):
@@ -3244,13 +3288,14 @@ def _action_invoice_pay(request, payload):
         invoice = Invoice.objects.select_related('order', 'report', 'finance_user').get(invoice_no=invoice_no)
     except Invoice.DoesNotExist:
         return JsonResponse({'ok': False, 'error': '发票不存在'}, status=404, json_dumps_params={'ensure_ascii': False})
+    if invoice.record_status == Invoice.RecordStatus.VOIDED:
+        return JsonResponse({'ok': False, 'error': '已作废发票不能更新回款状态'}, status=400, json_dumps_params={'ensure_ascii': False})
     pay_status, pay_error = _invoice_payment_status(payload)
     if pay_error:
         return JsonResponse({'ok': False, 'error': pay_error}, status=400, json_dumps_params={'ensure_ascii': False})
     before_status = invoice.get_pay_status_display()
     invoice.pay_status = pay_status
-    invoice.finance_user = request.user
-    invoice.save()
+    invoice.save(update_fields=['pay_status', 'update_time'])
     _event(
         invoice.order,
         request.user,
@@ -3260,7 +3305,78 @@ def _action_invoice_pay(request, payload):
             'pay_status': _audit_change('回款状态', before_status, invoice.get_pay_status_display()),
         },
     )
-    return JsonResponse({'ok': True, 'message': '回款状态已更新', 'invoice': _invoice_payload(invoice)}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'ok': True, 'message': '回款状态已更新', 'invoice': _invoice_payload(invoice, request.user)}, json_dumps_params={'ensure_ascii': False})
+
+
+def _action_invoice_void(request, payload):
+    role_error = _require_role(request.user, ROLE_ACCOUNTING)
+    if role_error:
+        return role_error
+    invoice_no = (payload.get('invoice_no') or '').strip()
+    void_reason = (payload.get('void_reason') or '').strip()
+    if not void_reason:
+        return JsonResponse({'ok': False, 'error': '请填写作废原因'}, status=400, json_dumps_params={'ensure_ascii': False})
+
+    with transaction.atomic():
+        try:
+            invoice = Invoice.objects.select_for_update().select_related(
+                'order', 'report', 'finance_user', 'voided_by',
+            ).get(invoice_no=invoice_no)
+        except Invoice.DoesNotExist:
+            return JsonResponse({'ok': False, 'error': '发票不存在'}, status=404, json_dumps_params={'ensure_ascii': False})
+        order = LabOrder.objects.select_for_update().get(pk=invoice.order_id)
+        if invoice.record_status == Invoice.RecordStatus.VOIDED:
+            return JsonResponse({'ok': False, 'error': '该发票已经作废'}, status=400, json_dumps_params={'ensure_ascii': False})
+        if invoice.finance_user_id != request.user.id:
+            return JsonResponse({'ok': False, 'error': '只有该发票的原开票人可以作废'}, status=403, json_dumps_params={'ensure_ascii': False})
+        if (
+            invoice.invoice_stage != Invoice.Stage.FINAL
+            and order.invoices.filter(
+                invoice_stage=Invoice.Stage.FINAL,
+                record_status=Invoice.RecordStatus.VALID,
+            ).exists()
+        ):
+            return JsonResponse(
+                {'ok': False, 'error': '订单已有有效的最终总票，请先由最终票开票人作废最终总票'},
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            )
+
+        invoiced_total_before, remaining_before = _invoice_amounts(order)
+        invoice.record_status = Invoice.RecordStatus.VOIDED
+        invoice.voided_by = request.user
+        invoice.voided_at = timezone.now()
+        invoice.void_reason = void_reason
+        invoice.order_finish_flag = Invoice.FinishFlag.UNFINISHED
+        invoice.save(update_fields=[
+            'record_status', 'voided_by', 'voided_at', 'void_reason', 'order_finish_flag', 'update_time',
+        ])
+        invoiced_total_after, remaining_after = _invoice_amounts(order)
+
+        _event(
+            order,
+            request.user,
+            f'发票作废：{invoice.invoice_no}，金额 {invoice.invoice_amount:.2f} 元已退回待开票余额',
+            action_code='finance_invoice_void',
+            changes={
+                'record_status': _audit_change('发票状态', '有效', '已作废'),
+                'void_reason': _audit_change('作废原因', '', void_reason),
+                'invoice_amount': _audit_change('累计已开', invoiced_total_before, invoiced_total_after),
+                'remaining_amount': _audit_change('剩余可开', remaining_before, remaining_after),
+            },
+        )
+        if invoice.invoice_stage == Invoice.Stage.FINAL:
+            order.mark_status(
+                LabOrder.Status.REPORT_REVIEW,
+                request.user,
+                f'最终总开票 {invoice.invoice_no} 已作废，订单退回待最终总开票',
+            )
+        invoice.order = order
+
+    return JsonResponse(
+        {'ok': True, 'message': '发票已作废，金额已退回待开票余额', 'invoice': _invoice_payload(invoice, request.user)},
+        json_dumps_params={'ensure_ascii': False},
+    )
 
 
 def lims_dashboard(request):
@@ -3326,6 +3442,7 @@ def lims_dashboard(request):
                 report_status=TestReport.Status.APPROVED,
             ).exclude(
                 invoices__invoice_stage=Invoice.Stage.FINAL,
+                invoices__record_status=Invoice.RecordStatus.VALID,
             ).values_list('order_id', flat=True)
         ) + list(
             Invoice.objects.filter(order__in=related_orders).values_list('order_id', flat=True)
@@ -3393,8 +3510,9 @@ def lims_dashboard(request):
             report_status=TestReport.Status.APPROVED,
         ).exclude(
             invoices__invoice_stage=Invoice.Stage.FINAL,
+            invoices__record_status=Invoice.RecordStatus.VALID,
         ).order_by('-create_time')
-        invoices = Invoice.objects.select_related('order', 'report', 'finance_user').prefetch_related(
+        invoices = Invoice.objects.select_related('order', 'report', 'finance_user', 'voided_by').prefetch_related(
             'order__invoices', 'order__experiments',
         ).filter(
             order__in=related_orders,
@@ -3459,7 +3577,7 @@ def lims_dashboard(request):
                 for order in preinvoice_candidate_orders[:list_limit]
             ],
             'pending_invoices': [_pending_final_invoice_payload(report) for report in _limit_queryset(pending_invoice_reports, list_limit)],
-            'issued_invoices': [_invoice_payload(invoice) for invoice in _limit_queryset(invoices, list_limit)],
+            'issued_invoices': [_invoice_payload(invoice, request.user) for invoice in _limit_queryset(invoices, list_limit)],
         },
         'roles': _roles(request.user),
     }

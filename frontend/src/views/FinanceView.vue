@@ -27,6 +27,7 @@ const form = reactive({
   invoice_type: '增值税专票',
   invoice_date: '',
   pay_status: 0,
+  void_reason: '',
 })
 
 function openWorkflow(action: string, invoice: InvoiceItem) {
@@ -38,6 +39,7 @@ function openWorkflow(action: string, invoice: InvoiceItem) {
     invoice_type: invoice.invoice_type && invoice.invoice_type !== '待确认' ? invoice.invoice_type : '增值税专票',
     invoice_date: invoice.invoice_date || '',
     pay_status: action === 'invoice_pay' && invoice.pay_status === '已回款' ? 1 : 0,
+    void_reason: '',
   })
   dialogVisible.value = true
   void loadOrderContext(invoice.order_no)
@@ -62,8 +64,12 @@ function openOrderDetail(invoice: InvoiceItem) {
 
 async function submitWorkflow() {
   if (!activeInvoice.value) return
-  if (activeAction.value !== 'invoice_pay' && (!form.invoice_amount || Number(form.invoice_amount) <= 0)) {
+  if (!['invoice_pay', 'invoice_void'].includes(activeAction.value) && (!form.invoice_amount || Number(form.invoice_amount) <= 0)) {
     ElMessage.warning('请填写大于 0 的开票金额')
+    return
+  }
+  if (activeAction.value === 'invoice_void' && !form.void_reason.trim()) {
+    ElMessage.warning('请填写作废原因')
     return
   }
   if (
@@ -91,12 +97,15 @@ async function submitWorkflow() {
       invoice_type: form.invoice_type,
       invoice_date: form.invoice_date,
       pay_status: form.pay_status,
+      void_reason: form.void_reason,
     })
     ElMessage.success(
       activeAction.value === 'preinvoice_create'
         ? '预开票已记录，订单继续流转'
         : activeAction.value === 'invoice_create'
           ? '最终总开票办结完成'
+          : activeAction.value === 'invoice_void'
+            ? '发票已作废，金额已退回待开票余额'
           : '回款状态已更新',
     )
     dialogVisible.value = false
@@ -141,7 +150,7 @@ async function submitWorkflow() {
 
     <el-dialog
       v-model="dialogVisible"
-      :title="activeAction === 'preinvoice_create' ? '预开票' : activeAction === 'invoice_create' ? '最终总开票' : '更新回款状态'"
+      :title="activeAction === 'preinvoice_create' ? '预开票' : activeAction === 'invoice_create' ? '最终总开票' : activeAction === 'invoice_void' ? '作废发票' : '更新回款状态'"
       width="min(960px, 94vw)"
     >
       <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="开票关联订单信息" />
@@ -170,7 +179,10 @@ async function submitWorkflow() {
           <el-form-item label="发票类型"><el-input v-model="form.invoice_type" /></el-form-item>
           <el-form-item label="开票日期"><el-date-picker v-model="form.invoice_date" value-format="YYYY-MM-DD" type="date" /></el-form-item>
         </template>
-        <el-form-item label="回款状态">
+        <el-form-item v-if="activeAction === 'invoice_void'" label="作废原因">
+          <el-input v-model="form.void_reason" type="textarea" :rows="3" maxlength="500" show-word-limit />
+        </el-form-item>
+        <el-form-item v-else label="回款状态">
           <el-select v-model="form.pay_status">
             <el-option label="未收款" :value="0" />
             <el-option label="已回款" :value="1" />

@@ -743,6 +743,13 @@ pre-invoice must leave a positive remaining balance for the final invoice. The f
 equal the full remaining balance and closes the order only after that balance is invoiced. The
 cumulative invoice amount must never exceed the order quote.
 
+Invoices are never deleted. Only the original invoice issuer may void a valid invoice, with a
+required reason and a permanent audit event. Voided invoice amounts are excluded from cumulative
+invoiced totals and return to the remaining invoice balance. Voiding a final invoice reopens the
+order at report review so that the approved report appears in the final-invoice queue again.
+Once a valid final invoice exists, earlier pre-invoices cannot be voided until the final invoice is
+voided first; this prevents a closed order from silently falling below its fully invoiced amount.
+
 ### 19.3 Responsibility Rules
 
 - Technical reviewers own route selection and initial assignment, not detailed scheduling.

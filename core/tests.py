@@ -770,6 +770,111 @@ class InvoiceWorkflowTests(TestCase):
         self.assertEqual(unpaid.status_code, 200)
         self.assertEqual(Invoice.objects.get(invoice_no='PRE-PAY-001').pay_status, Invoice.PayStatus.UNPAID)
 
+    def test_preinvoice_void_returns_amount_and_only_issuer_can_void(self):
+        created = self.action(
+            'preinvoice_create', invoice_no='PRE-VOID-001', invoice_amount='250.00', pay_status=0,
+        )
+        self.assertEqual(created.status_code, 200)
+
+        other_accountant = get_user_model().objects.create_user(
+            username='other_invoice_accountant', password='password123', first_name='其他会计',
+        )
+        other_accountant.groups.add(self.accountant.groups.get())
+        self.client.force_login(other_accountant)
+        denied = self.client.post(
+            reverse('lims_action'),
+            data={
+                'action': 'invoice_void',
+                'invoice_no': 'PRE-VOID-001',
+                'void_reason': '非原开票人尝试作废',
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(denied.status_code, 403)
+
+        voided = self.action(
+            'invoice_void', invoice_no='PRE-VOID-001', void_reason='发票信息填写错误',
+        )
+        self.assertEqual(voided.status_code, 200)
+        invoice = Invoice.objects.get(invoice_no='PRE-VOID-001')
+        self.assertEqual(invoice.record_status, Invoice.RecordStatus.VOIDED)
+        self.assertEqual(invoice.voided_by, self.accountant)
+        self.assertEqual(invoice.void_reason, '发票信息填写错误')
+
+        candidate = next(
+            item for item in self.dashboard()['finance']['preinvoice_candidates']
+            if item['order_no'] == self.order.order_no
+        )
+        self.assertEqual(candidate['invoiced_total'], '0.00')
+        self.assertEqual(candidate['remaining_amount'], '1000.00')
+        payment_update = self.action('invoice_pay', invoice_no='PRE-VOID-001', pay_status=1)
+        self.assertEqual(payment_update.status_code, 400)
+
+    def test_final_invoice_void_reopens_order_and_allows_replacement(self):
+        preinvoice = self.action(
+            'preinvoice_create', invoice_no='PRE-BEFORE-FINAL-VOID', invoice_amount='400.00',
+        )
+        self.assertEqual(preinvoice.status_code, 200)
+        self.order.order_status = LabOrder.Status.REPORT_REVIEW
+        self.order.save(update_fields=['order_status', 'update_time'])
+        report = TestReport.objects.create(
+            order=self.order,
+            report_no='FINAL-VOID-REPORT-001',
+            final_conclusion='报告终审通过',
+            report_status=TestReport.Status.APPROVED,
+        )
+        final = self.action(
+            'invoice_create',
+            report_no=report.report_no,
+            invoice_no='FINAL-VOID-001',
+            invoice_amount='600.00',
+        )
+        self.assertEqual(final.status_code, 200)
+
+        preinvoice_void_while_final_active = self.action(
+            'invoice_void',
+            invoice_no='PRE-BEFORE-FINAL-VOID',
+            void_reason='最终票仍有效时尝试作废预开票',
+        )
+        self.assertEqual(preinvoice_void_while_final_active.status_code, 400)
+        self.assertEqual(
+            Invoice.objects.get(invoice_no='PRE-BEFORE-FINAL-VOID').record_status,
+            Invoice.RecordStatus.VALID,
+        )
+
+        voided = self.action(
+            'invoice_void', invoice_no='FINAL-VOID-001', void_reason='最终发票抬头错误',
+        )
+        self.assertEqual(voided.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.order_status, LabOrder.Status.REPORT_REVIEW)
+        self.assertEqual(
+            Invoice.objects.get(invoice_no='FINAL-VOID-001').record_status,
+            Invoice.RecordStatus.VOIDED,
+        )
+        pending = next(
+            item for item in self.dashboard()['finance']['pending_invoices']
+            if item['report_no'] == report.report_no
+        )
+        self.assertEqual(pending['invoiced_total'], '400.00')
+        self.assertEqual(pending['remaining_amount'], '600.00')
+
+        replacement = self.action(
+            'invoice_create',
+            report_no=report.report_no,
+            invoice_no='FINAL-REPLACEMENT-001',
+            invoice_amount='600.00',
+        )
+        self.assertEqual(replacement.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.order_status, LabOrder.Status.INVOICED_CLOSED)
+        self.assertEqual(
+            self.order.invoices.filter(record_status=Invoice.RecordStatus.VALID).aggregate(
+                total=Sum('invoice_amount'),
+            )['total'],
+            Decimal('1000.00'),
+        )
+
 
 class LimsV2DirectLabWorkflowTests(TestCase):
     def setUp(self):

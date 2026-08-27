@@ -299,7 +299,13 @@ export type InvoiceItem = {
   invoice_date: string
   pay_status: string
   finish_status: string
+  record_status: 'valid' | 'voided'
+  record_status_label: string
   finance_user: string
+  can_void: boolean
+  voided_by: string
+  voided_at: string
+  void_reason: string
   experiment_result_status: string
 }
 

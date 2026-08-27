@@ -38,7 +38,10 @@ const filteredInvoices = computed(() => {
       invoice.invoice_date,
       invoice.pay_status,
       invoice.finish_status,
+      invoice.record_status_label,
       invoice.finance_user,
+      invoice.voided_by,
+      invoice.void_reason,
       invoice.experiment_result_status,
     ]
       .filter(Boolean)
@@ -96,8 +99,10 @@ const pagedInvoices = computed(() => {
       </el-table-column>
       <el-table-column label="状态" min-width="190">
         <template #default="{ row }">
-          <el-tag :type="row.pay_status.includes('已') ? 'success' : 'warning'" effect="plain">{{ row.pay_status }}</el-tag>
+          <el-tag v-if="row.record_status === 'voided'" type="danger" effect="plain">已作废</el-tag>
+          <el-tag v-else :type="row.pay_status.includes('已') ? 'success' : 'warning'" effect="plain">{{ row.pay_status }}</el-tag>
           <div class="cell-sub">{{ row.finish_status }}</div>
+          <div v-if="row.record_status === 'voided'" class="cell-sub">{{ row.voided_at }} · {{ row.void_reason }}</div>
         </template>
       </el-table-column>
       <el-table-column prop="invoice_date" label="开票日期" min-width="120" />
@@ -108,7 +113,8 @@ const pagedInvoices = computed(() => {
             <el-button size="small" plain @click="emit('detail', row)">订单详情</el-button>
             <el-button v-if="canOperate && mode === 'preinvoice'" size="small" type="warning" plain @click="emit('workflow', 'preinvoice_create', row)">预开票</el-button>
             <el-button v-if="canOperate && mode === 'final'" size="small" type="primary" plain @click="emit('workflow', 'invoice_create', row)">最终总开票</el-button>
-            <el-button v-if="canOperate && mode === 'history'" size="small" type="success" plain @click="emit('workflow', 'invoice_pay', row)">更新回款</el-button>
+            <el-button v-if="canOperate && mode === 'history' && row.record_status !== 'voided'" size="small" type="success" plain @click="emit('workflow', 'invoice_pay', row)">更新回款</el-button>
+            <el-button v-if="canOperate && mode === 'history' && row.can_void" size="small" type="danger" plain @click="emit('workflow', 'invoice_void', row)">作废</el-button>
           </div>
         </template>
       </el-table-column>
