@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import OrderSnapshot from './OrderSnapshot.vue'
+import { fetchOrderDetail } from '../services/api'
 import type { OrderItem, User } from '../types'
 
 const props = defineProps<{
@@ -19,6 +21,7 @@ const page = ref(1)
 const pageSize = ref(10)
 const selectedOrder = ref<OrderItem | null>(null)
 const drawerVisible = ref(false)
+const orderLoading = ref(false)
 
 const filteredOrders = computed(() => {
   const value = keyword.value.trim().toLowerCase()
@@ -58,9 +61,17 @@ function resetPage() {
   page.value = 1
 }
 
-function openOrder(order: OrderItem) {
+async function openOrder(order: OrderItem) {
   selectedOrder.value = order
   drawerVisible.value = true
+  orderLoading.value = true
+  try {
+    selectedOrder.value = await fetchOrderDetail(order.order_no)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '订单详情读取失败')
+  } finally {
+    orderLoading.value = false
+  }
 }
 
 const roleSet = computed(() => new Set(props.user?.roles || []))
@@ -201,7 +212,7 @@ function actionsFor(order: OrderItem) {
     </div>
   </el-card>
 
-  <el-drawer v-model="drawerVisible" title="订单详情" size="520px">
-    <OrderSnapshot :order="selectedOrder" title="完整订单信息" />
+  <el-drawer v-model="drawerVisible" title="订单详情" size="min(960px, 94vw)">
+    <OrderSnapshot :order="selectedOrder" :loading="orderLoading" title="完整订单信息" />
   </el-drawer>
 </template>

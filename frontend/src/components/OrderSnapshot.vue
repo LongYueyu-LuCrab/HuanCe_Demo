@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { OrderItem } from '../types'
+import WorkflowProgress from './WorkflowProgress.vue'
 
 defineProps<{
   order?: OrderItem | null
@@ -40,7 +41,9 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
 
     <el-skeleton v-if="loading" :rows="5" animated />
     <el-empty v-else-if="!order" description="订单详情暂时无法读取" :image-size="64" />
-    <el-descriptions v-else :column="2" border class="snapshot-descriptions">
+    <template v-else>
+      <WorkflowProgress v-if="order.workflow_progress" :progress="order.workflow_progress" />
+      <el-descriptions :column="2" border class="snapshot-descriptions">
       <el-descriptions-item label="订单号">{{ order.order_no }}</el-descriptions-item>
       <el-descriptions-item label="销售">{{ order.sales_owner || '未记录' }}</el-descriptions-item>
       <el-descriptions-item label="客户单位">{{ order.customer }}</el-descriptions-item>
@@ -154,6 +157,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
         </div>
         <span v-else class="cell-sub">销售未上传合同或附件</span>
       </el-descriptions-item>
-    </el-descriptions>
+      </el-descriptions>
+    </template>
   </section>
 </template>

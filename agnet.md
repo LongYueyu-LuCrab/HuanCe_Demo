@@ -678,6 +678,15 @@ Sales-order fields are shared workflow context, not sales-only presentation data
   payloads do not grow with document metadata.
 - When adding future sales-order fields, update `_order_payload`, `OrderItem`, `OrderSnapshot`,
   relevant tests, and every downstream workflow view in the same change.
+- Full order details include `workflow_progress`, a 13-node authoritative process trace covering
+  sales order, parallel business/technical review, routing, scheduling, sales confirmation, sample
+  arrival, experiment execution, result submission, report creation, two-level report approval,
+  and final invoicing. Pre-invoices are shown as a finance side-path because they do not advance
+  the main workflow.
+- Workflow step states are `completed`, `current`, `pending`, `rejected`, and `terminated`. Every
+  state must have a visible text label and icon; color alone is not sufficient.
+- Any UI that opens `OrderSnapshot.vue` from a dashboard/list row must first load
+  `GET /api/orders/<order_no>/`. Dashboard summary rows do not contain authoritative workflow details.
 
 ## 19. Workflow V2 Authoritative Baseline
 

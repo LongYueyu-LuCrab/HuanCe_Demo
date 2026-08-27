@@ -323,6 +323,275 @@ def _experiment_lifecycle_payload(order):
     return records
 
 
+def _workflow_progress_payload(order):
+    reviews = list(order.reviews.all())
+    schedules = list(order.schedules.all())
+    reports = list(order.reports.all())
+    invoices = list(order.invoices.all())
+
+    business_passes = [review for review in reviews if review.review_result and review.biz_review_user_id]
+    technical_passes = [review for review in reviews if review.review_result and review.tech_review_user_id]
+    latest_business = max(
+        business_passes,
+        key=lambda review: review.review_time or review.create_time,
+        default=None,
+    )
+    latest_technical = max(
+        technical_passes,
+        key=lambda review: review.review_time or review.create_time,
+        default=None,
+    )
+    latest_report = max(reports, key=lambda report: report.update_time or report.create_time, default=None)
+    report_audits = list(latest_report.audits.all()) if latest_report else []
+    sales_audits = [audit for audit in report_audits if audit.audit_level == ReportAudit.Level.SALES]
+    gm_audits = [audit for audit in report_audits if audit.audit_level == ReportAudit.Level.GENERAL_MANAGER]
+    latest_sales_audit = max(sales_audits, key=lambda audit: audit.audit_time, default=None)
+    latest_gm_audit = max(gm_audits, key=lambda audit: audit.audit_time, default=None)
+    final_invoice = max(
+        (invoice for invoice in invoices if invoice.invoice_stage == Invoice.Stage.FINAL),
+        key=lambda invoice: invoice.invoice_date or invoice.create_time,
+        default=None,
+    )
+    preinvoices = [invoice for invoice in invoices if invoice.invoice_stage != Invoice.Stage.FINAL]
+    is_v2 = order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT
+
+    schedule_count = len(schedules)
+    planned_count = sum(bool(schedule.plan_start_time and schedule.plan_end_time) for schedule in schedules)
+    arrived_count = 0
+    ended_count = 0
+    submitted_count = 0
+    for schedule in schedules:
+        samples = _schedule_samples(schedule)
+        experiments = getattr(schedule, 'ordered_experiments', None)
+        if experiments is None:
+            experiments = list(schedule.experiments.all())
+        arrived = schedule.sample_arrived or any(sample.actual_arrive_time for sample in samples)
+        if arrived:
+            arrived_count += 1
+        if schedule.schedule_status in [SchedulePlan.Status.ENDED, SchedulePlan.Status.FINISHED] or any(
+            experiment.test_status in [Experiment.Status.ENDED, Experiment.Status.FINISHED]
+            for experiment in experiments
+        ):
+            ended_count += 1
+        if schedule.schedule_status == SchedulePlan.Status.FINISHED or any(
+            experiment.test_status == Experiment.Status.FINISHED for experiment in experiments
+        ):
+            submitted_count += 1
+
+    advanced_to_scheduling = order.order_status in [
+        LabOrder.Status.SCHEDULING,
+        LabOrder.Status.TESTING,
+        LabOrder.Status.RESULT_PENDING,
+        LabOrder.Status.TEST_FINISHED,
+        LabOrder.Status.REPORT_REVIEW,
+        LabOrder.Status.INVOICED_CLOSED,
+    ]
+    advanced_to_testing = order.order_status in [
+        LabOrder.Status.TESTING,
+        LabOrder.Status.RESULT_PENDING,
+        LabOrder.Status.TEST_FINISHED,
+        LabOrder.Status.REPORT_REVIEW,
+        LabOrder.Status.INVOICED_CLOSED,
+    ]
+    experiments_ended = order.order_status in [
+        LabOrder.Status.RESULT_PENDING,
+        LabOrder.Status.TEST_FINISHED,
+        LabOrder.Status.REPORT_REVIEW,
+        LabOrder.Status.INVOICED_CLOSED,
+    ] or bool(schedule_count and ended_count == schedule_count)
+    results_submitted = order.order_status in [
+        LabOrder.Status.TEST_FINISHED,
+        LabOrder.Status.REPORT_REVIEW,
+        LabOrder.Status.INVOICED_CLOSED,
+    ] or bool(schedule_count and submitted_count == schedule_count)
+
+    steps = [
+        {
+            'key': 'sales_order', 'sequence': 1, 'phase': 'intake', 'phase_title': '业务准入',
+            'title': '销售下单', 'owner': '销售', 'state': 'completed',
+            'detail': f'{_display_user(order.sale_user) or "销售"}创建订单',
+            'time': _display_datetime(order.create_time),
+        },
+        {
+            'key': 'business_review', 'sequence': 2, 'phase': 'intake', 'phase_title': '业务准入',
+            'title': '商务评审', 'owner': '商务', 'state': 'pending',
+            'detail': _display_user(latest_business.biz_review_user) if latest_business else '核对报价、成本与交付条件',
+            'time': _display_datetime(latest_business.review_time) if latest_business else '',
+        },
+        {
+            'key': 'technical_review', 'sequence': 3, 'phase': 'intake', 'phase_title': '业务准入',
+            'title': '技术评审', 'owner': '技术', 'state': 'pending',
+            'detail': _display_user(latest_technical.tech_review_user) if latest_technical else '核对方法、标准与技术可行性',
+            'time': _display_datetime(latest_technical.review_time) if latest_technical else '',
+        },
+        {
+            'key': 'route_assignment', 'sequence': 4, 'phase': 'preparation', 'phase_title': '实施准备',
+            'title': '路径与主责分配', 'owner': '技术' if is_v2 else '商务/质量部', 'state': 'pending',
+            'detail': f'已分配{schedule_count}条执行路径' if schedule_count else '选择苏州、江阴、委外路径及主责负责人',
+            'time': _display_datetime(min((schedule.create_time for schedule in schedules), default=None)),
+        },
+        {
+            'key': 'scheduling', 'sequence': 5, 'phase': 'preparation', 'phase_title': '实施准备',
+            'title': '排期排台', 'owner': '实验室' if is_v2 else '质量部', 'state': 'pending',
+            'detail': f'{planned_count}/{schedule_count}条路径完成排期' if schedule_count else '等待执行路径分配',
+            'time': _display_datetime(max((schedule.update_time for schedule in schedules), default=None)),
+        },
+        {
+            'key': 'sales_confirmation', 'sequence': 6, 'phase': 'preparation', 'phase_title': '实施准备',
+            'title': '销售确认需求', 'owner': '销售', 'state': 'pending',
+            'detail': (
+                '已确认样品与试验需求' if order.sales_confirmed_at
+                else '流程已继续，历史记录未保存确认时间' if advanced_to_testing
+                else '等待确认排期与需求是否变更'
+            ),
+            'time': _display_datetime(order.sales_confirmed_at),
+        },
+        {
+            'key': 'sample_arrival', 'sequence': 7, 'phase': 'preparation', 'phase_title': '实施准备',
+            'title': '样品到达确认', 'owner': '实验室' if is_v2 else '质量部', 'state': 'pending',
+            'detail': f'{arrived_count}/{schedule_count}条路径已确认到样' if schedule_count else '等待排期后确认到样',
+            'time': _display_datetime(max((schedule.sample_arrived_at for schedule in schedules if schedule.sample_arrived_at), default=None)),
+        },
+        {
+            'key': 'experiment', 'sequence': 8, 'phase': 'execution', 'phase_title': '实验交付',
+            'title': '实验执行', 'owner': '实验室/委外', 'state': 'pending',
+            'detail': f'{ended_count}/{schedule_count}条路径实验已结束' if schedule_count else '等待样品与排期就绪',
+            'time': _display_datetime(max((
+                experiment.test_end_time
+                for schedule in schedules
+                for experiment in (getattr(schedule, 'ordered_experiments', None) or schedule.experiments.all())
+                if experiment.test_end_time
+            ), default=None)),
+        },
+        {
+            'key': 'result_submission', 'sequence': 9, 'phase': 'execution', 'phase_title': '实验交付',
+            'title': '提交实验结果', 'owner': '实验室/委外', 'state': 'pending',
+            'detail': f'{submitted_count}/{schedule_count}条路径已提交结果' if schedule_count else '等待实验结束',
+            'time': _display_datetime(max((
+                schedule.update_time for schedule in schedules
+                if schedule.schedule_status == SchedulePlan.Status.FINISHED
+            ), default=None)),
+        },
+        {
+            'key': 'report', 'sequence': 10, 'phase': 'execution', 'phase_title': '实验交付',
+            'title': '出具检测报告', 'owner': '主责实验室' if is_v2 else '质量部', 'state': 'pending',
+            'detail': f'{latest_report.report_no} · {latest_report.get_report_status_display()}' if latest_report else '等待全部结果提交',
+            'time': _display_datetime(latest_report.update_time) if latest_report else '',
+        },
+        {
+            'key': 'sales_audit', 'sequence': 11, 'phase': 'approval', 'phase_title': '审核结算',
+            'title': '销售初审', 'owner': '销售', 'state': 'pending',
+            'detail': latest_sales_audit.get_audit_result_display() if latest_sales_audit else '等待报告提交',
+            'time': _display_datetime(latest_sales_audit.audit_time) if latest_sales_audit else '',
+        },
+        {
+            'key': 'gm_audit', 'sequence': 12, 'phase': 'approval', 'phase_title': '审核结算',
+            'title': '总经理终审', 'owner': '总经理', 'state': 'pending',
+            'detail': latest_gm_audit.get_audit_result_display() if latest_gm_audit else '等待销售初审通过',
+            'time': _display_datetime(latest_gm_audit.audit_time) if latest_gm_audit else '',
+        },
+        {
+            'key': 'final_invoice', 'sequence': 13, 'phase': 'approval', 'phase_title': '审核结算',
+            'title': '最终总开票', 'owner': '会计', 'state': 'pending',
+            'detail': f'{final_invoice.invoice_no} · {final_invoice.invoice_amount:.2f}元' if final_invoice else '终审通过后开票并办结',
+            'time': _display_datetime(final_invoice.invoice_date) if final_invoice else '',
+        },
+    ]
+    step_map = {step['key']: step for step in steps}
+
+    completed = {
+        'sales_order': True,
+        'business_review': bool(latest_business or advanced_to_scheduling),
+        'technical_review': bool(latest_technical or advanced_to_scheduling),
+        'route_assignment': bool(schedule_count or advanced_to_testing),
+        'scheduling': bool((schedule_count and planned_count == schedule_count) or advanced_to_testing),
+        'sales_confirmation': bool(order.sales_confirmed_at or advanced_to_testing),
+        'sample_arrival': bool((schedule_count and arrived_count == schedule_count) or advanced_to_testing),
+        'experiment': experiments_ended,
+        'result_submission': results_submitted,
+        'report': bool(latest_report and latest_report.report_status != TestReport.Status.DRAFT),
+        'sales_audit': bool(latest_sales_audit and latest_sales_audit.audit_result == ReportAudit.Result.APPROVED),
+        'gm_audit': bool(latest_gm_audit and latest_gm_audit.audit_result == ReportAudit.Result.APPROVED),
+        'final_invoice': bool(final_invoice or order.order_status == LabOrder.Status.INVOICED_CLOSED),
+    }
+    for key, is_complete in completed.items():
+        if is_complete:
+            step_map[key]['state'] = 'completed'
+
+    summary = order.get_order_status_display()
+    current_keys = []
+    if order.order_status == LabOrder.Status.CANCELLED:
+        for step in steps[1:]:
+            if step['state'] != 'completed':
+                step['state'] = 'terminated'
+        summary = '订单已退单，流程终止'
+    elif order.order_status == LabOrder.Status.REVIEW_REJECTED:
+        for key in ['business_review', 'technical_review']:
+            if step_map[key]['state'] != 'completed':
+                step_map[key]['state'] = 'rejected'
+        summary = '评审驳回，等待销售修改或退单'
+    elif latest_report and latest_report.report_status == TestReport.Status.REJECTED:
+        if latest_gm_audit and latest_gm_audit.audit_result == ReportAudit.Result.REJECTED:
+            step_map['gm_audit']['state'] = 'rejected'
+        elif latest_sales_audit and latest_sales_audit.audit_result == ReportAudit.Result.REJECTED:
+            step_map['sales_audit']['state'] = 'rejected'
+        step_map['report']['state'] = 'current'
+        current_keys = ['report']
+        summary = '报告审核驳回，等待主责实验室重制'
+    elif order.order_status == LabOrder.Status.PENDING_REVIEW:
+        current_keys = [
+            key for key in ['business_review', 'technical_review']
+            if step_map[key]['state'] != 'completed'
+        ] or ['route_assignment']
+        summary = '商务与技术并行评审'
+    elif order.order_status == LabOrder.Status.SCHEDULING:
+        current_keys = [next(
+            (key for key in ['route_assignment', 'scheduling', 'sales_confirmation', 'sample_arrival'] if step_map[key]['state'] != 'completed'),
+            'experiment',
+        )]
+    elif order.order_status == LabOrder.Status.TESTING:
+        current_keys = ['result_submission' if experiments_ended else 'experiment']
+    elif order.order_status == LabOrder.Status.RESULT_PENDING:
+        current_keys = ['result_submission']
+        summary = '全部实验已结束，等待提交结果'
+    elif order.order_status == LabOrder.Status.TEST_FINISHED:
+        current_keys = ['report']
+        summary = '实验结果已提交，等待出具报告'
+    elif order.order_status == LabOrder.Status.REPORT_REVIEW:
+        if not latest_report or latest_report.report_status == TestReport.Status.DRAFT:
+            current_keys = ['report']
+        elif latest_report.report_status == TestReport.Status.SALES_REVIEW:
+            current_keys = ['sales_audit']
+        elif latest_report.report_status == TestReport.Status.GM_REVIEW:
+            current_keys = ['gm_audit']
+        elif latest_report.report_status == TestReport.Status.APPROVED:
+            current_keys = ['final_invoice']
+    for key in current_keys:
+        if step_map[key]['state'] != 'completed':
+            step_map[key]['state'] = 'current'
+
+    state_labels = {
+        'completed': '已完成',
+        'current': '当前处理',
+        'pending': '待处理',
+        'rejected': '已驳回',
+        'terminated': '已终止',
+    }
+    for step in steps:
+        step['state_label'] = state_labels[step['state']]
+
+    current_titles = [step_map[key]['title'] for key in current_keys]
+    return {
+        'summary': summary,
+        'current_step': '、'.join(current_titles) if current_titles else ('流程已完成' if completed['final_invoice'] else summary),
+        'completed_steps': sum(step['state'] == 'completed' for step in steps),
+        'total_steps': len(steps),
+        'preinvoice_count': len(preinvoices),
+        'preinvoice_total': str(sum((invoice.invoice_amount for invoice in preinvoices), Decimal('0.00'))),
+        'steps': steps,
+    }
+
+
 def _order_payload(order, include_sample_records=False):
     sample_arrival = order.expect_sample_arrive
     sample_arrival_value = _display_date(sample_arrival)
@@ -382,6 +651,7 @@ def _order_payload(order, include_sample_records=False):
     if include_sample_records:
         payload['sample_records'] = _sample_lifecycle_payload(order)
         payload['experiment_records'] = _experiment_lifecycle_payload(order)
+        payload['workflow_progress'] = _workflow_progress_payload(order)
     return payload
 
 
@@ -407,8 +677,15 @@ def order_detail(request, order_no):
                 to_attr='ordered_experiments',
             ),
         )
+        report_queryset = TestReport.objects.prefetch_related(
+            Prefetch('audits', queryset=ReportAudit.objects.select_related('audit_user').order_by('audit_time', 'id')),
+            'invoices',
+        )
         order = _orders_for_user(request.user).prefetch_related(
-            Prefetch('schedules', queryset=schedule_queryset)
+            Prefetch('reviews', queryset=BusinessReview.objects.select_related('biz_review_user', 'tech_review_user')),
+            Prefetch('schedules', queryset=schedule_queryset),
+            Prefetch('reports', queryset=report_queryset),
+            Prefetch('invoices', queryset=Invoice.objects.select_related('finance_user', 'report')),
         ).get(order_no=order_no)
     except LabOrder.DoesNotExist:
         return JsonResponse(

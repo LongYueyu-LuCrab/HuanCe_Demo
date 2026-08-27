@@ -5,7 +5,7 @@ import { UploadFilled } from '@element-plus/icons-vue'
 import type { UploadFile, UploadFiles, UploadRawFile, UploadUserFile } from 'element-plus'
 import OrderTable from '../components/OrderTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
-import { createOrder, workflowAction } from '../services/api'
+import { createOrder, fetchOrderDetail, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
 import type { OrderItem } from '../types'
 
@@ -16,6 +16,7 @@ const actionDialogVisible = ref(false)
 const actionSubmitting = ref(false)
 const activeAction = ref('')
 const activeOrder = ref<OrderItem | null>(null)
+const actionOrderLoading = ref(false)
 const actionForm = reactive<Record<string, unknown>>({})
 const contractFileList = ref<UploadUserFile[]>([])
 const attachmentFileList = ref<UploadUserFile[]>([])
@@ -146,6 +147,18 @@ function openWorkflow(action: string, order: OrderItem) {
     final_conclusion: '',
   })
   actionDialogVisible.value = true
+  void loadWorkflowOrder(order.order_no)
+}
+
+async function loadWorkflowOrder(orderNo: string) {
+  actionOrderLoading.value = true
+  try {
+    activeOrder.value = await fetchOrderDetail(orderNo)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '订单详情读取失败')
+  } finally {
+    actionOrderLoading.value = false
+  }
 }
 
 async function submitWorkflow() {
@@ -308,6 +321,7 @@ async function submit() {
     <el-dialog v-model="actionDialogVisible" :title="actionTitleMap[activeAction] || '流程操作'" width="min(960px, 94vw)">
       <OrderSnapshot
         :order="activeOrder"
+        :loading="actionOrderLoading"
         :title="activeAction === 'review_pass' || activeAction === 'review_reject' ? '待评审订单信息' : '流程订单信息'"
       />
       <el-form label-position="top" class="form-grid action-form">

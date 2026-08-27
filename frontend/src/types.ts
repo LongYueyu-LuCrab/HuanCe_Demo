@@ -43,6 +43,32 @@ export type OrderItem = {
   documents: OrderDocumentItem[]
   sample_records?: SampleLifecycleItem[]
   experiment_records?: ExperimentLifecycleItem[]
+  workflow_progress?: WorkflowProgress
+}
+
+export type WorkflowStepState = 'completed' | 'current' | 'pending' | 'rejected' | 'terminated'
+
+export type WorkflowStepItem = {
+  key: string
+  sequence: number
+  phase: 'intake' | 'preparation' | 'execution' | 'approval'
+  phase_title: string
+  title: string
+  owner: string
+  state: WorkflowStepState
+  state_label: string
+  detail: string
+  time: string
+}
+
+export type WorkflowProgress = {
+  summary: string
+  current_step: string
+  completed_steps: number
+  total_steps: number
+  preinvoice_count: number
+  preinvoice_total: string
+  steps: WorkflowStepItem[]
 }
 
 export type OrderDocumentItem = {

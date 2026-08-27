@@ -109,6 +109,14 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(order['test_standard'], 'GB/T 2423.10-2019')
         self.assertEqual(order['remark'], '加急；完整信息测试')
         self.assertIn('documents', order)
+        progress = order['workflow_progress']
+        self.assertEqual(progress['total_steps'], 13)
+        self.assertEqual(len(progress['steps']), 13)
+        self.assertEqual(progress['current_step'], '实验执行')
+        self.assertEqual(
+            next(step for step in progress['steps'] if step['key'] == 'experiment')['state'],
+            'current',
+        )
 
     def test_order_detail_respects_sales_row_permission(self):
         other_user = get_user_model().objects.create_user(
@@ -123,6 +131,29 @@ class LimsDashboardTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    def test_order_workflow_progress_marks_rejected_review_nodes(self):
+        self.order.order_status = LabOrder.Status.REVIEW_REJECTED
+        self.order.save(update_fields=['order_status', 'update_time'])
+        BusinessReview.objects.create(
+            order=self.order,
+            biz_review_user=None,
+            tech_review_user=None,
+            review_result=False,
+            reject_reason='资料不完整',
+            review_time=timezone.now(),
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('order_detail', kwargs={'order_no': self.order.order_no}))
+
+        self.assertEqual(response.status_code, 200)
+        progress = response.json()['order']['workflow_progress']
+        states = {step['key']: step['state'] for step in progress['steps']}
+        self.assertEqual(states['sales_order'], 'completed')
+        self.assertEqual(states['business_review'], 'rejected')
+        self.assertEqual(states['technical_review'], 'rejected')
+        self.assertIn('评审驳回', progress['summary'])
 
     def test_technical_reviewer_sees_methods_standards_documents_and_execution_attributes(self):
         technical_user = get_user_model().objects.create_user(
@@ -485,6 +516,14 @@ class LimsFullRoleWorkflowTests(TestCase):
         self.assertEqual(invoice.order_finish_flag, Invoice.FinishFlag.FINISHED)
         self.assertEqual(report.report_status, TestReport.Status.APPROVED)
         self.assertEqual(order.order_status, LabOrder.Status.INVOICED_CLOSED)
+        self.client.force_login(self.users['sales'])
+        detail = self.client.get(reverse('order_detail', kwargs={'order_no': order.order_no}))
+        self.assertEqual(detail.status_code, 200)
+        progress = detail.json()['order']['workflow_progress']
+        self.assertEqual(progress['completed_steps'], progress['total_steps'])
+        self.assertEqual(progress['current_step'], '流程已完成')
+        self.assertEqual(progress['steps'][-1]['key'], 'final_invoice')
+        self.assertEqual(progress['steps'][-1]['state'], 'completed')
         self.assertEqual(
             set(Group.objects.values_list('name', flat=True)),
             set(self.roles.values()) | {'实验操作员'},
