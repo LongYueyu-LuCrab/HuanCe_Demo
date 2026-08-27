@@ -29,6 +29,7 @@ export type OrderItem = {
   status_key: number
   execution_mode: string
   execution_attributes: string[]
+  outsource_info: OutsourceRequirementItem | null
   workflow_version: number
   workflow_label: string
   lead_lab_manager: string
@@ -45,6 +46,17 @@ export type OrderItem = {
   sample_records?: SampleLifecycleItem[]
   experiment_records?: ExperimentLifecycleItem[]
   workflow_progress?: WorkflowProgress
+}
+
+export type OutsourceRequirementItem = {
+  outsource_company: string
+  outsource_amount: string
+  entrust_order_no: string
+  undertaking_amount: string
+  experiment_start_time: string
+  experiment_end_time: string
+  created_by: string
+  created_at: string
 }
 
 export type WorkflowStepState = 'completed' | 'current' | 'pending' | 'rejected' | 'terminated'
@@ -74,7 +86,7 @@ export type WorkflowProgress = {
 
 export type OrderDocumentItem = {
   id: number
-  type: 'contract' | 'attachment'
+  type: 'contract' | 'outsource_contract' | 'attachment'
   type_label: string
   name: string
   size: number

@@ -140,6 +140,7 @@ class LabOrder(TimeStampedModel):
 class OrderDocument(models.Model):
     class DocumentType(models.TextChoices):
         CONTRACT = 'contract', '合同'
+        OUTSOURCE_CONTRACT = 'outsource_contract', '委外合同'
         ATTACHMENT = 'attachment', '附件'
 
     order = models.ForeignKey(
@@ -170,6 +171,46 @@ class OrderDocument(models.Model):
 
     def __str__(self):
         return f'{self.order.order_no} - {self.get_document_type_display()} - {self.original_name}'
+
+
+class OutsourceRequirement(TimeStampedModel):
+    order = models.OneToOneField(
+        LabOrder,
+        verbose_name='销售订单',
+        on_delete=models.CASCADE,
+        related_name='outsource_requirement',
+    )
+    outsource_company = models.CharField('委外公司', max_length=200)
+    outsource_amount = models.DecimalField('委外金额', max_digits=12, decimal_places=2)
+    entrust_order_no = models.CharField('委托单号', max_length=64, db_index=True)
+    undertaking_amount = models.DecimalField('承接金额', max_digits=12, decimal_places=2)
+    experiment_start_time = models.DateTimeField('委外实验开始时间')
+    experiment_end_time = models.DateTimeField('委外实验结束时间')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='创建人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_created_outsource_requirements',
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='更新人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_updated_outsource_requirements',
+    )
+
+    class Meta:
+        db_table = 'lims_outsource_requirement'
+        verbose_name = '委外订单资料'
+        verbose_name_plural = '委外订单资料'
+        ordering = ['-create_time']
+
+    def __str__(self):
+        return f'{self.order.order_no} - {self.outsource_company}'
 
 
 class BusinessReview(TimeStampedModel):

@@ -20,7 +20,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabDevice, LabOrder, LabStaffProfile, OrderDocument, ReportAudit, Sample, SamplePhoto, SchedulePlan, TestReport, TestStandard, WorkflowEvent
+from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabDevice, LabOrder, LabStaffProfile, OrderDocument, OutsourceRequirement, ReportAudit, Sample, SamplePhoto, SchedulePlan, TestReport, TestStandard, WorkflowEvent
 from .report_pdf import build_test_report_pdf
 
 
@@ -181,7 +181,9 @@ def _user_payload(user):
 
 
 def _orders_for_user(user):
-    orders = LabOrder.objects.select_related('sale_user', 'lead_lab_manager').prefetch_related('documents')
+    orders = LabOrder.objects.select_related(
+        'sale_user', 'lead_lab_manager', 'outsource_requirement'
+    ).prefetch_related('documents')
     if _is_chairman(user):
         return orders
 
@@ -592,6 +594,25 @@ def _workflow_progress_payload(order):
     }
 
 
+def _outsource_requirement_payload(order):
+    if not order.outsourced_execution:
+        return None
+    try:
+        requirement = order.outsource_requirement
+    except OutsourceRequirement.DoesNotExist:
+        return None
+    return {
+        'outsource_company': requirement.outsource_company,
+        'outsource_amount': str(requirement.outsource_amount),
+        'entrust_order_no': requirement.entrust_order_no,
+        'undertaking_amount': str(requirement.undertaking_amount),
+        'experiment_start_time': _display_datetime(requirement.experiment_start_time),
+        'experiment_end_time': _display_datetime(requirement.experiment_end_time),
+        'created_by': _display_user(requirement.created_by),
+        'created_at': _display_datetime(requirement.create_time),
+    }
+
+
 def _order_payload(order, include_sample_records=False):
     sample_arrival = order.expect_sample_arrive
     sample_arrival_value = _display_date(sample_arrival)
@@ -623,6 +644,7 @@ def _order_payload(order, include_sample_records=False):
         'status_key': order.order_status,
         'execution_mode': order.get_execution_mode_display(),
         'execution_attributes': execution_attributes,
+        'outsource_info': _outsource_requirement_payload(order),
         'workflow_version': order.workflow_version,
         'workflow_label': order.get_workflow_version_display(),
         'lead_lab_manager': _display_user(order.lead_lab_manager),
@@ -1350,6 +1372,19 @@ def _configure_v2_routes(order, actor, payload):
 
     order.schedules.filter(samples__isnull=True, experiments__isnull=True).delete()
     for test_type, manager, task in route_specs:
+        outsource_defaults = {}
+        if test_type == SchedulePlan.TestType.OUTSOURCE:
+            try:
+                requirement = order.outsource_requirement
+            except OutsourceRequirement.DoesNotExist:
+                requirement = None
+            if requirement:
+                outsource_defaults = {
+                    'outsource_factory': requirement.outsource_company,
+                    'outsource_price': requirement.outsource_amount,
+                    'plan_start_time': requirement.experiment_start_time,
+                    'plan_end_time': requirement.experiment_end_time,
+                }
         SchedulePlan.objects.create(
             order=order,
             test_type=test_type,
@@ -1358,6 +1393,7 @@ def _configure_v2_routes(order, actor, payload):
             quality_user=manager,
             assigned_by=actor,
             remark=task,
+            **outsource_defaults,
         )
     order.lead_lab_manager_id = lead_id
     order.execution_mode = (
@@ -1897,11 +1933,14 @@ def create_order(request):
         )
 
     contract_files = request.FILES.getlist('contract_files')
+    outsource_contract_files = request.FILES.getlist('outsource_contract_files')
     attachment_files = request.FILES.getlist('attachment_files')
     file_error = _validate_order_documents(contract_files, '合同', 1)
+    file_error = file_error or _validate_order_documents(outsource_contract_files, '委外合同', 1)
     file_error = file_error or _validate_order_documents(attachment_files, '附件', 10)
-    if not file_error and sum(item.size for item in contract_files + attachment_files) > ORDER_DOCUMENT_TOTAL_MAX_SIZE:
-        file_error = '合同与附件总大小不能超过 40MB'
+    all_order_files = contract_files + outsource_contract_files + attachment_files
+    if not file_error and sum(item.size for item in all_order_files) > ORDER_DOCUMENT_TOTAL_MAX_SIZE:
+        file_error = '合同、委外合同与附件总大小不能超过 40MB'
     if file_error:
         return JsonResponse(
             {'ok': False, 'error': file_error},
@@ -1916,6 +1955,51 @@ def create_order(request):
         total_quote = Decimal(str(payload.get('quoted_amount') or '0'))
     except InvalidOperation:
         return JsonResponse({'ok': False, 'error': '报价金额格式错误'}, status=400, json_dumps_params={'ensure_ascii': False})
+
+    outsource_requirement_data = None
+    if 'outsource' in execution_attributes:
+        outsource_company = (payload.get('outsource_company') or '').strip()
+        entrust_order_no = (payload.get('entrust_order_no') or '').strip()
+        experiment_start_time = _parse_datetime(payload.get('outsource_experiment_start_time'))
+        experiment_end_time = _parse_datetime(payload.get('outsource_experiment_end_time'))
+        if not all([
+            outsource_contract_files,
+            outsource_company,
+            payload.get('outsource_amount'),
+            entrust_order_no,
+            payload.get('undertaking_amount'),
+            experiment_start_time,
+            experiment_end_time,
+        ]):
+            return JsonResponse(
+                {'ok': False, 'error': '委外订单必须完整填写委外合同、委外金额、委外公司、委托单号、承接金额和实验起止时间'},
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            )
+        try:
+            outsource_amount = Decimal(str(payload.get('outsource_amount')))
+            undertaking_amount = Decimal(str(payload.get('undertaking_amount')))
+        except InvalidOperation:
+            return JsonResponse({'ok': False, 'error': '委外金额或承接金额格式错误'}, status=400, json_dumps_params={'ensure_ascii': False})
+        if (
+            not outsource_amount.is_finite()
+            or not undertaking_amount.is_finite()
+            or outsource_amount <= 0
+            or undertaking_amount <= 0
+        ):
+            return JsonResponse({'ok': False, 'error': '委外金额和承接金额必须大于 0'}, status=400, json_dumps_params={'ensure_ascii': False})
+        if experiment_end_time <= experiment_start_time:
+            return JsonResponse({'ok': False, 'error': '委外实验结束时间必须晚于开始时间'}, status=400, json_dumps_params={'ensure_ascii': False})
+        outsource_requirement_data = {
+            'outsource_company': outsource_company,
+            'outsource_amount': outsource_amount,
+            'entrust_order_no': entrust_order_no,
+            'undertaking_amount': undertaking_amount,
+            'experiment_start_time': experiment_start_time,
+            'experiment_end_time': experiment_end_time,
+        }
+    elif outsource_contract_files:
+        return JsonResponse({'ok': False, 'error': '只有选择“委外”属性的订单可以上传委外合同'}, status=400, json_dumps_params={'ensure_ascii': False})
 
     remark = '销售前台下单，等待商务技术评审。'
     if _truthy(payload.get('is_urgent')):
@@ -1942,8 +2026,16 @@ def create_order(request):
         update_by=request.user.username,
         remark=remark,
     )
+    if outsource_requirement_data:
+        OutsourceRequirement.objects.create(
+            order=order,
+            created_by=request.user,
+            updated_by=request.user,
+            **outsource_requirement_data,
+        )
     for document_type, files in (
         (OrderDocument.DocumentType.CONTRACT, contract_files),
+        (OrderDocument.DocumentType.OUTSOURCE_CONTRACT, outsource_contract_files),
         (OrderDocument.DocumentType.ATTACHMENT, attachment_files),
     ):
         for uploaded_file in files:

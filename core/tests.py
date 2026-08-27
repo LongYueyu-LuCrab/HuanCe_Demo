@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
 
@@ -19,6 +20,7 @@ from .models import (
     LabOrder,
     LabStaffProfile,
     OrderDocument,
+    OutsourceRequirement,
     ReportAudit,
     Sample,
     SchedulePlan,
@@ -166,6 +168,25 @@ class LimsDashboardTests(TestCase):
         self.order.autonomous_execution = True
         self.order.outsourced_execution = True
         self.order.save()
+        OutsourceRequirement.objects.create(
+            order=self.order,
+            outsource_company='上海委外检测有限公司',
+            outsource_amount=Decimal('3200.00'),
+            entrust_order_no='WW-TECH-001',
+            undertaking_amount=Decimal('5200.00'),
+            experiment_start_time=timezone.now(),
+            experiment_end_time=timezone.now() + timedelta(days=2),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        OrderDocument.objects.create(
+            order=self.order,
+            document_type=OrderDocument.DocumentType.OUTSOURCE_CONTRACT,
+            file=SimpleUploadedFile('委外合同.pdf', b'%PDF-1.4 outsource'),
+            original_name='委外合同.pdf',
+            file_size=20,
+            uploaded_by=self.user,
+        )
         OrderDocument.objects.create(
             order=self.order,
             document_type=OrderDocument.DocumentType.ATTACHMENT,
@@ -185,7 +206,12 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(order['test_method'], self.order.test_method)
         self.assertEqual(order['test_standard'], self.order.test_standard)
         self.assertEqual(order['execution_attributes'], ['自主', '委外'])
-        self.assertEqual(order['documents'][0]['name'], '技术要求.pdf')
+        self.assertEqual(order['outsource_info']['outsource_company'], '上海委外检测有限公司')
+        self.assertEqual(order['outsource_info']['entrust_order_no'], 'WW-TECH-001')
+        self.assertEqual(
+            {document['name'] for document in order['documents']},
+            {'技术要求.pdf', '委外合同.pdf'},
+        )
 
     def test_mark_status_writes_workflow_event(self):
         self.order.mark_status(LabOrder.Status.REPORT_REVIEW, note='测试流转')
@@ -202,6 +228,9 @@ class LimsDashboardTests(TestCase):
 
     def test_sales_can_create_order(self):
         self.client.force_login(self.user)
+        outsource_contract = SimpleUploadedFile(
+            '委外合同.pdf', b'%PDF-1.4 outsource contract', content_type='application/pdf'
+        )
 
         response = self.client.post(
             reverse('create_order'),
@@ -219,8 +248,14 @@ class LimsDashboardTests(TestCase):
                 'is_urgent': True,
                 'industry_category': 'automotive',
                 'execution_attributes': ['autonomous', 'outsource'],
+                'outsource_company': '昆山可靠性检测有限公司',
+                'outsource_amount': '4500.00',
+                'entrust_order_no': 'WT-2026-001',
+                'undertaking_amount': '6800.00',
+                'outsource_experiment_start_time': '2026-07-03 08:30',
+                'outsource_experiment_end_time': '2026-07-05 17:30',
+                'outsource_contract_files': outsource_contract,
             },
-            content_type='application/json',
         )
 
         self.assertEqual(response.status_code, 200)
@@ -235,6 +270,34 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(created.test_standard, 'GB/T 2423.10-2019')
         self.assertTrue(created.autonomous_execution)
         self.assertTrue(created.outsourced_execution)
+        requirement = created.outsource_requirement
+        self.assertEqual(requirement.outsource_company, '昆山可靠性检测有限公司')
+        self.assertEqual(requirement.outsource_amount, Decimal('4500.00'))
+        self.assertEqual(requirement.entrust_order_no, 'WT-2026-001')
+        self.assertEqual(requirement.undertaking_amount, Decimal('6800.00'))
+        self.assertTrue(
+            created.documents.filter(document_type=OrderDocument.DocumentType.OUTSOURCE_CONTRACT).exists()
+        )
+        self.assertEqual(payload['order']['outsource_info']['entrust_order_no'], 'WT-2026-001')
+
+    def test_outsource_order_requires_complete_outsource_information(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('create_order'),
+            data={
+                'customer_name': '缺少委外资料客户',
+                'project_name': '委外必填校验',
+                'test_requirements': '验证委外资料缺失时禁止创建。',
+                'expected_sample_arrival': '2026-07-01',
+                'industry_category': 'other',
+                'execution_attributes': ['outsource'],
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('委外订单必须完整填写', response.json()['error'])
+        self.assertFalse(LabOrder.objects.filter(customer_name='缺少委外资料客户').exists())
 
     def test_sales_can_upload_contract_and_attachment(self):
         self.client.force_login(self.user)

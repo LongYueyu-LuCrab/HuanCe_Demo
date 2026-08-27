@@ -77,6 +77,38 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
       <el-descriptions-item label="创建时间">{{ order.created_at || '未记录' }}</el-descriptions-item>
       <el-descriptions-item label="预计样品到达">{{ order.expected_sample_arrival || '待确认' }}</el-descriptions-item>
       <el-descriptions-item label="预计交付">{{ order.expected_delivery_date || '待确认' }}</el-descriptions-item>
+      <el-descriptions-item v-if="order.is_outsource" label="委外订单资料" :span="2">
+        <section v-if="order.outsource_info" class="outsource-summary" aria-label="委外订单资料">
+          <dl class="outsource-summary-grid">
+            <div><dt>委外公司</dt><dd>{{ order.outsource_info.outsource_company }}</dd></div>
+            <div><dt>委托单号</dt><dd>{{ order.outsource_info.entrust_order_no }}</dd></div>
+            <div><dt>委外金额</dt><dd>{{ formatQuote(order.outsource_info.outsource_amount) }}</dd></div>
+            <div><dt>承接金额</dt><dd>{{ formatQuote(order.outsource_info.undertaking_amount) }}</dd></div>
+            <div><dt>实验开始</dt><dd>{{ order.outsource_info.experiment_start_time }}</dd></div>
+            <div><dt>实验结束</dt><dd>{{ order.outsource_info.experiment_end_time }}</dd></div>
+          </dl>
+          <div class="outsource-contract-links">
+            <strong>委外合同</strong>
+            <a
+              v-for="document in order.documents.filter((item) => item.type === 'outsource_contract')"
+              :key="document.id"
+              :href="document.download_url"
+              class="document-link"
+            >
+              <el-tag size="small" type="danger" effect="plain">委外合同</el-tag>
+              <span>{{ document.name }}</span>
+              <small>{{ formatFileSize(document.size) }}</small>
+            </a>
+          </div>
+        </section>
+        <el-alert
+          v-else
+          title="历史委外订单未录入销售阶段委外资料"
+          type="warning"
+          :closable="false"
+          show-icon
+        />
+      </el-descriptions-item>
       <el-descriptions-item v-if="order.sample_records !== undefined" label="样品流转" :span="2">
         <div v-if="order.sample_records.length" class="sample-lifecycle-list">
           <section v-for="record in order.sample_records" :key="`${record.schedule_id}-${record.sample_no || 'pending'}`" class="sample-lifecycle-record">

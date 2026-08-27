@@ -52,14 +52,21 @@ export type CreateOrderPayload = {
   is_urgent: boolean
   industry_category: 'automotive' | 'military' | 'other'
   execution_attributes: Array<'autonomous' | 'outsource'>
+  outsource_company: string
+  outsource_amount: string
+  entrust_order_no: string
+  undertaking_amount: string
+  outsource_experiment_start_time: string
+  outsource_experiment_end_time: string
   contract_files: File[]
+  outsource_contract_files: File[]
   attachment_files: File[]
 }
 
 export async function createOrder(payload: CreateOrderPayload) {
   const formData = new FormData()
   Object.entries(payload).forEach(([key, value]) => {
-    if (key === 'contract_files' || key === 'attachment_files') {
+    if (key.endsWith('_files')) {
       const files = value as File[]
       files.forEach((file) => formData.append(key, file))
       return

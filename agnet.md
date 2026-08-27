@@ -681,6 +681,14 @@ Sales-order fields are shared workflow context, not sales-only presentation data
 - Order-derived list payloads expose the authoritative boolean `is_outsource`. Every role-facing
   order reference must show the shared red `OutsourceBadge.vue` marker when this value is true;
   do not infer the marker from localized execution-path text in individual pages.
+- New outsourced or mixed orders require one `lims_outsource_requirement` row linked one-to-one
+  to `lims_sales_order`. It is the immutable sales-stage commercial snapshot: outsource company,
+  outsource cost, entrust order number, undertaking amount, and planned experiment start/end.
+- The required outsource contract remains in `lims_order_document` with document type
+  `outsource_contract`; it uses the same protected download and file-size rules as other order files.
+- `SchedulePlan` outsource fields are operational data. Technical route assignment may prefill
+  them from `OutsourceRequirement`, but later schedule changes must never overwrite the original
+  sales-stage outsource requirement.
 - Full order details include `workflow_progress`, a 13-node authoritative process trace covering
   sales order, parallel business/technical review, routing, scheduling, sales confirmation, sample
   arrival, experiment execution, result submission, report creation, two-level report approval,

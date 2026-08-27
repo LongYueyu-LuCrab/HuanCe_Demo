@@ -19,6 +19,7 @@ const activeOrder = ref<OrderItem | null>(null)
 const actionOrderLoading = ref(false)
 const actionForm = reactive<Record<string, unknown>>({})
 const contractFileList = ref<UploadUserFile[]>([])
+const outsourceContractFileList = ref<UploadUserFile[]>([])
 const attachmentFileList = ref<UploadUserFile[]>([])
 const form = reactive({
   customer_name: '',
@@ -34,7 +35,15 @@ const form = reactive({
   is_urgent: false,
   industry_category: 'other' as 'automotive' | 'military' | 'other',
   execution_attributes: ['autonomous'] as Array<'autonomous' | 'outsource'>,
+  outsource_company: '',
+  outsource_amount: '',
+  entrust_order_no: '',
+  undertaking_amount: '',
+  outsource_experiment_start_time: '',
+  outsource_experiment_end_time: '',
 })
+
+const isOutsourceSelected = computed(() => form.execution_attributes.includes('outsource'))
 
 const acceptedFilePattern = /\.(doc|docx|pdf|jpe?g|png)$/i
 const maxFileSize = 20 * 1024 * 1024
@@ -59,6 +68,10 @@ function handleContractChange(file: UploadFile, files: UploadFiles) {
 
 function handleAttachmentChange(file: UploadFile, files: UploadFiles) {
   attachmentFileList.value = validateSelectedFile(file) ? files : files.filter((item) => item.uid !== file.uid)
+}
+
+function handleOutsourceContractChange(file: UploadFile, files: UploadFiles) {
+  outsourceContractFileList.value = validateSelectedFile(file) ? files : files.filter((item) => item.uid !== file.uid)
 }
 
 function rawFiles(files: UploadUserFile[]) {
@@ -193,9 +206,35 @@ async function submit() {
     ElMessage.warning('订单执行属性至少选择“自主”或“委外”之一')
     return
   }
-  const selectedFiles = [...rawFiles(contractFileList.value), ...rawFiles(attachmentFileList.value)]
+  if (isOutsourceSelected.value) {
+    if (
+      !form.outsource_company.trim()
+      || !form.outsource_amount
+      || !form.entrust_order_no.trim()
+      || !form.undertaking_amount
+      || !form.outsource_experiment_start_time
+      || !form.outsource_experiment_end_time
+      || rawFiles(outsourceContractFileList.value).length !== 1
+    ) {
+      ElMessage.warning('委外订单必须完整填写委外资料并上传一份委外合同')
+      return
+    }
+    if (Number(form.outsource_amount) <= 0 || Number(form.undertaking_amount) <= 0) {
+      ElMessage.warning('委外金额和承接金额必须大于 0')
+      return
+    }
+    if (new Date(form.outsource_experiment_end_time) <= new Date(form.outsource_experiment_start_time)) {
+      ElMessage.warning('委外实验结束时间必须晚于开始时间')
+      return
+    }
+  }
+  const selectedFiles = [
+    ...rawFiles(contractFileList.value),
+    ...(isOutsourceSelected.value ? rawFiles(outsourceContractFileList.value) : []),
+    ...rawFiles(attachmentFileList.value),
+  ]
   if (selectedFiles.reduce((total, file) => total + file.size, 0) > maxTotalFileSize) {
-    ElMessage.warning('合同与附件总大小不能超过 40MB')
+    ElMessage.warning('合同、委外合同与附件总大小不能超过 40MB')
     return
   }
   submitting.value = true
@@ -203,6 +242,7 @@ async function submit() {
     await createOrder({
       ...form,
       contract_files: rawFiles(contractFileList.value),
+      outsource_contract_files: isOutsourceSelected.value ? rawFiles(outsourceContractFileList.value) : [],
       attachment_files: rawFiles(attachmentFileList.value),
     })
     ElMessage.success('订单已提交，等待商务技术评审')
@@ -221,8 +261,15 @@ async function submit() {
       is_urgent: false,
       industry_category: 'other',
       execution_attributes: ['autonomous'],
+      outsource_company: '',
+      outsource_amount: '',
+      entrust_order_no: '',
+      undertaking_amount: '',
+      outsource_experiment_start_time: '',
+      outsource_experiment_end_time: '',
     })
     contractFileList.value = []
+    outsourceContractFileList.value = []
     attachmentFileList.value = []
     await session.refreshDashboard()
   } catch (error) {
@@ -245,7 +292,7 @@ async function submit() {
 
     <OrderTable :orders="orders" :user="session.state.user" @workflow="openWorkflow" />
 
-    <el-dialog v-model="dialogVisible" title="销售下单" width="760px">
+    <el-dialog v-model="dialogVisible" title="销售下单" width="min(960px, 94vw)">
       <el-form label-position="top" class="form-grid">
         <el-form-item label="客户名称"><el-input v-model="form.customer_name" /></el-form-item>
         <el-form-item label="联系人"><el-input v-model="form.contact_name" /></el-form-item>
@@ -269,6 +316,61 @@ async function submit() {
           </el-checkbox-group>
           <div class="field-help">可单选，也可同时选择自主与委外。</div>
         </el-form-item>
+        <section v-if="isOutsourceSelected" class="form-wide outsource-intake-section" aria-labelledby="outsource-intake-title">
+          <div class="outsource-intake-heading">
+            <div>
+              <span>OUTSOURCE INTAKE</span>
+              <h3 id="outsource-intake-title">委外订单资料</h3>
+            </div>
+            <el-tag type="danger" effect="plain">全部必填</el-tag>
+          </div>
+          <div class="form-grid">
+            <el-form-item label="委外公司" required>
+              <el-input v-model="form.outsource_company" placeholder="填写实际承接试验的委外公司" />
+            </el-form-item>
+            <el-form-item label="委托单号" required>
+              <el-input v-model="form.entrust_order_no" placeholder="填写对外委托业务单号" />
+            </el-form-item>
+            <el-form-item label="委外金额" required>
+              <el-input v-model="form.outsource_amount" type="number" min="0" placeholder="支付给委外公司的成本" />
+            </el-form-item>
+            <el-form-item label="承接金额" required>
+              <el-input v-model="form.undertaking_amount" type="number" min="0" placeholder="向客户承接的项目金额" />
+            </el-form-item>
+            <el-form-item label="实验开始时间" required>
+              <el-date-picker
+                v-model="form.outsource_experiment_start_time"
+                type="datetime"
+                value-format="YYYY-MM-DD HH:mm"
+                placeholder="选择计划开始时间"
+              />
+            </el-form-item>
+            <el-form-item label="实验结束时间" required>
+              <el-date-picker
+                v-model="form.outsource_experiment_end_time"
+                type="datetime"
+                value-format="YYYY-MM-DD HH:mm"
+                placeholder="选择计划结束时间"
+              />
+            </el-form-item>
+            <div class="form-wide order-upload-panel outsource-contract-upload">
+              <div class="upload-panel-heading">
+                <strong>委外合同</strong>
+                <span>必传 1 份</span>
+              </div>
+              <el-upload
+                v-model:file-list="outsourceContractFileList"
+                :auto-upload="false"
+                :limit="1"
+                accept=".doc,.docx,.pdf,.jpg,.jpeg,.png"
+                :on-change="handleOutsourceContractChange"
+              >
+                <el-button :icon="UploadFilled" type="danger" plain>上传委外合同</el-button>
+                <template #tip><div class="el-upload__tip">支持 Word、PDF、JPG、PNG，单文件不超过 20MB</div></template>
+              </el-upload>
+            </div>
+          </div>
+        </section>
         <el-form-item label="试验需求" class="form-wide"><el-input v-model="form.test_requirements" type="textarea" :rows="4" /></el-form-item>
         <el-form-item label="测试方法" class="form-wide">
           <el-input v-model="form.test_method" type="textarea" :rows="3" placeholder="填写客户指定的试验方法、实施步骤或方法文件编号" />

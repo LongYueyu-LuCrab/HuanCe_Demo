@@ -9,6 +9,7 @@ from .models import (
     LabStaffProfile,
     LabOrder,
     OrderDocument,
+    OutsourceRequirement,
     ReportAudit,
     Sample,
     SamplePhoto,
@@ -98,6 +99,21 @@ class OrderDocumentInline(admin.TabularInline):
     readonly_fields = ('original_name', 'file_size', 'uploaded_by', 'create_time')
 
 
+class OutsourceRequirementInline(admin.StackedInline):
+    model = OutsourceRequirement
+    extra = 0
+    max_num = 1
+    fields = (
+        'outsource_company',
+        ('outsource_amount', 'undertaking_amount'),
+        'entrust_order_no',
+        ('experiment_start_time', 'experiment_end_time'),
+        ('created_by', 'updated_by'),
+        ('create_time', 'update_time'),
+    )
+    readonly_fields = ('create_time', 'update_time')
+
+
 @admin.register(LabOrder)
 class LabOrderAdmin(admin.ModelAdmin):
     list_display = (
@@ -151,6 +167,7 @@ class LabOrderAdmin(admin.ModelAdmin):
         }),
     )
     inlines = [
+        OutsourceRequirementInline,
         BusinessReviewInline,
         SchedulePlanInline,
         ChangeRequestInline,
@@ -189,6 +206,16 @@ class BusinessReviewAdmin(admin.ModelAdmin):
     list_display = ('order', 'biz_review_user', 'tech_review_user', 'tech_feasible', 'review_result', 'review_time')
     list_filter = ('tech_feasible', 'review_result')
     search_fields = ('order__order_no', 'order__customer_name', 'biz_quote_detail', 'reject_reason')
+
+
+@admin.register(OutsourceRequirement)
+class OutsourceRequirementAdmin(admin.ModelAdmin):
+    list_display = (
+        'order', 'outsource_company', 'entrust_order_no', 'outsource_amount',
+        'undertaking_amount', 'experiment_start_time', 'experiment_end_time',
+    )
+    search_fields = ('order__order_no', 'order__customer_name', 'outsource_company', 'entrust_order_no')
+    date_hierarchy = 'create_time'
 
 
 @admin.register(SchedulePlan)

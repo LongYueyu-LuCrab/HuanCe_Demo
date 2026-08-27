@@ -1009,6 +1009,75 @@ select {
   background: #f8fafc;
 }
 
+.outsource-intake-section {
+  margin: 8px 0 14px;
+  padding: 18px;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #c62828;
+  border-radius: 8px;
+  background: #fffafa;
+}
+
+.outsource-intake-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.outsource-intake-heading span {
+  color: #9f1239;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.outsource-intake-heading h3 {
+  margin: 3px 0 0;
+  color: var(--hc-ink);
+  font-size: 17px;
+  letter-spacing: 0;
+}
+
+.outsource-contract-upload {
+  min-height: 112px;
+  background: #ffffff;
+}
+
+.outsource-summary {
+  display: grid;
+  gap: 16px;
+}
+
+.outsource-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 18px;
+  margin: 0;
+}
+
+.outsource-summary-grid div {
+  min-width: 0;
+}
+
+.outsource-summary-grid dt {
+  margin-bottom: 3px;
+  color: var(--hc-muted);
+  font-size: 12px;
+}
+
+.outsource-summary-grid dd {
+  margin: 0;
+  color: var(--hc-ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.outsource-contract-links {
+  display: grid;
+  gap: 8px;
+}
+
 .upload-panel-heading {
   display: flex;
   align-items: center;
@@ -1083,6 +1152,10 @@ select {
   }
 
   .order-upload-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .outsource-summary-grid {
     grid-template-columns: 1fr;
   }
 
