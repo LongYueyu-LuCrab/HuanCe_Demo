@@ -1,5 +1,6 @@
 import json
 import mimetypes
+import re
 from io import BytesIO
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
@@ -50,6 +51,8 @@ VALID_ROLES = [
     ROLE_ACCOUNTING,
     ROLE_CHAIRMAN,
 ]
+
+CORRUPTED_TEXT_PATTERN = re.compile(r'\?{3,}')
 
 
 def frontend(request):
@@ -2063,6 +2066,30 @@ def _truthy(value):
     return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
+def _contains_corrupted_text(value):
+    if isinstance(value, str):
+        return bool(CORRUPTED_TEXT_PATTERN.search(value))
+    if hasattr(value, 'lists'):
+        return any(
+            _contains_corrupted_text(item)
+            for _, values in value.lists()
+            for item in values
+        )
+    if isinstance(value, dict):
+        return any(_contains_corrupted_text(item) for item in value.values())
+    if isinstance(value, (list, tuple, set)):
+        return any(_contains_corrupted_text(item) for item in value)
+    return False
+
+
+def _corrupted_text_response():
+    return JsonResponse(
+        {'ok': False, 'error': '提交内容存在异常编码（连续问号），请重新输入后再提交'},
+        status=400,
+        json_dumps_params={'ensure_ascii': False},
+    )
+
+
 @csrf_exempt
 @transaction.atomic
 def create_order(request):
@@ -2078,6 +2105,8 @@ def create_order(request):
     payload, parse_error = _request_order_payload(request)
     if parse_error:
         return parse_error
+    if _contains_corrupted_text(payload):
+        return _corrupted_text_response()
 
     customer_name = payload.get('customer_name', '').strip()
     project_name = payload.get('project_name', '').strip()
@@ -2300,6 +2329,8 @@ def lims_action(request):
     payload, parse_error = _json_payload(request)
     if parse_error:
         return parse_error
+    if _contains_corrupted_text(payload):
+        return _corrupted_text_response()
 
     action = (payload.get('action') or '').strip()
     handlers = {

@@ -346,6 +346,24 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('预计样品到达时间必填', response.json()['error'])
 
+    def test_sales_order_rejects_corrupted_question_mark_text(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('create_order'),
+            data={
+                'customer_name': 'QA????客户',
+                'project_name': '异常编码测试',
+                'test_requirements': '验证异常编码不会写入数据库。',
+                'expected_sample_arrival': '2026-07-01',
+                'industry_category': 'other',
+                'execution_attributes': ['autonomous'],
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('异常编码', response.json()['error'])
+        self.assertFalse(LabOrder.objects.filter(customer_name='QA????客户').exists())
+
     def test_order_upload_rejects_unsupported_file_type(self):
         self.client.force_login(self.user)
         unsafe_file = SimpleUploadedFile('程序.exe', b'not-allowed')
