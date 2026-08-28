@@ -25,6 +25,7 @@ from .report_pdf import build_test_report_pdf
 
 
 ROLE_SALES = '销售'
+ROLE_SALES_MANAGER = '销售经理'
 ROLE_BUSINESS = '商务'
 ROLE_TECH = '技术'
 ROLE_QUALITY = '质量部'
@@ -37,6 +38,7 @@ ROLE_ACCOUNTING = '会计'
 ROLE_CHAIRMAN = '董事长'
 VALID_ROLES = [
     ROLE_SALES,
+    ROLE_SALES_MANAGER,
     ROLE_BUSINESS,
     ROLE_TECH,
     ROLE_QUALITY,
@@ -188,6 +190,8 @@ def _orders_for_user(user):
         return orders
 
     roles = set(_roles(user))
+    if ROLE_SALES_MANAGER in roles:
+        return orders
     query = Q()
     if ROLE_SALES in roles:
         query |= Q(sale_user=user)
@@ -661,6 +665,7 @@ def _order_payload(order, include_sample_records=False):
         'sales_owner': order.sale_user.first_name or order.sale_user.username
         if order.sale_user
         else '',
+        'sales_owner_username': order.sale_user.username if order.sale_user else '',
         'created_at': order.create_time.strftime('%Y-%m-%d %H:%M') if order.create_time else '',
         'remark': order.remark,
         'documents': [
@@ -1875,6 +1880,140 @@ def laboratory_orders_export(request):
     workbook.save(output)
     output.seek(0)
     filename = f'{lab_name}订单台账_{date.today().isoformat()}.xlsx'
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+    return response
+
+
+def _sales_manager_order_queryset(request):
+    if not _has_any_role(request.user, ROLE_SALES_MANAGER):
+        return None, JsonResponse(
+            {'ok': False, 'error': '仅销售经理可以查询全部销售订单'},
+            status=403,
+            json_dumps_params={'ensure_ascii': False},
+        )
+    orders = LabOrder.objects.select_related(
+        'sale_user', 'lead_lab_manager', 'outsource_requirement',
+    ).prefetch_related('documents').order_by('-create_time', '-id')
+    keyword = (request.GET.get('keyword') or '').strip()
+    if keyword:
+        orders = orders.filter(
+            Q(order_no__icontains=keyword)
+            | Q(customer_name__icontains=keyword)
+            | Q(project_name__icontains=keyword)
+            | Q(sale_user__username__icontains=keyword)
+            | Q(sale_user__first_name__icontains=keyword)
+        )
+    status = (request.GET.get('order_status') or '').strip()
+    if status:
+        try:
+            status_value = int(status)
+        except (TypeError, ValueError):
+            return None, JsonResponse(
+                {'ok': False, 'error': '订单状态筛选值不正确'},
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            )
+        if status_value not in LabOrder.Status.values:
+            return None, JsonResponse(
+                {'ok': False, 'error': '订单状态筛选值不正确'},
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            )
+        orders = orders.filter(order_status=status_value)
+    return orders, None
+
+
+def sales_manager_orders(request):
+    if request.method != 'GET':
+        return HttpResponseNotAllowed(['GET'])
+    auth_error = _require_auth(request)
+    if auth_error:
+        return auth_error
+    orders, error = _sales_manager_order_queryset(request)
+    if error:
+        return error
+    try:
+        page = max(1, int(request.GET.get('page') or 1))
+        page_size = max(10, min(100, int(request.GET.get('page_size') or 10)))
+    except (TypeError, ValueError):
+        page, page_size = 1, 10
+    total = orders.count()
+    start = (page - 1) * page_size
+    return JsonResponse(
+        {
+            'ok': True,
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'items': [_order_payload(order) for order in orders[start:start + page_size]],
+        },
+        json_dumps_params={'ensure_ascii': False},
+    )
+
+
+def sales_manager_orders_export(request):
+    if request.method != 'GET':
+        return HttpResponseNotAllowed(['GET'])
+    auth_error = _require_auth(request)
+    if auth_error:
+        return auth_error
+    orders, error = _sales_manager_order_queryset(request)
+    if error:
+        return error
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = '全部销售订单'
+    headers = [
+        '序号', '订单号', '销售账号', '销售姓名', '客户名称', '项目名称', '行业', '执行属性',
+        '订单状态', '报价金额', '预计样品到达', '预计交付', '创建时间', '委外公司', '委外金额',
+        '委托单号', '承接金额',
+    ]
+    sheet.append(headers)
+    header_fill = PatternFill('solid', fgColor='1F4E78')
+    for cell in sheet[1]:
+        cell.fill = header_fill
+        cell.font = Font(color='FFFFFF', bold=True)
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    for index, order in enumerate(orders.iterator(chunk_size=500), start=1):
+        outsource = getattr(order, 'outsource_requirement', None)
+        attributes = []
+        if order.autonomous_execution:
+            attributes.append('自主')
+        if order.outsourced_execution:
+            attributes.append('委外')
+        sheet.append([
+            index,
+            order.order_no,
+            order.sale_user.username if order.sale_user else '',
+            _display_user(order.sale_user),
+            order.customer_name,
+            order.project_name,
+            order.get_industry_category_display(),
+            '、'.join(attributes),
+            order.get_order_status_display(),
+            float(order.total_quote),
+            _display_datetime(order.expect_sample_arrive),
+            _display_datetime(order.expect_delivery_time),
+            _display_datetime(order.create_time),
+            outsource.outsource_company if outsource else '',
+            float(outsource.outsource_amount) if outsource else '',
+            outsource.entrust_order_no if outsource else '',
+            float(outsource.undertaking_amount) if outsource else '',
+        ])
+    widths = [8, 22, 18, 16, 28, 32, 12, 16, 16, 14, 18, 18, 18, 28, 14, 20, 14]
+    for column, width in enumerate(widths, start=1):
+        sheet.column_dimensions[get_column_letter(column)].width = width
+    sheet.freeze_panes = 'A2'
+    sheet.auto_filter.ref = sheet.dimensions
+    output = BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    filename = f'全部销售订单_{date.today().isoformat()}.xlsx'
     response = HttpResponse(
         output.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

@@ -40,6 +40,7 @@ export type OrderItem = {
   total_quote?: string
   is_urgent: boolean
   sales_owner?: string
+  sales_owner_username?: string
   created_at?: string
   remark?: string
   documents: OrderDocumentItem[]

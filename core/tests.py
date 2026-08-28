@@ -367,6 +367,76 @@ class LimsDashboardTests(TestCase):
         self.assertIn('格式不支持', response.json()['error'])
 
 
+class SalesManagerTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        sales_group = Group.objects.create(name='销售')
+        manager_group = Group.objects.get(name='销售经理')
+        self.sales_a = user_model.objects.create_user(
+            username='sales-a', password='password123', first_name='销售甲',
+        )
+        self.sales_b = user_model.objects.create_user(
+            username='sales-b', password='password123', first_name='销售乙',
+        )
+        self.manager = user_model.objects.create_user(
+            username='sales-manager', password='password123', first_name='销售经理',
+        )
+        self.sales_a.groups.add(sales_group)
+        self.sales_b.groups.add(sales_group)
+        self.manager.groups.add(manager_group)
+        self.order_a = LabOrder.objects.create(
+            order_no='SALES-MANAGER-001',
+            customer_name='销售经理测试客户甲',
+            project_name='汽车振动测试',
+            test_demand='验证销售经理跨销售查看能力',
+            total_quote=Decimal('12000.00'),
+            sale_user=self.sales_a,
+            create_by=self.sales_a.username,
+        )
+        self.order_b = LabOrder.objects.create(
+            order_no='SALES-MANAGER-002',
+            customer_name='销售经理测试客户乙',
+            project_name='军工环境测试',
+            test_demand='验证销售经理导出能力',
+            total_quote=Decimal('18000.00'),
+            sale_user=self.sales_b,
+            create_by=self.sales_b.username,
+        )
+
+    def test_sales_manager_sees_all_sales_orders_with_server_pagination(self):
+        self.client.force_login(self.manager)
+        dashboard = self.client.get(reverse('lims_dashboard'))
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertEqual(dashboard.json()['metrics']['orders'], 2)
+
+        response = self.client.get(reverse('sales_manager_orders'), {
+            'keyword': '销售乙', 'page': 1, 'page_size': 10,
+        })
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['total'], 1)
+        self.assertEqual(data['items'][0]['order_no'], self.order_b.order_no)
+        self.assertEqual(data['items'][0]['sales_owner_username'], self.sales_b.username)
+
+        detail = self.client.get(reverse('order_detail', args=[self.order_a.order_no]))
+        self.assertEqual(detail.status_code, 200)
+
+    def test_sales_manager_can_export_all_orders_but_regular_sales_cannot(self):
+        self.client.force_login(self.manager)
+        exported = self.client.get(reverse('sales_manager_orders_export'))
+        self.assertEqual(exported.status_code, 200)
+        self.assertIn('spreadsheetml', exported['Content-Type'])
+        workbook = load_workbook(BytesIO(exported.content), read_only=True)
+        rows = list(workbook.active.iter_rows(values_only=True))
+        self.assertEqual(rows[0][1], '订单号')
+        self.assertEqual({rows[1][1], rows[2][1]}, {self.order_a.order_no, self.order_b.order_no})
+        self.assertEqual({rows[1][2], rows[2][2]}, {self.sales_a.username, self.sales_b.username})
+
+        self.client.force_login(self.sales_a)
+        denied = self.client.get(reverse('sales_manager_orders_export'))
+        self.assertEqual(denied.status_code, 403)
+
+
 class LimsFullRoleWorkflowTests(TestCase):
     roles = {
         'sales': '销售',
@@ -590,7 +660,7 @@ class LimsFullRoleWorkflowTests(TestCase):
         self.assertEqual(progress['steps'][-1]['state'], 'completed')
         self.assertEqual(
             set(Group.objects.values_list('name', flat=True)),
-            set(self.roles.values()) | {'实验操作员'},
+            set(self.roles.values()) | {'实验操作员', '销售经理'},
         )
 
 

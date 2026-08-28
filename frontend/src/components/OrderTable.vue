@@ -11,10 +11,14 @@ const props = defineProps<{
   title?: string
   subtitle?: string
   user?: User
+  remote?: boolean
+  total?: number
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
   workflow: [action: string, order: OrderItem]
+  query: [query: { keyword: string; page: number; page_size: number }]
 }>()
 
 const keyword = ref('')
@@ -25,6 +29,7 @@ const drawerVisible = ref(false)
 const orderLoading = ref(false)
 
 const filteredOrders = computed(() => {
+  if (props.remote) return props.orders
   const value = keyword.value.trim().toLowerCase()
   if (!value) return props.orders
   return props.orders.filter((order) =>
@@ -54,12 +59,27 @@ const filteredOrders = computed(() => {
 })
 
 const pagedOrders = computed(() => {
+  if (props.remote) return filteredOrders.value
   const start = (page.value - 1) * pageSize.value
   return filteredOrders.value.slice(start, start + pageSize.value)
 })
 
 function resetPage() {
   page.value = 1
+  if (props.remote) emitQuery()
+}
+
+function emitQuery() {
+  emit('query', { keyword: keyword.value.trim(), page: page.value, page_size: pageSize.value })
+}
+
+function handlePageChange() {
+  if (props.remote) emitQuery()
+}
+
+function handleSizeChange() {
+  page.value = 1
+  if (props.remote) emitQuery()
 }
 
 async function openOrder(order: OrderItem) {
@@ -151,7 +171,7 @@ function actionsFor(order: OrderItem) {
       </div>
     </template>
 
-    <el-table :data="pagedOrders" stripe height="540" empty-text="暂无匹配订单" @row-click="openOrder">
+    <el-table v-loading="loading" :data="pagedOrders" stripe height="540" empty-text="暂无匹配订单" @row-click="openOrder">
       <el-table-column prop="order_no" label="订单号" min-width="150">
         <template #default="{ row }">
           <span class="order-reference">
@@ -204,14 +224,15 @@ function actionsFor(order: OrderItem) {
     </el-table>
 
     <div class="table-footer">
-      <span>共 {{ filteredOrders.length }} 条</span>
+      <span>共 {{ remote ? (total ?? 0) : filteredOrders.length }} 条</span>
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
         :page-sizes="[10, 15, 20]"
-        :total="filteredOrders.length"
+        :total="remote ? (total ?? 0) : filteredOrders.length"
         layout="sizes, prev, pager, next"
-        @size-change="resetPage"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
       />
     </div>
   </el-card>

@@ -38,6 +38,45 @@ export async function fetchOrderDetail(orderNo: string): Promise<OrderItem> {
   return data.order
 }
 
+export type SalesOrderQuery = {
+  keyword?: string
+  order_status?: string
+  page?: number
+  page_size?: number
+}
+
+function salesOrderParams(query: SalesOrderQuery) {
+  const params = new URLSearchParams()
+  Object.entries(query).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return
+    params.set(key, String(value))
+  })
+  return params
+}
+
+export async function fetchSalesManagerOrders(query: SalesOrderQuery) {
+  const response = await fetch(`/api/sales/orders/?${salesOrderParams(query)}`, { credentials: 'include' })
+  return parseJson<{ ok: boolean; total: number; page: number; page_size: number; items: OrderItem[] }>(response)
+}
+
+export async function exportSalesManagerOrders(query: SalesOrderQuery): Promise<void> {
+  const response = await fetch(`/api/sales/orders/export/?${salesOrderParams(query)}`, { credentials: 'include' })
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.error || '导出失败')
+  }
+  const blob = await response.blob()
+  const disposition = response.headers.get('Content-Disposition') || ''
+  const match = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+  const filename = match ? decodeURIComponent(match[1]) : '全部销售订单.xlsx'
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
 export type CreateOrderPayload = {
   customer_name: string
   contact_name: string

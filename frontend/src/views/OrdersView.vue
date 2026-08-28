@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { UploadFilled } from '@element-plus/icons-vue'
+import { Download, UploadFilled } from '@element-plus/icons-vue'
 import type { UploadFile, UploadFiles, UploadRawFile, UploadUserFile } from 'element-plus'
 import OrderTable from '../components/OrderTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
-import { createOrder, fetchOrderDetail, workflowAction } from '../services/api'
+import { createOrder, exportSalesManagerOrders, fetchOrderDetail, fetchSalesManagerOrders, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
 import type { OrderItem } from '../types'
 
@@ -78,7 +78,14 @@ function rawFiles(files: UploadUserFile[]) {
   return files.map((file) => file.raw).filter((file): file is UploadRawFile => Boolean(file))
 }
 
-const orders = computed(() => session.state.dashboard?.order_groups?.orders ?? session.state.dashboard?.recent_orders ?? [])
+const isSalesManager = computed(() => (session.state.user.roles || []).includes('销售经理'))
+const managerOrders = ref<OrderItem[]>([])
+const managerOrderTotal = ref(0)
+const managerOrdersLoading = ref(false)
+const managerOrderQuery = reactive({ keyword: '', page: 1, page_size: 10 })
+const orders = computed(() => isSalesManager.value
+  ? managerOrders.value
+  : session.state.dashboard?.order_groups?.orders ?? session.state.dashboard?.recent_orders ?? [])
 const isTechnicalReviewer = computed(() => (session.state.user.roles || []).includes('技术'))
 const routingOptions = computed(() => session.state.dashboard?.routing_options)
 const allLabManagers = computed(() => [
@@ -92,6 +99,34 @@ const leadManagerOptions = computed(() => {
     Number(actionForm.outsource_owner_id || 0),
   ])
   return allLabManagers.value.filter((manager) => selectedIds.has(manager.id))
+})
+
+async function loadManagerOrders(query = managerOrderQuery) {
+  if (!isSalesManager.value) return
+  Object.assign(managerOrderQuery, query)
+  managerOrdersLoading.value = true
+  try {
+    const result = await fetchSalesManagerOrders(managerOrderQuery)
+    managerOrders.value = result.items
+    managerOrderTotal.value = result.total
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '销售订单加载失败')
+  } finally {
+    managerOrdersLoading.value = false
+  }
+}
+
+async function exportManagerOrders() {
+  try {
+    await exportSalesManagerOrders({})
+    ElMessage.success('全部销售订单 Excel 已生成')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '导出失败')
+  }
+}
+
+onMounted(() => {
+  void loadManagerOrders()
 })
 
 function hasExecutionRoute(route: string) {
@@ -287,10 +322,19 @@ async function submit() {
         <h2>订单管理</h2>
         <p>按当前角色显示可查看订单；销售可从这里发起新订单。</p>
       </div>
-      <el-button v-if="session.canCreateOrder.value" type="primary" @click="dialogVisible = true">销售下单</el-button>
+      <el-button v-if="isSalesManager" type="primary" plain :icon="Download" @click="exportManagerOrders">导出全部销售订单</el-button>
+      <el-button v-else-if="session.canCreateOrder.value" type="primary" @click="dialogVisible = true">销售下单</el-button>
     </div>
 
-    <OrderTable :orders="orders" :user="session.state.user" @workflow="openWorkflow" />
+    <OrderTable
+      :orders="orders"
+      :user="session.state.user"
+      :remote="isSalesManager"
+      :total="managerOrderTotal"
+      :loading="managerOrdersLoading"
+      @query="loadManagerOrders"
+      @workflow="openWorkflow"
+    />
 
     <el-dialog v-model="dialogVisible" title="销售下单" width="min(960px, 94vw)">
       <el-form label-position="top" class="form-grid">

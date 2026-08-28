@@ -40,6 +40,16 @@ export function getMenuGroups(user: User): MenuGroup[] {
     ].filter(Boolean) as MenuGroup[]
   }
 
+  if (hasRole(user, '销售经理')) {
+    return [
+      group('销售管理工作台', [
+        { key: 'dashboard', label: '销售总览', path: '/dashboard', icon: 'DataBoard' },
+        { key: 'orders', label: '全部销售订单', path: '/orders', icon: 'Tickets' },
+      ]),
+      group('追溯', [{ key: 'audit', label: '销售订单档案', path: '/audit', icon: 'Clock' }]),
+    ].filter(Boolean) as MenuGroup[]
+  }
+
   if (hasRole(user, '销售')) {
     return [
       group('销售工作台', [
@@ -159,6 +169,14 @@ export function getMenuGroups(user: User): MenuGroup[] {
 
 export function getMetricCards(user: User, dashboard: Dashboard | null) {
   const metrics = dashboard?.metrics
+  if (hasRole(user, '销售经理')) {
+    return [
+      { key: 'orders', label: '全部销售订单', value: metrics?.orders ?? 0 },
+      { key: 'active_orders', label: '进行中订单', value: metrics?.active_orders ?? 0 },
+      { key: 'pending_reports', label: '待处理报告', value: metrics?.pending_reports ?? 0 },
+      { key: 'change_requests', label: '变更待闭环', value: metrics?.change_requests ?? 0 },
+    ]
+  }
   if (hasRole(user, '销售') && !canSeeAllBusiness(user)) {
     return [
       { key: 'orders', label: '我的客户订单', value: metrics?.orders ?? 0 },

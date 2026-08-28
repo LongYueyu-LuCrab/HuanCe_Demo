@@ -189,6 +189,7 @@ Demo accounts:
 |---|---|---|---|
 | 董事长 / 超级管理员 | zhihao | 123456 | 董事长 |
 | 销售 | sales01 | HuanCe@2026 | 销售一号 |
+| 销售经理 | sales_manager01 | HuanCe@2026 | 销售经理一号 |
 | 商务部评审人员 | business01 | HuanCe@2026 | 商务评审一号 |
 | 技术评审人员 | tech01 | HuanCe@2026 | 技术评审一号 |
 | 质量部专员 | quality01 | HuanCe@2026 | 质量专员一号 |
@@ -372,6 +373,7 @@ Data access is currently role-filtered in `_orders_for_user()` and related dashb
 
 - 董事长: all business data
 - 销售: own orders
+- 销售经理: read-only access to all sales orders, server-side search/pagination, and Excel export
 - 商务/技术: review-related orders
 - 质量部: scheduling/testing/report-review orders
 - 苏州实验室: schedules assigned to current Suzhou lab manager
