@@ -1888,16 +1888,20 @@ def laboratory_orders_export(request):
     return response
 
 
-def _sales_manager_order_queryset(request):
-    if not _has_any_role(request.user, ROLE_SALES_MANAGER):
+def _sales_order_queryset(request):
+    roles = set(_roles(request.user))
+    can_view_all_sales_orders = _is_chairman(request.user) or ROLE_SALES_MANAGER in roles
+    if not can_view_all_sales_orders and ROLE_SALES not in roles:
         return None, JsonResponse(
-            {'ok': False, 'error': '仅销售经理可以查询全部销售订单'},
+            {'ok': False, 'error': '仅销售或销售经理可以查询销售订单'},
             status=403,
             json_dumps_params={'ensure_ascii': False},
         )
     orders = LabOrder.objects.select_related(
         'sale_user', 'lead_lab_manager', 'outsource_requirement',
     ).prefetch_related('documents').order_by('-create_time', '-id')
+    if not can_view_all_sales_orders:
+        orders = orders.filter(sale_user=request.user)
     keyword = (request.GET.get('keyword') or '').strip()
     if keyword:
         orders = orders.filter(
@@ -1933,7 +1937,7 @@ def sales_manager_orders(request):
     auth_error = _require_auth(request)
     if auth_error:
         return auth_error
-    orders, error = _sales_manager_order_queryset(request)
+    orders, error = _sales_order_queryset(request)
     if error:
         return error
     try:
@@ -1961,13 +1965,15 @@ def sales_manager_orders_export(request):
     auth_error = _require_auth(request)
     if auth_error:
         return auth_error
-    orders, error = _sales_manager_order_queryset(request)
+    orders, error = _sales_order_queryset(request)
     if error:
         return error
 
     workbook = Workbook()
     sheet = workbook.active
-    sheet.title = '全部销售订单'
+    roles = set(_roles(request.user))
+    can_view_all_sales_orders = _is_chairman(request.user) or ROLE_SALES_MANAGER in roles
+    sheet.title = '全部销售订单' if can_view_all_sales_orders else '我的全部订单'
     headers = [
         '序号', '订单号', '销售账号', '销售姓名', '客户名称', '项目名称', '行业', '执行属性',
         '订单状态', '报价金额', '预计样品到达', '预计交付', '创建时间', '委外公司', '委外金额',
@@ -2013,7 +2019,8 @@ def sales_manager_orders_export(request):
     output = BytesIO()
     workbook.save(output)
     output.seek(0)
-    filename = f'全部销售订单_{date.today().isoformat()}.xlsx'
+    export_scope = '全部销售订单' if can_view_all_sales_orders else '我的全部订单'
+    filename = f'{export_scope}_{date.today().isoformat()}.xlsx'
     response = HttpResponse(
         output.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

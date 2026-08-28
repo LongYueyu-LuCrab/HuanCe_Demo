@@ -421,7 +421,7 @@ class SalesManagerTests(TestCase):
         detail = self.client.get(reverse('order_detail', args=[self.order_a.order_no]))
         self.assertEqual(detail.status_code, 200)
 
-    def test_sales_manager_can_export_all_orders_but_regular_sales_cannot(self):
+    def test_sales_manager_exports_all_orders_and_regular_sales_exports_only_own_orders(self):
         self.client.force_login(self.manager)
         exported = self.client.get(reverse('sales_manager_orders_export'))
         self.assertEqual(exported.status_code, 200)
@@ -433,8 +433,20 @@ class SalesManagerTests(TestCase):
         self.assertEqual({rows[1][2], rows[2][2]}, {self.sales_a.username, self.sales_b.username})
 
         self.client.force_login(self.sales_a)
-        denied = self.client.get(reverse('sales_manager_orders_export'))
-        self.assertEqual(denied.status_code, 403)
+        own_list = self.client.get(reverse('sales_manager_orders'), {
+            'page': 1, 'page_size': 10,
+        })
+        self.assertEqual(own_list.status_code, 200)
+        self.assertEqual(own_list.json()['total'], 1)
+        self.assertEqual(own_list.json()['items'][0]['order_no'], self.order_a.order_no)
+
+        own_export = self.client.get(reverse('sales_manager_orders_export'))
+        self.assertEqual(own_export.status_code, 200)
+        own_workbook = load_workbook(BytesIO(own_export.content), read_only=True)
+        own_rows = list(own_workbook.active.iter_rows(values_only=True))
+        self.assertEqual(len(own_rows), 2)
+        self.assertEqual(own_rows[1][1], self.order_a.order_no)
+        self.assertEqual(own_rows[1][2], self.sales_a.username)
 
 
 class LimsFullRoleWorkflowTests(TestCase):

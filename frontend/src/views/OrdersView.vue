@@ -79,6 +79,7 @@ function rawFiles(files: UploadUserFile[]) {
 }
 
 const isSalesManager = computed(() => (session.state.user.roles || []).includes('销售经理'))
+const isSales = computed(() => (session.state.user.roles || []).includes('销售'))
 const managerOrders = ref<OrderItem[]>([])
 const managerOrderTotal = ref(0)
 const managerOrdersLoading = ref(false)
@@ -116,10 +117,10 @@ async function loadManagerOrders(query = managerOrderQuery) {
   }
 }
 
-async function exportManagerOrders() {
+async function exportSalesOrders() {
   try {
     await exportSalesManagerOrders({})
-    ElMessage.success('全部销售订单 Excel 已生成')
+    ElMessage.success(isSalesManager.value ? '全部销售订单 Excel 已生成' : '我的全部订单 Excel 已生成')
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '导出失败')
   }
@@ -322,8 +323,12 @@ async function submit() {
         <h2>订单管理</h2>
         <p>按当前角色显示可查看订单；销售可从这里发起新订单。</p>
       </div>
-      <el-button v-if="isSalesManager" type="primary" plain :icon="Download" @click="exportManagerOrders">导出全部销售订单</el-button>
-      <el-button v-else-if="session.canCreateOrder.value" type="primary" @click="dialogVisible = true">销售下单</el-button>
+      <div class="toolbar-actions">
+        <el-button v-if="isSalesManager || isSales" type="primary" plain :icon="Download" @click="exportSalesOrders">
+          {{ isSalesManager ? '导出全部销售订单' : '导出我的全部订单' }}
+        </el-button>
+        <el-button v-if="session.canCreateOrder.value" type="primary" @click="dialogVisible = true">销售下单</el-button>
+      </div>
     </div>
 
     <OrderTable
