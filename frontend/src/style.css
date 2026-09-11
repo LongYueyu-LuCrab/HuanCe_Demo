@@ -509,6 +509,30 @@ select {
   padding: 16px;
 }
 
+.snapshot-action-panel {
+  display: grid;
+  gap: 12px;
+  margin: 16px;
+  padding: 16px;
+  border: 1px solid #b7dfcf;
+  border-radius: 6px;
+  background: #f2fbf7;
+}
+
+.snapshot-action-panel p {
+  margin: 4px 0 0;
+  color: #526477;
+}
+
+.snapshot-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #d4e9df;
+}
+
 .workflow-progress {
   padding: 18px 16px 20px;
   border-bottom: 1px solid var(--hc-border);
@@ -1168,6 +1192,11 @@ select {
   }
 
   .snapshot-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .snapshot-action-row {
     align-items: flex-start;
     flex-direction: column;
   }

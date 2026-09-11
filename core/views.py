@@ -697,6 +697,7 @@ def _order_payload(order, include_sample_records=False):
         ],
     }
     if include_sample_records:
+        payload['schedule_records'] = [_schedule_payload(schedule) for schedule in order.schedules.all()]
         payload['sample_records'] = _sample_lifecycle_payload(order)
         payload['experiment_records'] = _experiment_lifecycle_payload(order)
         payload['workflow_progress'] = _workflow_progress_payload(order)
@@ -711,7 +712,7 @@ def order_detail(request, order_no):
 
     try:
         schedule_queryset = SchedulePlan.objects.select_related(
-            'lab_manager', 'sample_confirmed_by'
+            'lab_manager', 'scheduled_by', 'sample_confirmed_by'
         ).prefetch_related(
             Prefetch('sample_photos', queryset=SamplePhoto.objects.order_by('create_time', 'id'), to_attr='ordered_sample_photos'),
             Prefetch(
@@ -961,6 +962,10 @@ def _schedule_payload(schedule):
         'schedule_status': schedule.get_schedule_status_display(),
         'schedule_status_key': schedule.schedule_status,
         'lab_manager': _display_user(schedule.lab_manager),
+        'lab_manager_username': schedule.lab_manager.username if schedule.lab_manager else '',
+        'lab_type': _user_lab_type(schedule.lab_manager) or (
+            schedule.test_type if schedule.test_type in [SchedulePlan.TestType.SUZHOU, SchedulePlan.TestType.JIANGYIN] else None
+        ),
         'device_id': schedule.device_id,
         'device_code': schedule.device.device_code if schedule.device else '',
         'device_name': schedule.device.device_name if schedule.device else '',
@@ -2356,6 +2361,7 @@ def lims_action(request):
         'order_cancel': _action_order_cancel,
         'sales_confirm': _action_sales_confirm,
         'create_change': _action_create_change,
+        'sample_arrival': _action_sample_arrival,
         'schedule_assign': _action_schedule_assign,
         'process_change': _action_process_change,
         'start_test': _action_start_test,
@@ -2665,6 +2671,49 @@ def _update_sample_arrival(request, payload, order, schedule):
         'sample_arrived': _audit_change('到样状态', '样品已到' if before_arrived else '样品未到', '样品已到' if arrived else '样品未到'),
         'sample_photos': _audit_change('新增样品照片', 0, len(photos)),
     }
+
+
+def _action_sample_arrival(request, payload):
+    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
+    if role_error:
+        return role_error
+    order, error = _get_order(payload)
+    if error:
+        return error
+    if order.workflow_version != LabOrder.WorkflowVersion.LAB_DIRECT:
+        return JsonResponse(
+            {'ok': False, 'error': '仅实验室直达流程支持实验室样品入库'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        )
+    if order.order_status not in [LabOrder.Status.SCHEDULING, LabOrder.Status.TESTING]:
+        return JsonResponse(
+            {'ok': False, 'error': '当前订单状态不能办理样品入库'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        )
+    schedule = _schedule_for_actor(order, payload, request.user)
+    if not schedule:
+        return JsonResponse(
+            {'ok': False, 'error': '没有分配给当前实验室账号的执行路径'},
+            status=403,
+            json_dumps_params={'ensure_ascii': False},
+        )
+
+    payload['sample_arrived'] = True
+    sample_error, sample_changes = _update_sample_arrival(request, payload, order, schedule)
+    if sample_error:
+        transaction.set_rollback(True)
+        return sample_error
+    _event(
+        order,
+        request.user,
+        f'{schedule.get_test_type_display()}确认样品入库',
+        action_code='lab_sample_arrival',
+        changes=sample_changes,
+        schedule=schedule,
+    )
+    return _status_response('样品入库完成', order)
 
 
 def _action_schedule_assign(request, payload):

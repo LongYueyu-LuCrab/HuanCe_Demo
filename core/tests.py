@@ -1069,6 +1069,22 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         item = next(item for item in schedules.json()['items'] if item['id'] == schedule.id)
         self.assertFalse(item['is_scheduled'])
 
+        arrived = self.action(
+            'suzhou_v2',
+            'sample_arrival',
+            schedule_id=schedule.id,
+            sample_photos=SimpleUploadedFile(
+                'outsource-sample.jpg', b'fake-jpeg-content', content_type='image/jpeg'
+            ),
+        )
+        self.assertEqual(arrived.status_code, 200)
+        schedule.refresh_from_db()
+        self.assertTrue(schedule.sample_arrived)
+        self.assertEqual(schedule.sample_photos.count(), 1)
+        self.assertTrue(
+            self.order.events.filter(action_code='lab_sample_arrival', schedule=schedule).exists()
+        )
+
         scheduled = self.action(
             'suzhou_v2',
             'schedule_assign',

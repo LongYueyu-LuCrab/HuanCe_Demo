@@ -52,7 +52,7 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
   Object.assign(form, {
     plan_start_time: schedule.start_time || '', plan_end_time: schedule.end_time || '',
     device_id: schedule.device_id || undefined,
-    sample_arrived: schedule.sample_arrived,
+    sample_arrived: action === 'sample_arrival' ? true : schedule.sample_arrived,
     outsource_factory: '', outsource_price: '', outsource_cycle: '',
     test_item_list: schedule.remark || schedule.project_name,
     test_standard: '', test_raw_data: '', test_conclusion_temp: '', result_status: '', test_start_time: '', test_end_time: '',
@@ -98,6 +98,10 @@ async function submitWorkflow() {
   if ((activeAction.value === 'schedule_assign' || activeAction.value === 'process_change')
     && form.sample_arrived && activeSchedule.value.sample_photos.length === 0 && samplePhotoFiles.value.length === 0) {
     ElMessage.warning('选择“样品已到”时必须上传至少一张样品照片')
+    return
+  }
+  if (activeAction.value === 'sample_arrival' && samplePhotoFiles.value.length === 0) {
+    ElMessage.warning(activeSchedule.value.sample_arrived ? '请至少上传一张补充样品图片' : '样品入库必须上传至少一张样品图片')
     return
   }
   submitting.value = true
@@ -164,6 +168,22 @@ async function submitWorkflow() {
             <div v-if="activeSchedule?.sample_photos.length" class="document-list mt-8">
               <a v-for="photo in activeSchedule.sample_photos" :key="photo.id" :href="photo.url" target="_blank" class="document-link">{{ photo.name }}</a>
             </div>
+          </el-form-item>
+        </template>
+        <template v-else-if="activeAction === 'sample_arrival'">
+          <el-alert
+            class="form-wide"
+            title="确认样品入库"
+            type="success"
+            :closable="false"
+            description="系统将记录实际入库时间、当前操作账号和上传的现场照片。"
+            show-icon
+          />
+          <el-form-item label="样品入库照片" class="form-wide" required>
+            <el-upload v-model:file-list="samplePhotoFiles" :auto-upload="false" multiple accept=".jpg,.jpeg,.png">
+              <el-button type="primary" plain>上传样品图片</el-button>
+              <template #tip><div class="el-upload__tip">支持 JPG、PNG；单张不超过 10MB，本次合计不超过 30MB。</div></template>
+            </el-upload>
           </el-form-item>
         </template>
         <template v-else-if="activeAction === 'start_test'">

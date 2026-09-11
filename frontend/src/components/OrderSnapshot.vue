@@ -1,13 +1,42 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import type { OrderItem } from '../types'
 import WorkflowProgress from './WorkflowProgress.vue'
 import OutsourceBadge from './OutsourceBadge.vue'
+import { useSession } from '../stores/session'
 
-defineProps<{
+const props = defineProps<{
   order?: OrderItem | null
   loading?: boolean
   title?: string
 }>()
+
+const router = useRouter()
+const session = useSession()
+const labRoles = computed(() => new Set(session.state.user.roles || []))
+const isLabAccount = computed(() => (
+  labRoles.value.has('苏州实验室')
+  || labRoles.value.has('江阴实验室')
+  || labRoles.value.has('实验操作员')
+))
+const actionableSchedules = computed(() => {
+  if (!isLabAccount.value || !props.order) return []
+  return (props.order.schedule_records || []).filter((schedule) => {
+    if (![3, 4].includes(schedule.status_key) || [4, 5].includes(schedule.schedule_status_key)) return false
+    if (labRoles.value.has('实验操作员')) return schedule.lab_type === session.state.user.lab_type
+    return schedule.lab_manager_username === session.state.user.username
+  })
+})
+
+function openLabAction(scheduleId: number, labType: number | null, action: 'schedule_assign' | 'sample_arrival') {
+  const lab = labType === 2 ? 'jiangyin' : 'suzhou'
+  void router.push({
+    name: 'lab',
+    params: { lab },
+    query: { order: props.order?.order_no, schedule: String(scheduleId), action },
+  })
+}
 
 function formatFileSize(size: number) {
   if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`
@@ -44,6 +73,23 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
     <el-empty v-else-if="!order" description="订单详情暂时无法读取" :image-size="64" />
     <template v-else>
       <WorkflowProgress v-if="order.workflow_progress" :progress="order.workflow_progress" />
+      <section v-if="actionableSchedules.length" class="snapshot-action-panel" aria-label="当前实验室操作">
+        <div>
+          <strong>当前节点可操作</strong>
+          <p>排期与样品入库是两个独立动作，操作后都会记录人员、时间和变更内容。</p>
+        </div>
+        <div v-for="schedule in actionableSchedules" :key="schedule.id" class="snapshot-action-row">
+          <span>{{ schedule.test_type }} · {{ schedule.remark || order.project_name }}</span>
+          <el-space wrap>
+            <el-button type="primary" @click="openLabAction(schedule.id, schedule.lab_type, 'schedule_assign')">
+              {{ schedule.is_scheduled ? '重新排期' : '排期 / 排台' }}
+            </el-button>
+            <el-button type="success" @click="openLabAction(schedule.id, schedule.lab_type, 'sample_arrival')">
+              {{ schedule.sample_arrived ? '补充样品图片' : '样品入库' }}
+            </el-button>
+          </el-space>
+        </div>
+      </section>
       <el-descriptions :column="2" border class="snapshot-descriptions">
       <el-descriptions-item label="订单号">
         <span class="order-reference">

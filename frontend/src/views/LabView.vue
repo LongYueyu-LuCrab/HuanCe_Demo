@@ -27,6 +27,7 @@ const detailDrawerVisible = ref(false)
 const availabilityLoading = ref(false)
 const availableDevices = ref<LabDevice[]>([])
 const samplePhotoFiles = ref<UploadUserFile[]>([])
+const handledActionKey = ref('')
 const form = reactive({
   change_scene: 2,
   change_content: '',
@@ -53,12 +54,31 @@ async function loadLaboratoryOrders() {
   try {
     const data = await fetchLaboratoryOrders({ lab_type: labType.value, page: 1, page_size: 500 })
     labOrders.value = data.items
+    openRequestedAction()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '实验室订单读取失败')
   }
 }
 
+function openActionFromDetail(action: string, schedule: ScheduleItem) {
+  detailDrawerVisible.value = false
+  openWorkflow(action, schedule)
+}
+
+function openRequestedAction() {
+  const action = String(route.query.action || '')
+  const scheduleId = Number(route.query.schedule || 0)
+  const allowedActions = new Set(['schedule_assign', 'sample_arrival'])
+  const key = `${route.fullPath}:${scheduleId}:${action}`
+  if (!scheduleId || !allowedActions.has(action) || handledActionKey.value === key) return
+  const schedule = labOrders.value.find((item) => item.id === scheduleId)
+  if (!schedule) return
+  handledActionKey.value = key
+  openWorkflow(action, schedule)
+}
+
 watch(labType, loadLaboratoryOrders, { immediate: true })
+watch(() => route.fullPath, () => openRequestedAction())
 async function loadOrderContext(orderNo: string) {
   activeOrder.value = null
   orderLoading.value = true
@@ -79,8 +99,12 @@ function openOrderDetail(schedule: ScheduleItem) {
 
 function scheduleFromDetail() {
   if (!activeSchedule.value) return
-  detailDrawerVisible.value = false
-  openWorkflow('schedule_assign', activeSchedule.value)
+  openActionFromDetail('schedule_assign', activeSchedule.value)
+}
+
+function sampleArrivalFromDetail() {
+  if (!activeSchedule.value) return
+  openActionFromDetail('sample_arrival', activeSchedule.value)
 }
 
 function openWorkflow(action: string, schedule: ScheduleItem) {
@@ -102,7 +126,7 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
     outsource_factory: '',
     outsource_price: '',
     outsource_cycle: '',
-    sample_arrived: schedule.sample_arrived,
+    sample_arrived: action === 'sample_arrival' ? true : schedule.sample_arrived,
     test_start_time: '',
     test_end_time: '',
     report_no: '',
@@ -147,6 +171,10 @@ async function submitWorkflow() {
   if ((activeAction.value === 'schedule_assign' || activeAction.value === 'process_change')
     && form.sample_arrived && (activeSchedule.value?.sample_photos.length || 0) === 0 && samplePhotoFiles.value.length === 0) {
     ElMessage.warning('选择“样品已到”时必须上传至少一张样品照片')
+    return
+  }
+  if (activeAction.value === 'sample_arrival' && samplePhotoFiles.value.length === 0) {
+    ElMessage.warning(activeSchedule.value?.sample_arrived ? '请至少上传一张补充样品图片' : '样品入库必须上传至少一张样品图片')
     return
   }
   submitting.value = true
@@ -262,6 +290,25 @@ async function submitWorkflow() {
             </div>
           </el-form-item>
         </template>
+        <template v-else-if="activeAction === 'sample_arrival'">
+          <el-alert
+            class="form-wide"
+            title="确认样品入库"
+            type="success"
+            :closable="false"
+            description="系统将记录实际入库时间、当前操作账号和上传的现场照片；该操作不依赖排期，可先入库后排期。"
+            show-icon
+          />
+          <el-form-item label="样品入库照片" class="form-wide" required>
+            <el-upload v-model:file-list="samplePhotoFiles" :auto-upload="false" multiple accept=".jpg,.jpeg,.png">
+              <el-button type="primary" plain>上传样品图片</el-button>
+              <template #tip><div class="el-upload__tip">支持 JPG、PNG；单张不超过 10MB，本次合计不超过 30MB。</div></template>
+            </el-upload>
+            <div v-if="activeSchedule?.sample_photos.length" class="document-list mt-8">
+              <a v-for="photo in activeSchedule.sample_photos" :key="photo.id" :href="photo.url" target="_blank" class="document-link">{{ photo.name }}</a>
+            </div>
+          </el-form-item>
+        </template>
         <template v-else-if="activeAction === 'start_test'">
           <el-form-item label="试验项目" class="form-wide">
             <el-input v-model="form.test_item_list" disabled type="textarea" :rows="3" />
@@ -354,6 +401,10 @@ async function submitWorkflow() {
           <el-button class="mt-8" type="primary" @click="scheduleFromDetail">排期 / 排台</el-button>
         </template>
       </el-alert>
+      <div v-if="activeSchedule && [3, 4].includes(activeSchedule.status_key) && ![4, 5].includes(activeSchedule.schedule_status_key)" class="row-actions mb-16">
+        <el-button type="primary" @click="scheduleFromDetail">{{ activeSchedule.is_scheduled ? '重新排期' : '排期 / 排台' }}</el-button>
+        <el-button type="success" @click="sampleArrivalFromDetail">{{ activeSchedule.sample_arrived ? '补充样品图片' : '样品入库' }}</el-button>
+      </div>
       <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="实验室订单信息" />
     </el-drawer>
 

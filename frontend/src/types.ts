@@ -46,6 +46,7 @@ export type OrderItem = {
   documents: OrderDocumentItem[]
   sample_records?: SampleLifecycleItem[]
   experiment_records?: ExperimentLifecycleItem[]
+  schedule_records?: ScheduleItem[]
   workflow_progress?: WorkflowProgress
 }
 
@@ -111,6 +112,8 @@ export type ScheduleItem = {
   schedule_status: string
   schedule_status_key: number
   lab_manager: string
+  lab_manager_username: string
+  lab_type: number | null
   device_id: number | null
   device_code: string
   device_name: string
