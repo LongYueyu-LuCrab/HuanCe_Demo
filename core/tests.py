@@ -1529,7 +1529,27 @@ class LaboratoryOperatorTests(TestCase):
         self.assertFalse(self.schedule.sample_arrived)
 
     def test_operator_can_query_and_export_only_own_laboratory(self):
+        unassigned_order = LabOrder.objects.create(
+            order_no='LAB-UNASSIGNED-001',
+            customer_name='待指定负责人客户',
+            project_name='待指定负责人试验',
+            test_demand='验证历史空负责人排期兼容性',
+            workflow_version=LabOrder.WorkflowVersion.LAB_DIRECT,
+        )
+        unassigned_schedule = SchedulePlan.objects.create(
+            order=unassigned_order,
+            test_type=SchedulePlan.TestType.SUZHOU,
+            schedule_status=SchedulePlan.Status.NEW,
+        )
         self.client.force_login(self.operator)
+        all_response = self.client.get(reverse('laboratory_orders'), {'lab_type': 1, 'page_size': 500})
+        self.assertEqual(all_response.status_code, 200)
+        unassigned_item = next(
+            item for item in all_response.json()['items'] if item['id'] == unassigned_schedule.id
+        )
+        self.assertEqual(unassigned_item['lab_type'], 1)
+        self.assertEqual(unassigned_item['lab_manager_username'], '')
+
         response = self.client.get(reverse('laboratory_orders'), {'lab_type': 1, 'keyword': '操作员'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['total'], 1)

@@ -963,7 +963,7 @@ def _schedule_payload(schedule):
         'schedule_status_key': schedule.schedule_status,
         'lab_manager': _display_user(schedule.lab_manager),
         'lab_manager_username': schedule.lab_manager.username if schedule.lab_manager else '',
-        'lab_type': _user_lab_type(schedule.lab_manager) or (
+        'lab_type': (_user_lab_type(schedule.lab_manager) if schedule.lab_manager else None) or (
             schedule.test_type if schedule.test_type in [SchedulePlan.TestType.SUZHOU, SchedulePlan.TestType.JIANGYIN] else None
         ),
         'device_id': schedule.device_id,
