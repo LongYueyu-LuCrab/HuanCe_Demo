@@ -375,6 +375,14 @@ def _workflow_progress_payload(order):
         else bool(schedule.plan_start_time and schedule.plan_end_time)
         for schedule in schedules
     )
+    latest_scheduling_time = max(
+        (
+            schedule.scheduled_at if is_v2 else schedule.update_time
+            for schedule in schedules
+            if (schedule.scheduled_at if is_v2 else schedule.update_time)
+        ),
+        default=None,
+    )
     arrived_count = 0
     ended_count = 0
     submitted_count = 0
@@ -452,7 +460,7 @@ def _workflow_progress_payload(order):
             'key': 'scheduling', 'sequence': 5, 'phase': 'preparation', 'phase_title': '实施准备',
             'title': '排期排台', 'owner': '实验室' if is_v2 else '质量部', 'state': 'pending',
             'detail': f'{planned_count}/{schedule_count}条路径完成排期' if schedule_count else '等待执行路径分配',
-            'time': _display_datetime(max((schedule.update_time for schedule in schedules), default=None)),
+            'time': _display_datetime(latest_scheduling_time),
         },
         {
             'key': 'sales_confirmation', 'sequence': 6, 'phase': 'preparation', 'phase_title': '实施准备',

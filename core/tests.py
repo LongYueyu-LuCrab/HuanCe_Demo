@@ -1062,6 +1062,7 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         )
         self.assertEqual(scheduling_step['state'], 'current')
         self.assertIn('0/1', scheduling_step['detail'])
+        self.assertEqual(scheduling_step['time'], '')
 
         schedules = self.client.get(reverse('laboratory_orders'), {'lab_type': 1})
         self.assertEqual(schedules.status_code, 200)
