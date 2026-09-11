@@ -700,6 +700,7 @@ def _order_payload(order, include_sample_records=False):
         payload['schedule_records'] = [_schedule_payload(schedule) for schedule in order.schedules.all()]
         payload['sample_records'] = _sample_lifecycle_payload(order)
         payload['experiment_records'] = _experiment_lifecycle_payload(order)
+        payload['report_records'] = [_report_payload(report) for report in order.reports.all()]
         payload['workflow_progress'] = _workflow_progress_payload(order)
     return payload
 
@@ -3325,7 +3326,15 @@ def _action_issue_report(request, payload):
         schedule=experiment.schedule,
     )
     order.mark_status(LabOrder.Status.REPORT_REVIEW, request.user, f'主责实验室负责人出具报告 {report.report_no}，提交销售初审')
-    return _status_response('报告已提交销售初审', order)
+    return JsonResponse(
+        {
+            'ok': True,
+            'message': '报告已生成并提交销售初审',
+            'order': _order_payload(order),
+            'report': _report_payload(report),
+        },
+        json_dumps_params={'ensure_ascii': False},
+    )
 
 
 def _audit_report(request, payload, expected_status, level, result, next_status, note):

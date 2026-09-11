@@ -190,6 +190,20 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
         </div>
         <span v-else class="cell-sub">订单尚未分配实验室任务</span>
       </el-descriptions-item>
+      <el-descriptions-item v-if="order.report_records !== undefined" label="检测报告" :span="2">
+        <div v-if="order.report_records.length" class="report-record-list">
+          <section v-for="report in order.report_records" :key="report.id" class="report-record-item">
+            <div>
+              <strong>{{ report.report_no }}</strong>
+              <span>{{ report.report_type_label }} · {{ report.status }}</span>
+              <small>{{ report.generated_at || '生成时间未记录' }}</small>
+            </div>
+            <a v-if="report.has_file" :href="report.download_url" class="report-download-link">下载 PDF</a>
+            <el-tag v-else type="warning" effect="plain">文件待生成</el-tag>
+          </section>
+        </div>
+        <span v-else class="cell-sub">该订单尚未出具检测报告</span>
+      </el-descriptions-item>
       <el-descriptions-item v-if="order.experiment_records !== undefined" label="实验结果" :span="2">
         <div v-if="order.experiment_records.length" class="sample-lifecycle-list">
           <section v-for="record in order.experiment_records" :key="`${record.schedule_id}-${record.started_at}`" class="sample-lifecycle-record">

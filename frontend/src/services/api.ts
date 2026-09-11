@@ -1,4 +1,4 @@
-import type { Dashboard, LabDevice, OrderItem, User } from '../types'
+import type { Dashboard, LabDevice, OrderItem, ReportItem, User } from '../types'
 
 async function parseJson<T>(response: Response): Promise<T> {
   const data = await response.json()
@@ -133,7 +133,12 @@ export type WorkflowActionPayload = {
   [key: string]: unknown
 }
 
-export async function workflowAction(payload: WorkflowActionPayload) {
+export async function workflowAction(payload: WorkflowActionPayload): Promise<{
+  ok: boolean
+  message?: string
+  order?: OrderItem
+  report?: ReportItem
+}> {
   const hasFiles = Object.values(payload).some((value) => Array.isArray(value) && value.some((item) => item instanceof File))
   let body: BodyInit
   let headers: HeadersInit | undefined

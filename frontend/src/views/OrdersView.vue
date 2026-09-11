@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Download, UploadFilled } from '@element-plus/icons-vue'
 import type { UploadFile, UploadFiles, UploadRawFile, UploadUserFile } from 'element-plus'
@@ -7,9 +8,10 @@ import OrderTable from '../components/OrderTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
 import { createOrder, exportSalesManagerOrders, fetchOrderDetail, fetchSalesManagerOrders, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
-import type { OrderItem } from '../types'
+import type { OrderItem, ReportItem } from '../types'
 
 const session = useSession()
+const router = useRouter()
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const actionDialogVisible = ref(false)
@@ -17,6 +19,8 @@ const actionSubmitting = ref(false)
 const activeAction = ref('')
 const activeOrder = ref<OrderItem | null>(null)
 const actionOrderLoading = ref(false)
+const reportResultVisible = ref(false)
+const generatedReport = ref<ReportItem | null>(null)
 const actionForm = reactive<Record<string, unknown>>({})
 const contractFileList = ref<UploadUserFile[]>([])
 const outsourceContractFileList = ref<UploadUserFile[]>([])
@@ -218,12 +222,18 @@ async function submitWorkflow() {
   }
   actionSubmitting.value = true
   try {
-    await workflowAction({
+    const result = await workflowAction({
       action: activeAction.value,
       order_no: activeOrder.value.order_no,
       ...actionForm,
     })
-    ElMessage.success('流程操作已完成')
+    if (activeAction.value === 'issue_report' && result.report) {
+      generatedReport.value = result.report
+      reportResultVisible.value = true
+      ElMessage.success('检测报告 PDF 已生成')
+    } else {
+      ElMessage.success(result.message || '流程操作已完成')
+    }
     actionDialogVisible.value = false
     await session.refreshDashboard()
   } catch (error) {
@@ -231,6 +241,15 @@ async function submitWorkflow() {
   } finally {
     actionSubmitting.value = false
   }
+}
+
+function downloadGeneratedReport() {
+  if (generatedReport.value?.download_url) window.location.assign(generatedReport.value.download_url)
+}
+
+function openReportCenter() {
+  reportResultVisible.value = false
+  void router.push('/reports')
 }
 
 async function submit() {
@@ -635,6 +654,25 @@ async function submit() {
         <el-button @click="actionDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="actionSubmitting" @click="submitWorkflow">确认执行</el-button>
       </template>
+    </el-dialog>
+
+    <el-dialog v-model="reportResultVisible" title="检测报告已生成" width="min(520px, 92vw)">
+      <el-result icon="success" title="PDF 报告生成成功" sub-title="报告已保存，并已提交销售初审。">
+        <template #extra>
+          <div v-if="generatedReport" class="generated-report-summary">
+            <el-descriptions :column="1" border>
+              <el-descriptions-item label="报告编号">{{ generatedReport.report_no }}</el-descriptions-item>
+              <el-descriptions-item label="报告版本">{{ generatedReport.report_type_label }}</el-descriptions-item>
+              <el-descriptions-item label="当前状态">{{ generatedReport.status }}</el-descriptions-item>
+              <el-descriptions-item label="生成时间">{{ generatedReport.generated_at }}</el-descriptions-item>
+            </el-descriptions>
+            <div class="dialog-result-actions">
+              <el-button type="primary" :icon="Download" @click="downloadGeneratedReport">下载 PDF</el-button>
+              <el-button @click="openReportCenter">查看报告任务</el-button>
+            </div>
+          </div>
+        </template>
+      </el-result>
     </el-dialog>
   </div>
 </template>

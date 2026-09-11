@@ -46,6 +46,7 @@ export type OrderItem = {
   documents: OrderDocumentItem[]
   sample_records?: SampleLifecycleItem[]
   experiment_records?: ExperimentLifecycleItem[]
+  report_records?: ReportItem[]
   schedule_records?: ScheduleItem[]
   workflow_progress?: WorkflowProgress
 }
