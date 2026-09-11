@@ -175,6 +175,12 @@ async function exportOrders(selectedOnly: boolean) {
         <template #default="{ row }">
           <el-tag effect="plain">{{ row.status }}</el-tag>
           <span class="cell-sub block">{{ row.schedule_status }}</span>
+          <el-tag v-if="!row.is_scheduled" class="mt-8" size="small" type="warning" effect="plain">
+            待确认排期
+          </el-tag>
+          <div v-else class="cell-sub mt-8">
+            {{ row.scheduled_by || '实验室' }} · {{ row.scheduled_at }}
+          </div>
           <el-tag class="mt-8" size="small" :type="row.sample_arrived ? 'success' : 'warning'" effect="plain">
             {{ row.sample_arrival_status }}
           </el-tag>
@@ -202,7 +208,7 @@ async function exportOrders(selectedOnly: boolean) {
             <el-button size="small" plain @click="emit('detail', row)">订单详情</el-button>
             <template v-if="canLabOperate">
               <template v-if="row.workflow_version === 2">
-                <el-button v-if="(row.status_key === 3 || row.status_key === 4) && ![4, 5].includes(row.schedule_status_key)" size="small" type="primary" plain @click="emit('workflow', 'schedule_assign', row)">排期 / 排台</el-button>
+                <el-button v-if="(row.status_key === 3 || row.status_key === 4) && ![4, 5].includes(row.schedule_status_key)" size="small" type="primary" plain @click="emit('workflow', 'schedule_assign', row)">{{ row.is_scheduled ? '重新排期' : '排期 / 排台' }}</el-button>
                 <el-button v-if="row.schedule_status.includes('变更')" size="small" type="warning" plain @click="emit('workflow', 'process_change', row)">处理变更</el-button>
                 <template v-if="row.test_type.includes('委外')">
                   <el-button v-if="!row.experiment_status.includes('结束') && !row.experiment_status.includes('提交')" size="small" type="success" plain @click="emit('workflow', 'outsource_result', row)">委外回传 / 结束实验</el-button>

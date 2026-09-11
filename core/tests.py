@@ -1023,6 +1023,64 @@ class LimsV2DirectLabWorkflowTests(TestCase):
             content_type='application/json',
         )
 
+    def test_outsource_contract_dates_do_not_count_as_lab_scheduling(self):
+        OutsourceRequirement.objects.create(
+            order=self.order,
+            outsource_company='澄信委外实验室',
+            outsource_amount=Decimal('12000.00'),
+            entrust_order_no='OUT-SCHEDULE-001',
+            undertaking_amount=Decimal('18000.00'),
+            experiment_start_time=timezone.now() + timedelta(days=2),
+            experiment_end_time=timezone.now() + timedelta(days=8),
+            created_by=self.users['sales_v2'],
+            updated_by=self.users['sales_v2'],
+        )
+        self.assertEqual(self.action('business_v2', 'review_pass').status_code, 200)
+        self.assertEqual(
+            self.action(
+                'tech_v2',
+                'review_pass',
+                execution_routes=['outsource'],
+                outsource_owner_id=self.users['suzhou_v2'].id,
+                lead_lab_manager_id=self.users['suzhou_v2'].id,
+                outsource_task='快速温变',
+            ).status_code,
+            200,
+        )
+
+        schedule = self.order.schedules.get(test_type=SchedulePlan.TestType.OUTSOURCE)
+        self.assertIsNotNone(schedule.plan_start_time)
+        self.assertIsNotNone(schedule.plan_end_time)
+        self.assertIsNone(schedule.scheduled_at)
+
+        self.client.force_login(self.users['suzhou_v2'])
+        detail = self.client.get(reverse('order_detail', kwargs={'order_no': self.order.order_no}))
+        self.assertEqual(detail.status_code, 200)
+        scheduling_step = next(
+            step for step in detail.json()['order']['workflow_progress']['steps']
+            if step['key'] == 'scheduling'
+        )
+        self.assertEqual(scheduling_step['state'], 'current')
+        self.assertIn('0/1', scheduling_step['detail'])
+
+        schedules = self.client.get(reverse('laboratory_orders'), {'lab_type': 1})
+        self.assertEqual(schedules.status_code, 200)
+        item = next(item for item in schedules.json()['items'] if item['id'] == schedule.id)
+        self.assertFalse(item['is_scheduled'])
+
+        scheduled = self.action(
+            'suzhou_v2',
+            'schedule_assign',
+            schedule_id=schedule.id,
+            plan_start_time='2026-09-03',
+            plan_end_time='2026-09-09',
+            outsource_factory='澄信委外实验室',
+        )
+        self.assertEqual(scheduled.status_code, 200)
+        schedule.refresh_from_db()
+        self.assertIsNotNone(schedule.scheduled_at)
+        self.assertEqual(schedule.scheduled_by, self.users['suzhou_v2'])
+
     def test_v2_routes_directly_to_labs_and_lead_manager_issues_report(self):
         business = self.action('business_v2', 'review_pass', biz_quote_detail='商务评审通过')
         self.assertEqual(business.status_code, 200)

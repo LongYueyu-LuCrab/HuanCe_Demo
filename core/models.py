@@ -344,6 +344,15 @@ class SchedulePlan(TimeStampedModel):
     outsource_cycle = models.PositiveIntegerField('委外交付周期（天）', null=True, blank=True)
     plan_start_time = models.DateTimeField('试验计划开始时间', null=True, blank=True)
     plan_end_time = models.DateTimeField('试验计划完成时间', null=True, blank=True)
+    scheduled_at = models.DateTimeField('实验室确认排期时间', null=True, blank=True)
+    scheduled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='实验室排期操作人',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_confirmed_schedules',
+    )
     sample_arrived = models.BooleanField('样品是否已到', default=False)
     sample_arrived_at = models.DateTimeField('样品确认到达时间', null=True, blank=True)
     sample_confirmed_by = models.ForeignKey(

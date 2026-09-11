@@ -369,7 +369,12 @@ def _workflow_progress_payload(order):
     is_v2 = order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT
 
     schedule_count = len(schedules)
-    planned_count = sum(bool(schedule.plan_start_time and schedule.plan_end_time) for schedule in schedules)
+    planned_count = sum(
+        bool(schedule.scheduled_at)
+        if is_v2
+        else bool(schedule.plan_start_time and schedule.plan_end_time)
+        for schedule in schedules
+    )
     arrived_count = 0
     ended_count = 0
     submitted_count = 0
@@ -942,6 +947,9 @@ def _schedule_payload(schedule):
         'test_type': schedule.get_test_type_display(),
         'start_time': schedule.plan_start_time.strftime('%Y-%m-%d') if schedule.plan_start_time else '',
         'end_time': schedule.plan_end_time.strftime('%Y-%m-%d') if schedule.plan_end_time else '',
+        'is_scheduled': bool(schedule.scheduled_at),
+        'scheduled_at': _display_datetime(schedule.scheduled_at),
+        'scheduled_by': _display_user(schedule.scheduled_by),
         'schedule_status': schedule.get_schedule_status_display(),
         'schedule_status_key': schedule.schedule_status,
         'lab_manager': _display_user(schedule.lab_manager),
@@ -2693,6 +2701,8 @@ def _action_schedule_assign(request, payload):
             if not schedule.outsource_factory:
                 return JsonResponse({'ok': False, 'error': '委外任务必须填写委外厂家'}, status=400, json_dumps_params={'ensure_ascii': False})
         schedule.quality_user = request.user
+        schedule.scheduled_at = timezone.now()
+        schedule.scheduled_by = request.user
         schedule.remark = payload.get('remark') or schedule.remark or order.test_demand
         schedule.save()
         sample_error, sample_changes = _update_sample_arrival(request, payload, order, schedule)
@@ -2779,6 +2789,8 @@ def _action_process_change(request, payload):
         change.schedule.plan_start_time = start_time
         change.schedule.plan_end_time = end_time
         change.schedule.schedule_status = SchedulePlan.Status.NEW
+        change.schedule.scheduled_at = timezone.now()
+        change.schedule.scheduled_by = request.user
         change.schedule.save()
         sample_error, sample_changes = _update_sample_arrival(request, payload, order, change.schedule)
         if sample_error:
@@ -2816,6 +2828,12 @@ def _action_start_test(request, payload):
         return JsonResponse({'ok': False, 'error': '没有分配给当前实验室负责人的排期'}, status=403, json_dumps_params={'ensure_ascii': False})
     if schedule.schedule_status in [SchedulePlan.Status.ENDED, SchedulePlan.Status.FINISHED]:
         return JsonResponse({'ok': False, 'error': '该试验任务已经结束，不能重复开始'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not schedule.scheduled_at:
+        return JsonResponse(
+            {'ok': False, 'error': '请先由实验室完成排期/排台，再开始试验'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        )
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not order.sales_confirmed_at:
         return JsonResponse({'ok': False, 'error': '销售尚未确认需求，不能开始试验'}, status=400, json_dumps_params={'ensure_ascii': False})
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
@@ -2975,6 +2993,12 @@ def _action_outsource_result(request, payload):
         schedule = schedules.order_by('-create_time').first()
     if not schedule:
         return JsonResponse({'ok': False, 'error': '该订单没有委外排期'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not schedule.scheduled_at:
+        return JsonResponse(
+            {'ok': False, 'error': '请先由实验室确认委外排期，再回传试验结果'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        )
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not order.sales_confirmed_at:
         return JsonResponse({'ok': False, 'error': '销售尚未确认需求，不能回传委外试验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
     if not schedule.sample_arrived:

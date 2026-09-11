@@ -72,8 +72,15 @@ async function loadOrderContext(orderNo: string) {
 }
 
 function openOrderDetail(schedule: ScheduleItem) {
+  activeSchedule.value = schedule
   detailDrawerVisible.value = true
   void loadOrderContext(schedule.order_no)
+}
+
+function scheduleFromDetail() {
+  if (!activeSchedule.value) return
+  detailDrawerVisible.value = false
+  openWorkflow('schedule_assign', activeSchedule.value)
 }
 
 function openWorkflow(action: string, schedule: ScheduleItem) {
@@ -334,6 +341,19 @@ async function submitWorkflow() {
     </el-dialog>
 
     <el-drawer v-model="detailDrawerVisible" title="订单详情" size="min(720px, 94vw)">
+      <el-alert
+        v-if="activeSchedule && !activeSchedule.is_scheduled && [3, 4].includes(activeSchedule.status_key)"
+        class="mb-16"
+        title="该执行路径尚未由实验室确认排期"
+        type="warning"
+        :closable="false"
+        description="委外合同中的实验起止时间仅供参考；实验室负责人或操作员确认日期后，才计为完成排期。"
+        show-icon
+      >
+        <template #default>
+          <el-button class="mt-8" type="primary" @click="scheduleFromDetail">排期 / 排台</el-button>
+        </template>
+      </el-alert>
       <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="实验室订单信息" />
     </el-drawer>
 

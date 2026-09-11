@@ -105,6 +105,9 @@ export type ScheduleItem = {
   test_type: string
   start_time: string
   end_time: string
+  is_scheduled: boolean
+  scheduled_at: string
+  scheduled_by: string
   schedule_status: string
   schedule_status_key: number
   lab_manager: string
