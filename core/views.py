@@ -714,6 +714,25 @@ def _order_payload(order, include_sample_records=False):
     return payload
 
 
+def _redact_order_experiment_data(payload, roles):
+    raw_data_roles = {
+        ROLE_CHAIRMAN, ROLE_GENERAL_MANAGER, ROLE_QUALITY,
+        ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_OUTSOURCE,
+    }
+    if raw_data_roles.intersection(roles):
+        return payload
+    # Protect the JSON response as well as the visible experiment section.
+    result = dict(payload)
+    result.pop('experiment_records', None)
+    if 'schedule_records' in result:
+        result['schedule_records'] = [
+            {key: value for key, value in record.items()
+             if key not in {'experiment_raw_data', 'experiment_conclusion'}}
+            for record in result['schedule_records']
+        ]
+    return result
+
+
 def order_detail(request, order_no):
     if request.method != 'GET':
         return HttpResponseNotAllowed(['GET'])
@@ -752,7 +771,10 @@ def order_detail(request, order_no):
             status=404,
             json_dumps_params={'ensure_ascii': False},
         )
-    return JsonResponse({'ok': True, 'order': _order_payload(order, include_sample_records=True)}, json_dumps_params={'ensure_ascii': False})
+    payload = _redact_order_experiment_data(
+        _order_payload(order, include_sample_records=True), _roles(request.user)
+    )
+    return JsonResponse({'ok': True, 'order': payload}, json_dumps_params={'ensure_ascii': False})
 
 
 def _report_payload(report):
@@ -772,7 +794,7 @@ def _report_payload(report):
         else '',
         'report_type': report.report_type,
         'report_type_label': report.get_report_type_display(),
-        'generated_at': report.generated_at.strftime('%Y-%m-%d %H:%M') if report.generated_at else '',
+        'generated_at': _display_datetime(report.generated_at),
         'has_file': bool(report.report_file),
         'download_url': f'/api/reports/{report.id}/download/' if report.report_file else '',
     }
@@ -866,7 +888,7 @@ def _invoice_payload(invoice, current_user=None):
         'invoiced_total': str(invoiced_total),
         'remaining_amount': str(remaining_amount),
         'invoice_type': invoice.invoice_type,
-        'invoice_date': invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '',
+        'invoice_date': _display_date(invoice.invoice_date),
         'pay_status': invoice.get_pay_status_display(),
         'finish_status': invoice.get_order_finish_flag_display(),
         'record_status': invoice.record_status,
@@ -882,7 +904,7 @@ def _invoice_payload(invoice, current_user=None):
         'voided_by': invoice.voided_by.first_name or invoice.voided_by.username
         if invoice.voided_by
         else '',
-        'voided_at': invoice.voided_at.strftime('%Y-%m-%d %H:%M') if invoice.voided_at else '',
+        'voided_at': _display_datetime(invoice.voided_at),
         'void_reason': invoice.void_reason,
         'experiment_result_status': _experiment_finance_status(order),
     }
@@ -1035,7 +1057,7 @@ def _change_payload(change):
         'status': change.get_change_status_display(),
         'content': change.change_content,
         'change_user': _display_user(change.change_user),
-        'change_time': change.change_time.strftime('%Y-%m-%d %H:%M') if change.change_time else '',
+        'change_time': _display_datetime(change.change_time),
     }
 
 
@@ -1051,7 +1073,7 @@ def _review_payload(review):
         'result': '通过' if review.review_result else '驳回',
         'tech_feasible': '可行' if review.tech_feasible else '不可行',
         'reject_reason': review.reject_reason,
-        'review_time': review.review_time.strftime('%Y-%m-%d %H:%M') if review.review_time else '',
+        'review_time': _display_datetime(review.review_time),
     }
 
 
@@ -1075,7 +1097,7 @@ def _workflow_payload(event):
             for field, item in (event.change_data or {}).items()
             if isinstance(item, dict)
         ),
-        'create_time': event.create_time.strftime('%Y-%m-%d %H:%M') if event.create_time else '',
+        'create_time': _display_datetime(event.create_time),
     }
 
 
@@ -1289,7 +1311,7 @@ def _assign_schedule_device(schedule, payload, start_time, end_time):
         return f'设备当前为“{device.get_device_status_display()}”，不可排期'
     conflict = _device_conflict(device, start_time, end_time, schedule.id)
     if conflict:
-        conflict_end = conflict.plan_end_time.strftime('%Y-%m-%d') if conflict.plan_end_time else '待定'
+        conflict_end = _display_date(conflict.plan_end_time) or '待定'
         return f'设备与订单 {conflict.order.order_no} 的排期冲突（至 {conflict_end}）'
     schedule.device = device
     return ''

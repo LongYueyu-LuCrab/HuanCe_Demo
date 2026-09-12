@@ -4,8 +4,8 @@ from unittest.mock import patch
 from django.test import SimpleTestCase
 from django.utils import timezone
 
-from .models import LabOrder, SchedulePlan
-from .views import _display_date, _display_datetime, _order_payload, _schedule_payload
+from .models import Invoice, LabOrder, SchedulePlan, TestReport
+from .views import _display_date, _display_datetime, _invoice_payload, _order_payload, _report_payload, _schedule_payload
 
 
 class DisplayDateTests(SimpleTestCase):
@@ -46,3 +46,25 @@ class DisplayDateTests(SimpleTestCase):
         with timezone.override('Asia/Shanghai'):
             payload = _order_payload(order)
         self.assertEqual(payload['created_at'], '2026-09-12 23:51')
+
+    def test_report_generation_time_uses_local_date_after_midnight(self):
+        report = TestReport(
+            order=LabOrder(order_no='UI-DATE-TEST'),
+            generated_at=datetime(2026, 9, 12, 16, 47, tzinfo=datetime_timezone.utc),
+        )
+        with timezone.override('Asia/Shanghai'):
+            payload = _report_payload(report)
+        self.assertEqual(payload['generated_at'], '2026-09-13 00:47')
+
+    def test_invoice_date_and_void_time_use_business_timezone(self):
+        order = LabOrder(order_no='UI-DATE-TEST', order_status=LabOrder.Status.INVOICED_CLOSED)
+        order._prefetched_objects_cache = {'invoices': []}
+        invoice = Invoice(
+            order=order,
+            invoice_date=datetime(2026, 9, 12, 16, tzinfo=datetime_timezone.utc),
+            voided_at=datetime(2026, 9, 12, 16, 30, tzinfo=datetime_timezone.utc),
+        )
+        with timezone.override('Asia/Shanghai'):
+            payload = _invoice_payload(invoice)
+        self.assertEqual(payload['invoice_date'], '2026-09-13')
+        self.assertEqual(payload['voided_at'], '2026-09-13 00:30')

@@ -4,7 +4,7 @@
   "method": "Browser UI only: role login, form entry and workflow button clicks",
   "requested_orders": 100,
   "created_orders": 1,
-  "completed_end_to_end": 0,
+  "completed_end_to_end": 1,
   "status": "incomplete",
   "direct_backend_requests": 0,
   "direct_database_writes": 0,
@@ -24,30 +24,54 @@
         "suzhou_lab01: logged in; found order using laboratory-task search",
         "suzhou_lab01: opened scheduling dialog; queried availability; selected E2E-SZ-20260912 and submitted 2033-01-01 through 2033-01-02",
         "suzhou_lab01: observed saved start date incorrectly displayed as 2032-12-31",
-        "After timezone display fix: reloaded frontend, searched same order, verified 2033-01-01 through 2033-01-02"
+        "After timezone display fix: reloaded frontend, searched same order, verified 2033-01-01 through 2033-01-02",
+        "Resume: suzhou_lab01 uploaded a valid generated test PNG via file chooser and confirmed sample arrival; list showed arrival timestamp and photo link",
+        "sales01: confirmed unchanged requirements using the frontend dialog",
+        "suzhou_lab01: started experiment, entered pass result, raw data and conclusion, then ended experiment",
+        "Verified experiment-ended-awaiting-submission status before clicking submit results",
+        "suzhou_lab01: submitted results separately; order changed to results-submitted-awaiting-report",
+        "suzhou_lab01: generated formal report RPT-LIMS-2026-0143-01; clicked Download PDF and observed browser download event",
+        "sales01: approved report; verified report changed to awaiting general manager review",
+        "general_manager01: approved report; verified approved-awaiting-invoice status",
+        "accountant01: opened final-invoice form and discovered raw experiment data was incorrectly visible",
+        "After server-side detail redaction: reopened invoice form; raw-data and experiment sections absent, report time correctly local",
+        "accountant01: created test-only invoice UIE2E-0143-FINAL for 10000, with type explicitly marked non-real invoice",
+        "After invoice date fix: refreshed page; verified invoice date 2026-09-13, invoiced amount 10000, remaining amount 0, workflow complete",
+        "accountant01: opened Order Verification; order LIMS-2026-0143 displayed invoiced-and-closed status"
       ],
-      "full_workflow_passed": false
+      "report_no": "RPT-LIMS-2026-0143-01",
+      "invoice_no": "UIE2E-0143-FINAL",
+      "full_workflow_passed": true
     }
   ],
   "observations_pending_investigation": [
     "An unassigned new order displays the multi-route label before technical routing.",
     "Business dashboard shows no available operation while the review-center row has review buttons.",
-    "Business review buttons remain visible after business approval while technical review is pending."
+    "Business review buttons remain visible after business approval while technical review is pending.",
+    "Report tasks lists existing reports; a result-submitted order must be opened from My Orders to find the report-generation action."
   ],
   "fixed_issue": {
     "description": "UTC formatting shifted local-midnight schedule starts to the previous day; order creation time also differed from timeline by eight hours.",
     "change": "Reuse existing local-time display helpers for schedule payload, order creation time, device end date and laboratory export dates.",
-    "local_pure_serialization_tests": 3,
+    "local_pure_serialization_tests": 5,
     "unit_tests_use_http_or_database": false,
     "production_ui_recheck": "Same order displays original selected start and end dates after reload.",
-    "local_and_production_views_sha256": "3edf9f306e1dab138d474ae325816f93f479420261ba4288cabe27a012c2c74d",
+    "local_and_production_views_sha256": "d030e153ec8c4365e38a543e99e3aeeac76e621d5671c02b031e4879166e7aaf",
+    "resume_fix": "Report generated_at and invoice_date also used UTC formatting. Reused local-time helpers for report, invoice, void, review, change, event and conflict-date displays. Report and invoice changes verified in frontend.",
     "production_source_backup": "/opt/huance/backups/views_pre_ui_date_20260913.py"
   },
+  "privacy_fix": {
+    "description": "Accounting order detail exposed raw experiment data in the invoice dialog.",
+    "change": "Server-side detail redaction removes experiment_records and raw-data/conclusion fields in schedule records from non-lab business roles. Report and workflow metadata retained.",
+    "pure_logic_tests": 3,
+    "production_ui_check": "Accounting final-invoice dialog no longer contains raw experiment data; invoice submission remains functional.",
+    "scope_limit": "This is an order-detail field fix, not a completed audit of every endpoint or cross-laboratory data path."
+  },
   "coverage_not_yet_verified": [
-    "laboratory conflict validation and rescheduling", "sample arrival and photo upload",
-    "sales confirmation", "experiment start/end/result submission", "outsource results",
-    "change loops", "report creation and PDF download", "report review loops",
-    "pre-invoice", "final invoice", "invoice void and payment updates", "exports"
+    "99 additional orders", "Jiangyin and laboratory operator role paths",
+    "laboratory conflict validation and rescheduling", "outsource and mixed-route results",
+    "change loops", "report draft/data-only versions and downloaded PDF content inspection",
+    "report rejection/remake loops", "pre-invoice", "invoice void and payment updates", "exports"
   ],
-  "execution_note": "Browser operations took tens of seconds per action with an initial timeout and one checkbox-action timeout. This run is incomplete: 99 requested orders were not created, and no order completed the full workflow. No continuing background test process is running. Counts above are verified UI actions, not planned coverage."
+  "execution_note": "On resume browser actions initially recovered to about one second, then returned to tens of seconds with another timeout. One Suzhou main workflow is now complete through real frontend interactions. Overall 100-order request remains incomplete: 99 additional orders were not created. No continuing background test process is running. Pure-logic regression checks are separate from UI order coverage."
 }
