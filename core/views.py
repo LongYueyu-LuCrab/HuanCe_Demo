@@ -691,7 +691,7 @@ def _order_payload(order, include_sample_records=False):
         if order.sale_user
         else '',
         'sales_owner_username': order.sale_user.username if order.sale_user else '',
-        'created_at': order.create_time.strftime('%Y-%m-%d %H:%M') if order.create_time else '',
+        'created_at': _display_datetime(order.create_time),
         'remark': order.remark,
         'documents': [
             {
@@ -964,8 +964,8 @@ def _schedule_payload(schedule):
         'status': order.get_order_status_display(),
         'status_key': order.order_status,
         'test_type': schedule.get_test_type_display(),
-        'start_time': schedule.plan_start_time.strftime('%Y-%m-%d') if schedule.plan_start_time else '',
-        'end_time': schedule.plan_end_time.strftime('%Y-%m-%d') if schedule.plan_end_time else '',
+        'start_time': _display_date(schedule.plan_start_time),
+        'end_time': _display_date(schedule.plan_end_time),
         'is_scheduled': bool(schedule.scheduled_at),
         'scheduled_at': _display_datetime(schedule.scheduled_at),
         'scheduled_by': _display_user(schedule.scheduled_by),
@@ -1161,7 +1161,7 @@ def _device_payload(device, start_time=None, end_time=None, exclude_schedule_id=
         'order_no': running.order.order_no if running else '',
         'is_outsource': running.order.outsourced_execution if running else False,
         'project_name': running.order.project_name if running else '',
-        'end_time': running.plan_end_time.strftime('%Y-%m-%d') if running and running.plan_end_time else '',
+        'end_time': _display_date(running.plan_end_time) if running else '',
         'future_orders': [_schedule_payload(item) for item in future],
     }
 
@@ -1884,8 +1884,8 @@ def laboratory_orders_export(request):
             schedule.get_test_type_display(),
             schedule.device.device_code if schedule.device else '',
             schedule.device.device_name if schedule.device else '',
-            schedule.plan_start_time.strftime('%Y-%m-%d') if schedule.plan_start_time else '',
-            schedule.plan_end_time.strftime('%Y-%m-%d') if schedule.plan_end_time else '',
+            _display_date(schedule.plan_start_time),
+            _display_date(schedule.plan_end_time),
             _display_datetime(order.expect_sample_arrive),
             _display_datetime(sample.actual_arrive_time if sample else schedule.sample_arrived_at),
             '、'.join(photo.original_name for photo in photos),
@@ -1903,7 +1903,7 @@ def laboratory_orders_export(request):
             experiment.test_conclusion_temp if experiment else '',
             _display_user(order.sale_user),
             float(order.total_quote),
-            order.expect_delivery_time.strftime('%Y-%m-%d') if order.expect_delivery_time else '',
+            _display_date(order.expect_delivery_time),
         ])
     widths = [8, 20, 24, 30, 34, 18, 18, 22, 14, 14, 18, 18, 28, 18, 16, 14, 16, 16, 16, 16, 14, 18, 18, 16, 28, 14, 14, 14]
     for column, width in enumerate(widths, start=1):

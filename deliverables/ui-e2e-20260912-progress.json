@@ -1,0 +1,53 @@
+{
+  "run": "UIE2E-20260912",
+  "target": "https://www.aroundtest.com",
+  "method": "Browser UI only: role login, form entry and workflow button clicks",
+  "requested_orders": 100,
+  "created_orders": 1,
+  "completed_end_to_end": 0,
+  "status": "incomplete",
+  "direct_backend_requests": 0,
+  "direct_database_writes": 0,
+  "orders": [
+    {
+      "order_no": "LIMS-2026-0143",
+      "marker": "UIE2E-20260912-001",
+      "verified_steps": [
+        "sales01: entered customer, contact, phone, project, expected sample date, amount and demand in sales-order dialog",
+        "sales01: clicked submit; new order appeared in order list",
+        "business01: logged in; same persisted order appeared in review center",
+        "business01: entered review comment and clicked confirm; order remained awaiting technical review",
+        "tech01: logged in; same persisted order appeared in technical workbench",
+        "tech01: opened review dialog; timeline showed business review completed and technical review pending",
+        "tech01: selected Suzhou route, Suzhou manager and lead manager through dropdowns; clicked confirm",
+        "tech01: order list showed Suzhou route and scheduling status after dual approval",
+        "suzhou_lab01: logged in; found order using laboratory-task search",
+        "suzhou_lab01: opened scheduling dialog; queried availability; selected E2E-SZ-20260912 and submitted 2033-01-01 through 2033-01-02",
+        "suzhou_lab01: observed saved start date incorrectly displayed as 2032-12-31",
+        "After timezone display fix: reloaded frontend, searched same order, verified 2033-01-01 through 2033-01-02"
+      ],
+      "full_workflow_passed": false
+    }
+  ],
+  "observations_pending_investigation": [
+    "An unassigned new order displays the multi-route label before technical routing.",
+    "Business dashboard shows no available operation while the review-center row has review buttons.",
+    "Business review buttons remain visible after business approval while technical review is pending."
+  ],
+  "fixed_issue": {
+    "description": "UTC formatting shifted local-midnight schedule starts to the previous day; order creation time also differed from timeline by eight hours.",
+    "change": "Reuse existing local-time display helpers for schedule payload, order creation time, device end date and laboratory export dates.",
+    "local_pure_serialization_tests": 3,
+    "unit_tests_use_http_or_database": false,
+    "production_ui_recheck": "Same order displays original selected start and end dates after reload.",
+    "local_and_production_views_sha256": "3edf9f306e1dab138d474ae325816f93f479420261ba4288cabe27a012c2c74d",
+    "production_source_backup": "/opt/huance/backups/views_pre_ui_date_20260913.py"
+  },
+  "coverage_not_yet_verified": [
+    "laboratory conflict validation and rescheduling", "sample arrival and photo upload",
+    "sales confirmation", "experiment start/end/result submission", "outsource results",
+    "change loops", "report creation and PDF download", "report review loops",
+    "pre-invoice", "final invoice", "invoice void and payment updates", "exports"
+  ],
+  "execution_note": "Browser operations took tens of seconds per action with an initial timeout and one checkbox-action timeout. This run is incomplete: 99 requested orders were not created, and no order completed the full workflow. No continuing background test process is running. Counts above are verified UI actions, not planned coverage."
+}
