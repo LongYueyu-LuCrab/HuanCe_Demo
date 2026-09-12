@@ -1,0 +1,50 @@
+[
+  {
+    "check": "post-experiment preinvoice",
+    "result": "passed",
+    "invoice": "INV-LIMS-2026-0126-01"
+  },
+  {
+    "check": "sample outbound lifecycle",
+    "result": "passed",
+    "routes": 3
+  },
+  {
+    "check": "test standard create/update",
+    "result": "passed",
+    "standard": "E2E-STD-20260912"
+  },
+  {
+    "check": "device create/status/restore/delete",
+    "result": "passed"
+  },
+  {
+    "check": "sales and laboratory Excel exports",
+    "result": "passed"
+  },
+  {
+    "check": "protected report PDF download",
+    "result": "passed",
+    "report": "RPT-LIMS-2026-0142-01"
+  },
+  {
+    "check": "legacy quality role cannot operate V2 schedule",
+    "status": 403,
+    "result": "passed"
+  },
+  {
+    "check": "preinvoice requires dual review",
+    "status": 400,
+    "result": "passed"
+  },
+  {
+    "check": "wrong laboratory cannot operate assigned route",
+    "status": 403,
+    "result": "passed"
+  },
+  {
+    "check": "general manager cannot perform accounting action",
+    "status": 403,
+    "result": "passed"
+  }
+]

@@ -188,7 +188,10 @@ def _user_payload(user):
 def _orders_for_user(user):
     orders = LabOrder.objects.select_related(
         'sale_user', 'lead_lab_manager', 'outsource_requirement'
-    ).prefetch_related('documents')
+    ).prefetch_related(
+        'documents',
+        Prefetch('schedules', queryset=SchedulePlan.objects.only('id', 'order_id', 'scheduled_at'), to_attr='payload_schedules'),
+    )
     if _is_chairman(user):
         return orders
 
@@ -651,6 +654,11 @@ def _order_payload(order, include_sample_records=False):
         execution_attributes.append('自主')
     if order.outsourced_execution:
         execution_attributes.append('委外')
+    schedules = (
+        order.payload_schedules
+        if hasattr(order, 'payload_schedules')
+        else list(order.schedules.all())
+    )
 
     payload = {
         'order_no': order.order_no,
@@ -674,6 +682,7 @@ def _order_payload(order, include_sample_records=False):
         'lead_lab_manager': _display_user(order.lead_lab_manager),
         'lead_lab_manager_username': order.lead_lab_manager.username if order.lead_lab_manager else '',
         'sales_confirmed': bool(order.sales_confirmed_at),
+        'all_routes_scheduled': bool(schedules) and all(schedule.scheduled_at for schedule in schedules),
         'expected_sample_arrival': sample_arrival_value,
         'expected_delivery_date': delivery_value,
         'total_quote': str(order.total_quote),
@@ -697,7 +706,7 @@ def _order_payload(order, include_sample_records=False):
         ],
     }
     if include_sample_records:
-        payload['schedule_records'] = [_schedule_payload(schedule) for schedule in order.schedules.all()]
+        payload['schedule_records'] = [_schedule_payload(schedule) for schedule in schedules]
         payload['sample_records'] = _sample_lifecycle_payload(order)
         payload['experiment_records'] = _experiment_lifecycle_payload(order)
         payload['report_records'] = [_report_payload(report) for report in order.reports.all()]
@@ -1913,20 +1922,27 @@ def laboratory_orders_export(request):
     return response
 
 
-def _sales_order_queryset(request):
+def _sales_order_queryset(request, require_sales_role=True):
     roles = set(_roles(request.user))
     can_view_all_sales_orders = _is_chairman(request.user) or ROLE_SALES_MANAGER in roles
-    if not can_view_all_sales_orders and ROLE_SALES not in roles:
+    if require_sales_role and not can_view_all_sales_orders and ROLE_SALES not in roles:
         return None, JsonResponse(
             {'ok': False, 'error': '仅销售或销售经理可以查询销售订单'},
             status=403,
             json_dumps_params={'ensure_ascii': False},
         )
-    orders = LabOrder.objects.select_related(
-        'sale_user', 'lead_lab_manager', 'outsource_requirement',
-    ).prefetch_related('documents').order_by('-create_time', '-id')
-    if not can_view_all_sales_orders:
-        orders = orders.filter(sale_user=request.user)
+    if require_sales_role:
+        orders = LabOrder.objects.select_related(
+            'sale_user', 'lead_lab_manager', 'outsource_requirement',
+        ).prefetch_related(
+            'documents',
+            Prefetch('schedules', queryset=SchedulePlan.objects.only('id', 'order_id', 'scheduled_at'), to_attr='payload_schedules'),
+        )
+        if not can_view_all_sales_orders:
+            orders = orders.filter(sale_user=request.user)
+    else:
+        orders = _orders_for_user(request.user)
+    orders = orders.order_by('-create_time', '-id')
     keyword = (request.GET.get('keyword') or '').strip()
     if keyword:
         orders = orders.filter(
@@ -1962,7 +1978,7 @@ def sales_manager_orders(request):
     auth_error = _require_auth(request)
     if auth_error:
         return auth_error
-    orders, error = _sales_order_queryset(request)
+    orders, error = _sales_order_queryset(request, require_sales_role=False)
     if error:
         return error
     try:
@@ -2514,6 +2530,18 @@ def _action_sales_confirm(request, payload):
         return JsonResponse({'ok': False, 'error': '销售只能确认自己的订单'}, status=403, json_dumps_params={'ensure_ascii': False})
     if order.order_status != LabOrder.Status.SCHEDULING:
         return JsonResponse({'ok': False, 'error': '只有排期中订单可以确认需求'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if (
+        order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT
+        and (
+            not order.schedules.exists()
+            or order.schedules.filter(scheduled_at__isnull=True).exists()
+        )
+    ):
+        return JsonResponse(
+            {'ok': False, 'error': '全部执行路径完成排期排台后，销售才能确认需求'},
+            status=400,
+            json_dumps_params={'ensure_ascii': False},
+        )
     order.sales_confirmed_at = timezone.now()
     order.save(update_fields=['sales_confirmed_at', 'update_time'])
     target = '实验室负责人确认到样状态并执行试验' if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT else '历史质量流程继续处理'
@@ -3586,9 +3614,9 @@ def _action_invoice_void(request, payload):
 
     with transaction.atomic():
         try:
-            invoice = Invoice.objects.select_for_update().select_related(
-                'order', 'report', 'finance_user', 'voided_by',
-            ).get(invoice_no=invoice_no)
+            # Lock only the invoice row. Joining nullable relations here makes
+            # PostgreSQL reject FOR UPDATE on the nullable side of an outer join.
+            invoice = Invoice.objects.select_for_update().get(invoice_no=invoice_no)
         except Invoice.DoesNotExist:
             return JsonResponse({'ok': False, 'error': '发票不存在'}, status=404, json_dumps_params={'ensure_ascii': False})
         order = LabOrder.objects.select_for_update().get(pk=invoice.order_id)

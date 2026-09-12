@@ -113,7 +113,9 @@ function actionsFor(order: OrderItem) {
     actions.push({ key: 'order_cancel', label: '退单', type: 'danger' })
   }
   if (order.status_key === 3 && hasRole('销售')) {
-    actions.push({ key: 'sales_confirm', label: '确认无变更', type: 'success' })
+    if (order.all_routes_scheduled) {
+      actions.push({ key: 'sales_confirm', label: '确认无变更', type: 'success' })
+    }
     actions.push({ key: 'create_change', label: '填写更改单', type: 'warning' })
   }
   if (order.workflow_version === 1 && [3, 4].includes(order.status_key) && hasRole('质量部')) {

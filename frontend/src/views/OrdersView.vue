@@ -88,9 +88,7 @@ const managerOrders = ref<OrderItem[]>([])
 const managerOrderTotal = ref(0)
 const managerOrdersLoading = ref(false)
 const managerOrderQuery = reactive({ keyword: '', page: 1, page_size: 10 })
-const orders = computed(() => isSalesManager.value
-  ? managerOrders.value
-  : session.state.dashboard?.order_groups?.orders ?? session.state.dashboard?.recent_orders ?? [])
+const orders = computed(() => managerOrders.value)
 const isTechnicalReviewer = computed(() => (session.state.user.roles || []).includes('技术'))
 const routingOptions = computed(() => session.state.dashboard?.routing_options)
 const allLabManagers = computed(() => [
@@ -107,7 +105,6 @@ const leadManagerOptions = computed(() => {
 })
 
 async function loadManagerOrders(query = managerOrderQuery) {
-  if (!isSalesManager.value) return
   Object.assign(managerOrderQuery, query)
   managerOrdersLoading.value = true
   try {
@@ -236,6 +233,7 @@ async function submitWorkflow() {
     }
     actionDialogVisible.value = false
     await session.refreshDashboard()
+    await loadManagerOrders()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '流程操作失败')
   } finally {
@@ -327,6 +325,7 @@ async function submit() {
     outsourceContractFileList.value = []
     attachmentFileList.value = []
     await session.refreshDashboard()
+    await loadManagerOrders()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '提交失败')
   } finally {
@@ -353,7 +352,7 @@ async function submit() {
     <OrderTable
       :orders="orders"
       :user="session.state.user"
-      :remote="isSalesManager"
+      remote
       :total="managerOrderTotal"
       :loading="managerOrdersLoading"
       @query="loadManagerOrders"

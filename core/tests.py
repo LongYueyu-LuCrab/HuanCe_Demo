@@ -930,6 +930,8 @@ class InvoiceWorkflowTests(TestCase):
             invoice_amount='600.00',
         )
         self.assertEqual(final.status_code, 200)
+        paid = self.action('invoice_pay', invoice_no='FINAL-VOID-001', pay_status=1)
+        self.assertEqual(paid.status_code, 200)
 
         preinvoice_void_while_final_active = self.action(
             'invoice_void',
@@ -1069,6 +1071,18 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         item = next(item for item in schedules.json()['items'] if item['id'] == schedule.id)
         self.assertFalse(item['is_scheduled'])
 
+        scoped_orders = self.client.get(
+            reverse('sales_manager_orders'),
+            {'keyword': self.order.order_no, 'page': 1, 'page_size': 10},
+        )
+        self.assertEqual(scoped_orders.status_code, 200)
+        self.assertEqual(scoped_orders.json()['total'], 1)
+
+        detail_payload = detail.json()['order']
+        self.assertFalse(detail_payload['all_routes_scheduled'])
+        premature_confirmation = self.action('sales_v2', 'sales_confirm', note='不应提前确认')
+        self.assertEqual(premature_confirmation.status_code, 400)
+
         arrived = self.action(
             'suzhou_v2',
             'sample_arrival',
@@ -1097,6 +1111,9 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         schedule.refresh_from_db()
         self.assertIsNotNone(schedule.scheduled_at)
         self.assertEqual(schedule.scheduled_by, self.users['suzhou_v2'])
+        self.client.force_login(self.users['sales_v2'])
+        scheduled_detail = self.client.get(reverse('order_detail', kwargs={'order_no': self.order.order_no}))
+        self.assertTrue(scheduled_detail.json()['order']['all_routes_scheduled'])
 
     def test_v2_routes_directly_to_labs_and_lead_manager_issues_report(self):
         business = self.action('business_v2', 'review_pass', biz_quote_detail='商务评审通过')

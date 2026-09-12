@@ -1,0 +1,56 @@
+{
+  "base_url": "https://www.aroundtest.com",
+  "marker": "E2E-20260912",
+  "created_count": 100,
+  "first_order": "LIMS-2026-0043",
+  "last_order": "LIMS-2026-0142",
+  "order_status_counts": {
+    "待评审": 34,
+    "评审驳回": 10,
+    "退单": 1,
+    "排期中": 32,
+    "试验中": 3,
+    "实验已结束待提交结果": 4,
+    "实验结果已提交待出报告": 4,
+    "报告审核中": 10,
+    "已开票办结": 2
+  },
+  "execution_route_counts": {
+    "苏州内部实验室": 32,
+    "江阴内部实验室": 34,
+    "外部委外": 15
+  },
+  "schedule_status_counts": {
+    "新建": 50,
+    "执行中": 3,
+    "实验已结束待提交结果": 4,
+    "结果已提交": 24
+  },
+  "sample_count": 40,
+  "sample_not_arrived_slot_count": 41,
+  "sample_photo_count": 40,
+  "sample_outbound_count": 3,
+  "experiment_status_counts": {
+    "试验中": 4,
+    "实验已结束待提交结果": 4,
+    "结果已提交": 24
+  },
+  "experiment_result_counts": {
+    "": 4,
+    "合格": 28
+  },
+  "report_type_counts": {
+    "data_only": 4,
+    "formal": 4,
+    "draft": 4
+  },
+  "report_status_counts": {
+    "待销售初审": 5,
+    "待总经理终审": 4,
+    "审核通过待开票": 3
+  },
+  "generated_report_file_count": 12,
+  "all_routes_scheduled_orders": 45,
+  "sales_confirmed_orders": 36,
+  "verification": "passed"
+}

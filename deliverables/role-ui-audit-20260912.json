@@ -1,0 +1,1004 @@
+[
+  {
+    "role": "销售",
+    "username": "sales01",
+    "menus": [
+      "我的看板",
+      "我的订单",
+      "报告初审",
+      "订单档案"
+    ],
+    "pages": [
+      {
+        "path": "/dashboard",
+        "url": "https://www.aroundtest.com/dashboard",
+        "heading": "我的看板",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      },
+      {
+        "path": "/orders",
+        "url": "https://www.aroundtest.com/orders",
+        "heading": "我的订单",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      },
+      {
+        "path": "/reports",
+        "url": "https://www.aroundtest.com/reports",
+        "heading": "报告初审",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      },
+      {
+        "path": "/audit",
+        "url": "https://www.aroundtest.com/audit",
+        "heading": "订单档案",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      }
+    ]
+  },
+  {
+    "role": "销售经理",
+    "username": "sales_manager01",
+    "menus": [
+      "销售总览",
+      "全部销售订单",
+      "销售订单档案"
+    ],
+    "pages": [
+      {
+        "path": "/dashboard",
+        "url": "https://www.aroundtest.com/dashboard",
+        "heading": "销售总览",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      },
+      {
+        "path": "/orders",
+        "url": "https://www.aroundtest.com/orders",
+        "heading": "全部销售订单",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      },
+      {
+        "path": "/audit",
+        "url": "https://www.aroundtest.com/audit",
+        "heading": "销售订单档案",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      }
+    ]
+  },
+  {
+    "role": "商务",
+    "username": "business01",
+    "menus": [
+      "评审看板",
+      "订单评审中心",
+      "报价与评审台账"
+    ],
+    "pages": [
+      {
+        "path": "/dashboard",
+        "url": "https://www.aroundtest.com/dashboard",
+        "heading": "评审看板",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      },
+      {
+        "path": "/orders",
+        "url": "https://www.aroundtest.com/orders",
+        "heading": "订单评审中心",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      },
+      {
+        "path": "/audit",
+        "url": "https://www.aroundtest.com/audit",
+        "heading": "报价与评审台账",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      }
+    ]
+  },
+  {
+    "role": "技术",
+    "username": "tech01",
+    "menus": [
+      "技术看板",
+      "技术评审工作台",
+      "检测标准与记录"
+    ],
+    "pages": [
+      {
+        "path": "/dashboard",
+        "url": "https://www.aroundtest.com/dashboard",
+        "heading": "技术看板",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      },
+      {
+        "path": "/orders",
+        "url": "https://www.aroundtest.com/orders",
+        "heading": "技术评审工作台",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      },
+      {
+        "path": "/audit",
+        "url": "https://www.aroundtest.com/audit",
+        "heading": "检测标准与记录",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      }
+    ]
+  },
+  {
+    "role": "质量部V1",
+    "username": "quality01",
+    "menus": [
+      "V1 在途订单",
+      "历史订单处理",
+      "历史排期",
+      "历史报告",
+      "流程日志"
+    ],
+    "pages": [
+      {
+        "path": "/dashboard",
+        "url": "https://www.aroundtest.com/dashboard",
+        "heading": "V1 在途订单",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      },
+      {
+        "path": "/orders",
+        "url": "https://www.aroundtest.com/orders",
+        "heading": "历史订单处理",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      },
+      {
+        "path": "/schedule",
+        "url": "https://www.aroundtest.com/schedule",
+        "heading": "历史排期",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      },
+      {
+        "path": "/reports",
+        "url": "https://www.aroundtest.com/reports",
+        "heading": "历史报告",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      },
+      {
+        "path": "/audit",
+        "url": "https://www.aroundtest.com/audit",
+        "heading": "流程日志",
+        "errors": [],
+        "blank": false,
+        "jsonError": false
+      }
+    ]
+  },
+  {
+    "role": "苏州实验室负责人",
+    "username": "suzhou_lab01",
+    "loginOk": true,
+    "roleVisible": true,
+    "pages": [
+      {
+        "path": "/dashboard",
+        "url": "https://www.aroundtest.com/dashboard",
+        "headings": [
+          "我的工作台",
+          "苏州实验室工作台",
+          "分配给我的试验单明细"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/orders",
+        "url": "https://www.aroundtest.com/orders",
+        "headings": [
+          "我的订单",
+          "订单管理",
+          "订单列表"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/labs/suzhou",
+        "url": "https://www.aroundtest.com/labs/suzhou",
+        "headings": [
+          "实验室任务",
+          "苏州实验室",
+          "E2E 苏州专用测试台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/devices",
+        "url": "https://www.aroundtest.com/devices",
+        "headings": [
+          "设备管理",
+          "实验室设备管理"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/schedule",
+        "url": "https://www.aroundtest.com/schedule",
+        "headings": [
+          "我的排期",
+          "排期与任务",
+          "实验室订单筛选"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/samples",
+        "url": "https://www.aroundtest.com/samples",
+        "headings": [
+          "样品台账",
+          "样品台账"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/outsource",
+        "url": "https://www.aroundtest.com/outsource",
+        "headings": [
+          "我负责的委外",
+          "委外试验订单"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/reports",
+        "url": "https://www.aroundtest.com/reports",
+        "headings": [
+          "报告任务",
+          "报告工作台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/audit",
+        "url": "https://www.aroundtest.com/audit",
+        "headings": [
+          "相关变更记录",
+          "流程日志",
+          "变更回流记录"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      }
+    ]
+  },
+  {
+    "role": "江阴实验室负责人",
+    "username": "jiangyin_lab01",
+    "loginOk": true,
+    "roleVisible": true,
+    "pages": [
+      {
+        "path": "/dashboard",
+        "url": "https://www.aroundtest.com/dashboard",
+        "headings": [
+          "我的工作台",
+          "江阴实验室工作台",
+          "分配给我的试验单明细"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/orders",
+        "url": "https://www.aroundtest.com/orders",
+        "headings": [
+          "我的订单",
+          "订单管理",
+          "订单列表"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/labs/jiangyin",
+        "url": "https://www.aroundtest.com/labs/jiangyin",
+        "headings": [
+          "实验室任务",
+          "江阴实验室",
+          "E2E 江阴专用测试台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/devices",
+        "url": "https://www.aroundtest.com/devices",
+        "headings": [
+          "设备管理",
+          "实验室设备管理"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/schedule",
+        "url": "https://www.aroundtest.com/schedule",
+        "headings": [
+          "我的排期",
+          "排期与任务",
+          "实验室订单筛选"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/samples",
+        "url": "https://www.aroundtest.com/samples",
+        "headings": [
+          "样品台账",
+          "样品台账"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/outsource",
+        "url": "https://www.aroundtest.com/outsource",
+        "headings": [
+          "我负责的委外",
+          "委外试验订单"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/reports",
+        "url": "https://www.aroundtest.com/reports",
+        "headings": [
+          "报告任务",
+          "报告工作台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/audit",
+        "url": "https://www.aroundtest.com/audit",
+        "headings": [
+          "相关变更记录",
+          "流程日志",
+          "变更回流记录"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      }
+    ]
+  },
+  {
+    "role": "苏州实验操作员",
+    "username": "suzhou_operator01",
+    "loginOk": true,
+    "roleVisible": true,
+    "pages": [
+      {
+        "path": "/dashboard",
+        "url": "https://www.aroundtest.com/dashboard",
+        "headings": [
+          "我的工作台",
+          "实验操作员工作台",
+          "分配给我的试验单明细"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/orders",
+        "url": "https://www.aroundtest.com/orders",
+        "headings": [
+          "实验室订单",
+          "订单管理",
+          "订单列表"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/labs/suzhou",
+        "url": "https://www.aroundtest.com/labs/suzhou",
+        "headings": [
+          "试验任务",
+          "苏州实验室",
+          "E2E 苏州专用测试台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/schedule",
+        "url": "https://www.aroundtest.com/schedule",
+        "headings": [
+          "排期与操作",
+          "排期与任务",
+          "实验室订单筛选"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/samples",
+        "url": "https://www.aroundtest.com/samples",
+        "headings": [
+          "样品台账",
+          "样品台账"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/outsource",
+        "url": "https://www.aroundtest.com/outsource",
+        "headings": [
+          "委外任务",
+          "委外试验订单"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/reports",
+        "url": "https://www.aroundtest.com/reports",
+        "headings": [
+          "报告任务",
+          "报告工作台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/audit",
+        "url": "https://www.aroundtest.com/audit",
+        "headings": [
+          "操作历史",
+          "流程日志",
+          "变更回流记录"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      }
+    ]
+  },
+  {
+    "role": "江阴实验操作员",
+    "username": "jiangyin_operator01",
+    "loginOk": true,
+    "roleVisible": true,
+    "pages": [
+      {
+        "path": "/dashboard",
+        "url": "https://www.aroundtest.com/dashboard",
+        "headings": [
+          "我的工作台",
+          "实验操作员工作台",
+          "分配给我的试验单明细"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/orders",
+        "url": "https://www.aroundtest.com/orders",
+        "headings": [
+          "实验室订单",
+          "订单管理",
+          "订单列表"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/labs/jiangyin",
+        "url": "https://www.aroundtest.com/labs/jiangyin",
+        "headings": [
+          "试验任务",
+          "江阴实验室",
+          "E2E 江阴专用测试台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/schedule",
+        "url": "https://www.aroundtest.com/schedule",
+        "headings": [
+          "排期与操作",
+          "排期与任务",
+          "实验室订单筛选"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/samples",
+        "url": "https://www.aroundtest.com/samples",
+        "headings": [
+          "样品台账",
+          "样品台账"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/outsource",
+        "url": "https://www.aroundtest.com/outsource",
+        "headings": [
+          "委外任务",
+          "委外试验订单"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/reports",
+        "url": "https://www.aroundtest.com/reports",
+        "headings": [
+          "报告任务",
+          "报告工作台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/audit",
+        "url": "https://www.aroundtest.com/audit",
+        "headings": [
+          "操作历史",
+          "流程日志",
+          "变更回流记录"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      }
+    ]
+  },
+  {
+    "role": "总经理",
+    "username": "general_manager01",
+    "loginOk": true,
+    "roleVisible": true,
+    "pages": [
+      {
+        "path": "/dashboard",
+        "url": "https://www.aroundtest.com/dashboard",
+        "headings": [
+          "全局看板",
+          "总经理工作台",
+          "全局订单明细"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/orders",
+        "url": "https://www.aroundtest.com/orders",
+        "headings": [
+          "全局订单查询",
+          "订单管理",
+          "订单列表"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/labs/suzhou",
+        "url": "https://www.aroundtest.com/labs/suzhou",
+        "headings": [
+          "苏州负荷",
+          "苏州实验室",
+          "E2E 苏州专用测试台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/labs/jiangyin",
+        "url": "https://www.aroundtest.com/labs/jiangyin",
+        "headings": [
+          "江阴负荷",
+          "江阴实验室",
+          "E2E 江阴专用测试台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/samples",
+        "url": "https://www.aroundtest.com/samples",
+        "headings": [
+          "样品台账",
+          "样品台账"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/outsource",
+        "url": "https://www.aroundtest.com/outsource",
+        "headings": [
+          "委外占比",
+          "委外试验订单"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/reports",
+        "url": "https://www.aroundtest.com/reports",
+        "headings": [
+          "报告终审",
+          "报告工作台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/finance",
+        "url": "https://www.aroundtest.com/finance",
+        "headings": [
+          "财务台账",
+          "可预开票订单",
+          "待最终总开票"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/audit",
+        "url": "https://www.aroundtest.com/audit",
+        "headings": [
+          "全链路档案",
+          "流程日志",
+          "变更回流记录"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      }
+    ]
+  },
+  {
+    "role": "会计",
+    "username": "accountant01",
+    "loginOk": true,
+    "roleVisible": true,
+    "pages": [
+      {
+        "path": "/dashboard",
+        "url": "https://www.aroundtest.com/dashboard",
+        "headings": [
+          "财务看板",
+          "会计工作台",
+          "可预开票订单明细"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/finance",
+        "url": "https://www.aroundtest.com/finance",
+        "headings": [
+          "财务开票",
+          "可预开票订单",
+          "待最终总开票"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/orders",
+        "url": "https://www.aroundtest.com/orders",
+        "headings": [
+          "订单核对",
+          "订单管理",
+          "订单列表"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/reports",
+        "url": "https://www.aroundtest.com/reports",
+        "headings": [
+          "报告核对",
+          "报告工作台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      }
+    ]
+  },
+  {
+    "role": "董事长",
+    "username": "zhihao",
+    "loginOk": true,
+    "roleVisible": true,
+    "pages": [
+      {
+        "path": "/dashboard",
+        "url": "https://www.aroundtest.com/dashboard",
+        "headings": [
+          "业务总览",
+          "董事长工作台",
+          "全局订单明细"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/orders",
+        "url": "https://www.aroundtest.com/orders",
+        "headings": [
+          "订单管理",
+          "订单管理",
+          "订单列表"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/schedule",
+        "url": "https://www.aroundtest.com/schedule",
+        "headings": [
+          "排期管理",
+          "排期与任务",
+          "实验室订单筛选"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/labs/suzhou",
+        "url": "https://www.aroundtest.com/labs/suzhou",
+        "headings": [
+          "苏州实验室",
+          "苏州实验室",
+          "E2E 苏州专用测试台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/labs/jiangyin",
+        "url": "https://www.aroundtest.com/labs/jiangyin",
+        "headings": [
+          "江阴实验室",
+          "江阴实验室",
+          "E2E 江阴专用测试台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/devices",
+        "url": "https://www.aroundtest.com/devices",
+        "headings": [
+          "设备管理",
+          "实验室设备管理"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/samples",
+        "url": "https://www.aroundtest.com/samples",
+        "headings": [
+          "样品台账",
+          "样品台账"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/outsource",
+        "url": "https://www.aroundtest.com/outsource",
+        "headings": [
+          "委外试验",
+          "委外试验订单"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/reports",
+        "url": "https://www.aroundtest.com/reports",
+        "headings": [
+          "报告审核",
+          "报告工作台"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/finance",
+        "url": "https://www.aroundtest.com/finance",
+        "headings": [
+          "财务开票",
+          "可预开票订单",
+          "待最终总开票"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/audit",
+        "url": "https://www.aroundtest.com/audit",
+        "headings": [
+          "流程日志",
+          "流程日志",
+          "变更回流记录"
+        ],
+        "hasTable": true,
+        "hasData": true,
+        "errors": [],
+        "blank": false
+      },
+      {
+        "path": "/employees",
+        "url": "https://www.aroundtest.com/employees",
+        "headings": [
+          "添加员工",
+          "添加员工"
+        ],
+        "hasTable": false,
+        "hasData": false,
+        "errors": [],
+        "blank": false
+      }
+    ]
+  }
+]

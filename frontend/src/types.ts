@@ -35,6 +35,7 @@ export type OrderItem = {
   lead_lab_manager: string
   lead_lab_manager_username: string
   sales_confirmed: boolean
+  all_routes_scheduled: boolean
   expected_sample_arrival: string
   expected_delivery_date: string
   total_quote?: string
