@@ -1,0 +1,23 @@
+{
+  "batch": "UI-20260913-TEN",
+  "requested_orders": 10,
+  "method": "Browser UI only; switch accounts, fill forms, click actions. No direct workflow API calls or database inserts.",
+  "status": "in_progress",
+  "customers_are_fictional": true,
+  "orders": [
+    {"case": 1, "customer": "苏州澄远汽车电子有限公司", "project": "车载控制器温度循环验证", "lab": "suzhou", "order": "LIMS-2026-0144", "status": "pending_review"},
+    {"case": 2, "customer": "无锡辰岳精密机电有限公司", "project": "电机支架正弦振动验证", "lab": "suzhou", "order": "LIMS-2026-0145", "status": "pending_review"},
+    {"case": 3, "customer": "常州景禾新能源科技有限公司", "project": "电池连接器恒定湿热试验", "lab": "suzhou", "order": "LIMS-2026-0146", "status": "pending_review"},
+    {"case": 4, "customer": "上海瀚铂工业自动化有限公司", "project": "工业传感器高低温运行试验", "lab": "suzhou", "order": "LIMS-2026-0147", "status": "pending_review"},
+    {"case": 5, "customer": "杭州星澜智能装备有限公司", "project": "伺服驱动器运输振动验证", "lab": "suzhou", "order": "LIMS-2026-0148", "status": "pending_review"},
+    {"case": 6, "customer": "江阴恒沐精密制造有限公司", "project": "仪表外壳温度冲击试验", "lab": "jiangyin", "order": "LIMS-2026-0149", "status": "pending_review"},
+    {"case": 7, "customer": "南京睿川电子技术有限公司", "project": "通信模块交变湿热试验", "lab": "jiangyin", "order": "LIMS-2026-0150", "status": "pending_review"},
+    {"case": 8, "customer": "南通启衡电气设备有限公司", "project": "配电终端机械振动试验", "lab": "jiangyin", "order": "LIMS-2026-0151", "status": "pending_review"},
+    {"case": 9, "customer": "宁波朗屿汽车部件有限公司", "project": "线束接插件温度循环验证", "lab": "jiangyin", "order": "LIMS-2026-0152", "status": "pending_review"},
+    {"case": 10, "customer": "合肥卓霖光电科技有限公司", "project": "光学传感器低温贮存试验", "lab": "jiangyin", "order": "LIMS-2026-0153", "status": "pending_review"}
+  ],
+  "verified_completed": 0,
+  "findings": [
+    {"issue": "New unassigned V2 order displayed as mixed execution", "fix": "Display pending assignment when V2 has no schedules; preserve V1 and assigned labels", "unit_tests_passed": 3, "production_deployed": true, "ui_recheck": "LIMS-2026-0146/0147/0148 display pending assignment"}
+  ]
+}

@@ -640,6 +640,12 @@ def _outsource_requirement_payload(order):
     }
 
 
+def _execution_mode_label(order, schedules):
+    if order.workflow_version == 2 and not schedules:
+        return '待分配'
+    return order.get_execution_mode_display()
+
+
 def _order_payload(order, include_sample_records=False):
     sample_arrival = order.expect_sample_arrive
     sample_arrival_value = _display_date(sample_arrival)
@@ -674,7 +680,7 @@ def _order_payload(order, include_sample_records=False):
         'test_standard': order.test_standard,
         'status': order.get_order_status_display(),
         'status_key': order.order_status,
-        'execution_mode': order.get_execution_mode_display(),
+        'execution_mode': _execution_mode_label(order, schedules),
         'execution_attributes': execution_attributes,
         'outsource_info': _outsource_requirement_payload(order),
         'workflow_version': order.workflow_version,
