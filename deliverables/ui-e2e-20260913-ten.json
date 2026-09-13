@@ -2,32 +2,1136 @@
   "batch": "UI-20260913-TEN",
   "requested_orders": 10,
   "method": "Browser UI only; switch accounts, fill forms, click actions. No direct workflow API calls or database inserts.",
-  "status": "in_progress",
+  "status": "complete",
   "customers_are_fictional": true,
   "orders": [
-    {"case": 1, "customer": "苏州澄远汽车电子有限公司", "project": "车载控制器温度循环验证", "lab": "suzhou", "order": "LIMS-2026-0144", "status": "pending_review"},
-    {"case": 2, "customer": "无锡辰岳精密机电有限公司", "project": "电机支架正弦振动验证", "lab": "suzhou", "order": "LIMS-2026-0145", "status": "pending_review"},
-    {"case": 3, "customer": "常州景禾新能源科技有限公司", "project": "电池连接器恒定湿热试验", "lab": "suzhou", "order": "LIMS-2026-0146", "status": "pending_review"},
-    {"case": 4, "customer": "上海瀚铂工业自动化有限公司", "project": "工业传感器高低温运行试验", "lab": "suzhou", "order": "LIMS-2026-0147", "status": "pending_review"},
-    {"case": 5, "customer": "杭州星澜智能装备有限公司", "project": "伺服驱动器运输振动验证", "lab": "suzhou", "order": "LIMS-2026-0148", "status": "pending_review"},
-    {"case": 6, "customer": "江阴恒沐精密制造有限公司", "project": "仪表外壳温度冲击试验", "lab": "jiangyin", "order": "LIMS-2026-0149", "status": "pending_review"},
-    {"case": 7, "customer": "南京睿川电子技术有限公司", "project": "通信模块交变湿热试验", "lab": "jiangyin", "order": "LIMS-2026-0150", "status": "pending_review"},
-    {"case": 8, "customer": "南通启衡电气设备有限公司", "project": "配电终端机械振动试验", "lab": "jiangyin", "order": "LIMS-2026-0151", "status": "pending_review"},
-    {"case": 9, "customer": "宁波朗屿汽车部件有限公司", "project": "线束接插件温度循环验证", "lab": "jiangyin", "order": "LIMS-2026-0152", "status": "pending_review"},
-    {"case": 10, "customer": "合肥卓霖光电科技有限公司", "project": "光学传感器低温贮存试验", "lab": "jiangyin", "order": "LIMS-2026-0153", "status": "pending_review"}
+    {
+      "case": 1,
+      "customer": "苏州澄远汽车电子有限公司",
+      "project": "车载控制器温度循环验证",
+      "lab": "suzhou",
+      "order": "LIMS-2026-0144",
+      "result": "合格",
+      "report": "RPT-LIMS-2026-0144-01",
+      "report_type": "正式版",
+      "status": "closed",
+      "last_verified_action": "order_closed_verified"
+    },
+    {
+      "case": 2,
+      "customer": "无锡辰岳精密机电有限公司",
+      "project": "电机支架正弦振动验证",
+      "lab": "suzhou",
+      "order": "LIMS-2026-0145",
+      "start": "2026-09-16",
+      "end": "2026-09-17",
+      "result": "合格",
+      "report_type": "正式版",
+      "report": "RPT-LIMS-2026-0145-01",
+      "status": "closed",
+      "last_verified_action": "order_closed_verified"
+    },
+    {
+      "case": 3,
+      "customer": "常州景禾新能源科技有限公司",
+      "project": "电池连接器恒定湿热试验",
+      "lab": "suzhou",
+      "order": "LIMS-2026-0146",
+      "start": "2026-09-18",
+      "end": "2026-09-19",
+      "result": "合格",
+      "report_type": "草稿版",
+      "report": "RPT-LIMS-2026-0146-01",
+      "status": "closed",
+      "last_verified_action": "order_closed_verified"
+    },
+    {
+      "case": 4,
+      "customer": "上海瀚铂工业自动化有限公司",
+      "project": "工业传感器高低温运行试验",
+      "lab": "suzhou",
+      "order": "LIMS-2026-0147",
+      "start": "2026-09-20",
+      "end": "2026-09-21",
+      "result": "不合格",
+      "report_type": "正式版",
+      "report": "RPT-LIMS-2026-0147-01",
+      "status": "closed",
+      "last_verified_action": "order_closed_verified"
+    },
+    {
+      "case": 5,
+      "customer": "杭州星澜智能装备有限公司",
+      "project": "伺服驱动器运输振动验证",
+      "lab": "suzhou",
+      "order": "LIMS-2026-0148",
+      "start": "2026-09-22",
+      "end": "2026-09-23",
+      "result": "合格",
+      "report_type": "正式版",
+      "report": "RPT-LIMS-2026-0148-01",
+      "status": "closed",
+      "last_verified_action": "order_closed_verified"
+    },
+    {
+      "case": 6,
+      "customer": "江阴恒沐精密制造有限公司",
+      "project": "仪表外壳温度冲击试验",
+      "lab": "jiangyin",
+      "order": "LIMS-2026-0149",
+      "start": "2026-09-14",
+      "end": "2026-09-15",
+      "result": "合格",
+      "report_type": "正式版",
+      "report": "RPT-LIMS-2026-0149-01",
+      "status": "closed",
+      "last_verified_action": "order_closed_verified"
+    },
+    {
+      "case": 7,
+      "customer": "南京睿川电子技术有限公司",
+      "project": "通信模块交变湿热试验",
+      "lab": "jiangyin",
+      "order": "LIMS-2026-0150",
+      "start": "2026-09-16",
+      "end": "2026-09-17",
+      "result": "合格",
+      "report_type": "正式版",
+      "report": "RPT-LIMS-2026-0150-01",
+      "status": "closed",
+      "last_verified_action": "order_closed_verified"
+    },
+    {
+      "case": 8,
+      "customer": "南通启衡电气设备有限公司",
+      "project": "配电终端机械振动试验",
+      "lab": "jiangyin",
+      "order": "LIMS-2026-0151",
+      "start": "2026-09-18",
+      "end": "2026-09-19",
+      "result": "异常",
+      "report_type": "仅数据",
+      "report": "RPT-LIMS-2026-0151-01",
+      "status": "closed",
+      "last_verified_action": "order_closed_verified"
+    },
+    {
+      "case": 9,
+      "customer": "宁波朗屿汽车部件有限公司",
+      "project": "线束接插件温度循环验证",
+      "lab": "jiangyin",
+      "order": "LIMS-2026-0152",
+      "start": "2026-09-20",
+      "end": "2026-09-21",
+      "result": "合格",
+      "report_type": "正式版",
+      "report": "RPT-LIMS-2026-0152-01",
+      "status": "closed",
+      "last_verified_action": "order_closed_verified"
+    },
+    {
+      "case": 10,
+      "customer": "合肥卓霖光电科技有限公司",
+      "project": "光学传感器低温贮存试验",
+      "lab": "jiangyin",
+      "order": "LIMS-2026-0153",
+      "start": "2026-09-22",
+      "end": "2026-09-23",
+      "result": "合格",
+      "report_type": "正式版",
+      "report": "RPT-LIMS-2026-0153-01",
+      "status": "closed",
+      "last_verified_action": "order_closed_verified"
+    }
   ],
-  "verified_completed": 0,
+  "verified_completed": 10,
   "stage_checks": {
     "sales_created_via_ui": 10,
     "business_approval_submitted_via_ui": 10,
-    "still_pending_technical_review": 10,
     "technical_approval": 10,
-    "all_ten_verified_pending_scheduling": true,
-    "scheduling_completed": 2,
-    "sample_arrival_with_photo_completed": 2
+    "scheduling_completed": 10,
+    "sample_arrival_with_photo_completed": 10,
+    "sales_confirmation": 10,
+    "experiment_started": 10,
+    "experiment_ended": 10,
+    "results_submitted": 10,
+    "reports_generated": 10,
+    "sales_report_approval": 10,
+    "gm_report_approval": 10,
+    "final_invoice": 10
   },
   "findings": [
-    {"issue": "New unassigned V2 order displayed as mixed execution", "fix": "Display pending assignment when V2 has no schedules; preserve V1 and assigned labels", "unit_tests_passed": 3, "production_deployed": true, "ui_recheck": "LIMS-2026-0146/0147/0148 display pending assignment"},
-    {"issue": "Internal laboratory start button shown before sales requirement confirmation although backend rejects it", "fix": "Expose confirmation flag on schedules; show waiting label and gate internal start button on scheduling and sales confirmation", "ui_recheck": "pending"}
-  ]
+    {
+      "issue": "New unassigned V2 order displayed as mixed execution",
+      "fix": "Display pending assignment when V2 has no schedules; preserve V1 and assigned labels",
+      "unit_tests_passed": 3,
+      "production_deployed": true,
+      "ui_recheck": "Freshly created unassigned orders displayed 待分配; after routing the correct Suzhou/Jiangyin laboratory label was shown."
+    },
+    {
+      "issue": "Internal laboratory start button shown before sales requirement confirmation although backend rejects it",
+      "fix": "Expose confirmation flag on schedules; show waiting label and gate internal start button on scheduling and sales confirmation",
+      "ui_recheck": "Verified before sales confirmation: no start button, waiting label shown; after confirmation: operators started all ten orders successfully.",
+      "production_deployed": true
+    }
+  ],
+  "updated_at": "2026-09-13T06:08:15.435Z",
+  "execution_log": [
+    {
+      "case": 1,
+      "action": "sales_create",
+      "order": "LIMS-2026-0144",
+      "status": "待评审"
+    },
+    {
+      "case": 2,
+      "action": "sales_create",
+      "order": "LIMS-2026-0145",
+      "status": "待评审"
+    },
+    {
+      "case": 3,
+      "action": "sales_create",
+      "order": "LIMS-2026-0146",
+      "status": "待评审"
+    },
+    {
+      "case": 4,
+      "action": "sales_create",
+      "order": "LIMS-2026-0147",
+      "status": "待评审"
+    },
+    {
+      "case": 5,
+      "action": "sales_create",
+      "order": "LIMS-2026-0148",
+      "status": "待评审"
+    },
+    {
+      "case": 6,
+      "action": "sales_create",
+      "order": "LIMS-2026-0149",
+      "status": "待评审"
+    },
+    {
+      "case": 7,
+      "action": "sales_create",
+      "order": "LIMS-2026-0150",
+      "status": "待评审"
+    },
+    {
+      "case": 8,
+      "action": "sales_create",
+      "order": "LIMS-2026-0151",
+      "status": "待评审"
+    },
+    {
+      "case": 9,
+      "action": "sales_create",
+      "order": "LIMS-2026-0152",
+      "status": "待评审"
+    },
+    {
+      "case": 10,
+      "action": "sales_create",
+      "order": "LIMS-2026-0153",
+      "status": "待评审"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "business_approve",
+      "state": "待评审",
+      "evidence": "      - row \"LIMS-2026-0144 苏州澄远汽车电子有限公司 车载控制器温度循环验证 自主 待分配 待评审 销售一号 评审通过 评审驳回\":"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0145",
+      "action": "business_approve",
+      "state": "待评审",
+      "evidence": "      - row \"LIMS-2026-0145 无锡辰岳精密机电有限公司 电机支架正弦振动验证 自主 待分配 待评审 销售一号 评审通过 评审驳回\":"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0146",
+      "action": "business_approve",
+      "state": "待评审",
+      "evidence": "      - row \"LIMS-2026-0146 常州景禾新能源科技有限公司 电池连接器恒定湿热试验 自主 待分配 待评审 销售一号 评审通过 评审驳回\":"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0147",
+      "action": "business_approve",
+      "state": "待评审",
+      "evidence": "      - row \"LIMS-2026-0147 上海瀚铂工业自动化有限公司 工业传感器高低温运行试验 自主 待分配 待评审 销售一号 评审通过 评审驳回\":"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "business_approve",
+      "state": "待评审",
+      "evidence": "      - row \"LIMS-2026-0148 杭州星澜智能装备有限公司 伺服驱动器运输振动验证 自主 待分配 待评审 销售一号 评审通过 评审驳回\":"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0149",
+      "action": "business_approve",
+      "state": "待评审",
+      "evidence": "      - row \"LIMS-2026-0149 江阴恒沐精密制造有限公司 仪表外壳温度冲击试验 自主 待分配 待评审 销售一号 评审通过 评审驳回\":"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0150",
+      "action": "business_approve",
+      "state": "待评审",
+      "evidence": "      - row \"LIMS-2026-0150 南京睿川电子技术有限公司 通信模块交变湿热试验 自主 待分配 待评审 销售一号 评审通过 评审驳回\":"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0151",
+      "action": "business_approve",
+      "state": "待评审",
+      "evidence": "      - row \"LIMS-2026-0151 南通启衡电气设备有限公司 配电终端机械振动试验 自主 待分配 待评审 销售一号 评审通过 评审驳回\":"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0152",
+      "action": "business_approve",
+      "state": "待评审",
+      "evidence": "      - row \"LIMS-2026-0152 宁波朗屿汽车部件有限公司 线束接插件温度循环验证 自主 待分配 待评审 销售一号 评审通过 评审驳回\":"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0153",
+      "action": "business_approve",
+      "state": "待评审",
+      "evidence": "      - row \"LIMS-2026-0153 合肥卓霖光电科技有限公司 光学传感器低温贮存试验 自主 待分配 待评审 销售一号 评审通过 评审驳回\":"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "technical_approve",
+      "state": "排期中",
+      "evidence": "      - row \"LIMS-2026-0144 苏州澄远汽车电子有限公司 车载控制器温度循环验证 自主 苏州内部实验室 排期中 销售一号 无可操作\":"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0145",
+      "action": "technical_approve",
+      "state": "排期中",
+      "evidence": "      - row \"LIMS-2026-0145 无锡辰岳精密机电有限公司 电机支架正弦振动验证 自主 苏州内部实验室 排期中 销售一号 无可操作\":"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0146",
+      "action": "technical_approve",
+      "state": "排期中",
+      "evidence": "      - row \"LIMS-2026-0146 常州景禾新能源科技有限公司 电池连接器恒定湿热试验 自主 苏州内部实验室 排期中 销售一号 无可操作\":"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0147",
+      "action": "technical_approve",
+      "state": "排期中",
+      "evidence": "      - row \"LIMS-2026-0147 上海瀚铂工业自动化有限公司 工业传感器高低温运行试验 自主 苏州内部实验室 排期中 销售一号 无可操作\":"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "technical_approve",
+      "state": "排期中",
+      "evidence": "      - row \"LIMS-2026-0148 杭州星澜智能装备有限公司 伺服驱动器运输振动验证 自主 苏州内部实验室 排期中 销售一号 无可操作\":"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0149",
+      "action": "technical_approve",
+      "state": "排期中",
+      "evidence": "      - row \"LIMS-2026-0149 江阴恒沐精密制造有限公司 仪表外壳温度冲击试验 自主 江阴内部实验室 排期中 销售一号 无可操作\":"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0150",
+      "action": "technical_approve",
+      "state": "排期中",
+      "evidence": "      - row \"LIMS-2026-0150 南京睿川电子技术有限公司 通信模块交变湿热试验 自主 江阴内部实验室 排期中 销售一号 无可操作\":"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0151",
+      "action": "technical_approve",
+      "state": "排期中",
+      "evidence": "      - row \"LIMS-2026-0151 南通启衡电气设备有限公司 配电终端机械振动试验 自主 江阴内部实验室 排期中 销售一号 无可操作\":"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0152",
+      "action": "technical_approve",
+      "state": "排期中",
+      "evidence": "      - row \"LIMS-2026-0152 宁波朗屿汽车部件有限公司 线束接插件温度循环验证 自主 江阴内部实验室 排期中 销售一号 无可操作\":"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0153",
+      "action": "technical_approve",
+      "state": "排期中",
+      "evidence": "      - row \"LIMS-2026-0153 合肥卓霖光电科技有限公司 光学传感器低温贮存试验 自主 江阴内部实验室 排期中 销售一号 无可操作\":"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "schedule",
+      "start": "2026-09-14",
+      "end": "2026-09-15",
+      "device": "E2E-SZ-20260912"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "sample_arrival",
+      "evidence": "      - row \"Select this row LIMS-2026-0144 苏州澄远汽车电子有限公司 车载控制器温度循环验证 UI-20260913-TEN-01：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。车载控制器3件，温度循环10次，记录外观和功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-14 - 2026-09-15 预入库 2026-09-13 00:00 实入库 2026-09-13 12:49 出库 尚未出库 ui-test-sample.png 排期中 新建 苏州实验室负责人 · 2026-09-13 12:46 样品已到 尚未开始 订单详情 重新排期 补充样品图片 开始试验\":"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0145",
+      "action": "schedule_and_sample_arrival",
+      "evidence": "      - row \"Select this row LIMS-2026-0145 无锡辰岳精密机电有限公司 电机支架正弦振动验证 UI-20260913-TEN-02：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。电机支架正弦振动验证，送样3件，记录试验前后外观及功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-16 - 2026-09-17 预入库 2026-09-13 00:00 实入库 2026-09-13 12:54 出库 尚未出库 ui-test-sample.png 排期中 新建 苏州实验室负责人 · 2026-09-13 12:54 样品已到 尚未开始 订单详情 重新排期 补充样品图片 开始试验\":"
+    },
+    {
+      "action": "verify_start_gate_before_sales_confirmation",
+      "orders": [
+        "LIMS-2026-0144",
+        "LIMS-2026-0145"
+      ],
+      "start_button_present": false,
+      "label": "待销售确认需求"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0146",
+      "action": "schedule_and_sample_arrival",
+      "evidence": "      - row \"Select this row LIMS-2026-0146 常州景禾新能源科技有限公司 电池连接器恒定湿热试验 UI-20260913-TEN-03：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。电池连接器恒定湿热试验，送样3件，记录试验前后外观及功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-18 - 2026-09-19 预入库 2026-09-13 00:00 实入库 2026-09-13 13:03 出库 尚未出库 ui-test-sample.png 排期中 新建 苏州实验室负责人 · 2026-09-13 13:03 样品已到 尚未开始 订单详情 重新排期 补充样品图片 待销售确认需求\":"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0147",
+      "action": "schedule_and_sample_arrival",
+      "evidence": "      - row \"Select this row LIMS-2026-0147 上海瀚铂工业自动化有限公司 工业传感器高低温运行试验 UI-20260913-TEN-04：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。工业传感器高低温运行试验，送样3件，记录试验前后外观及功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-20 - 2026-09-21 预入库 2026-09-13 00:00 实入库 2026-09-13 13:08 出库 尚未出库 ui-test-sample.png 排期中 新建 苏州实验室负责人 · 2026-09-13 13:08 样品已到 尚未开始 订单详情 重新排期 补充样品图片 待销售确认需求\":"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "device_conflict_check",
+      "conflicting_order": "LIMS-2026-0144",
+      "outcome": "E2E-SZ-20260912 option disabled with conflict explanation"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "schedule_and_sample_arrival",
+      "evidence": "      - row \"Select this row LIMS-2026-0148 杭州星澜智能装备有限公司 伺服驱动器运输振动验证 UI-20260913-TEN-05：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。伺服驱动器运输振动验证，送样3件，记录试验前后外观及功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-22 - 2026-09-23 预入库 2026-09-13 00:00 实入库 2026-09-13 13:25 出库 尚未出库 ui-test-sample.png 排期中 新建 苏州实验室负责人 · 2026-09-13 13:25 样品已到 尚未开始 订单详情 重新排期 补充样品图片 待销售确认需求\":"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0149",
+      "action": "schedule_and_sample_arrival",
+      "evidence": "      - row \"Select this row LIMS-2026-0149 江阴恒沐精密制造有限公司 仪表外壳温度冲击试验 UI-20260913-TEN-06：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。仪表外壳温度冲击试验，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-14 - 2026-09-15 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 排期中 新建 待确认排期 江阴实验室负责人 · 2026-09-13 13:31 样品已到 尚未开始 订单详情 重新排期 补充样品图片 待销售确认需求\":"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0150",
+      "action": "schedule_and_sample_arrival",
+      "evidence": "      - row \"Select this row LIMS-2026-0150 南京睿川电子技术有限公司 通信模块交变湿热试验 UI-20260913-TEN-07：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。通信模块交变湿热试验，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-16 - 2026-09-17 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 排期中 新建 待确认排期 江阴实验室负责人 · 2026-09-13 13:31 样品已到 尚未开始 订单详情 重新排期 补充样品图片 待销售确认需求\":"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0151",
+      "action": "schedule_and_sample_arrival",
+      "evidence": "      - row \"Select this row LIMS-2026-0151 南通启衡电气设备有限公司 配电终端机械振动试验 UI-20260913-TEN-08：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。配电终端机械振动试验，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-18 - 2026-09-19 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 排期中 新建 待确认排期 江阴实验室负责人 · 2026-09-13 13:31 样品已到 尚未开始 订单详情 重新排期 补充样品图片 待销售确认需求\":"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0152",
+      "action": "schedule_and_sample_arrival",
+      "evidence": "      - row \"Select this row LIMS-2026-0152 宁波朗屿汽车部件有限公司 线束接插件温度循环验证 UI-20260913-TEN-09：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。线束接插件温度循环验证，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-20 - 2026-09-21 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 排期中 新建 待确认排期 江阴实验室负责人 · 2026-09-13 13:31 样品已到 尚未开始 订单详情 重新排期 补充样品图片 待销售确认需求\":"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0153",
+      "action": "schedule_and_sample_arrival",
+      "evidence": "      - row \"Select this row LIMS-2026-0153 合肥卓霖光电科技有限公司 光学传感器低温贮存试验 UI-20260913-TEN-10：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。光学传感器低温贮存试验，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-22 - 2026-09-23 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 排期中 新建 待确认排期 江阴实验室负责人 · 2026-09-13 13:31 样品已到 尚未开始 订单详情 重新排期 补充样品图片 待销售确认需求\":"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "sales_confirm"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0145",
+      "action": "sales_confirm"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0146",
+      "action": "sales_confirm"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0147",
+      "action": "sales_confirm"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "sales_confirm"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0149",
+      "action": "sales_confirm"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0150",
+      "action": "sales_confirm"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0151",
+      "action": "sales_confirm"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0152",
+      "action": "sales_confirm"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0153",
+      "action": "sales_confirm"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "start_test",
+      "actor": "suzhou_operator01"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "end_test",
+      "actor": "suzhou_operator01",
+      "result": "合格",
+      "evidence": "      - row \"Select this row LIMS-2026-0144 苏州澄远汽车电子有限公司 车载控制器温度循环验证 UI-20260913-TEN-01：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。车载控制器3件，温度循环10次，记录外观和功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-14 - 2026-09-15 预入库 2026-09-13 00:00 实入库 2026-09-13 12:49 出库 尚未出库 ui-test-sample.png 实验已结束待提交结果 实验已结束待提交结果 苏州实验室负责人 · 2026-09-13 12:46 样品已到 实验已结束待提交结果 合格 结束：2026-09-13 13:34 操作：苏州实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 提交结果 样品出库\":"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "submit_test",
+      "actor": "suzhou_operator01",
+      "evidence": "      - row \"Select this row LIMS-2026-0144 苏州澄远汽车电子有限公司 车载控制器温度循环验证 UI-20260913-TEN-01：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。车载控制器3件，温度循环10次，记录外观和功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-14 - 2026-09-15 预入库 2026-09-13 00:00 实入库 2026-09-13 12:49 出库 尚未出库 ui-test-sample.png 实验结果已提交待出报告 结果已提交 苏州实验室负责人 · 2026-09-13 12:46 样品已到 结果已提交 合格 结束：2026-09-13 13:34 操作：苏州实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 样品出库\":"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0145",
+      "action": "start_test",
+      "actor": "suzhou_operator01"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0145",
+      "action": "end_test",
+      "actor": "suzhou_operator01",
+      "result": "合格",
+      "evidence": "      - row \"Select this row LIMS-2026-0145 无锡辰岳精密机电有限公司 电机支架正弦振动验证 UI-20260913-TEN-02：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。电机支架正弦振动验证，送样3件，记录试验前后外观及功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-16 - 2026-09-17 预入库 2026-09-13 00:00 实入库 2026-09-13 12:54 出库 尚未出库 ui-test-sample.png 实验已结束待提交结果 实验已结束待提交结果 苏州实验室负责人 · 2026-09-13 12:54 样品已到 实验已结束待提交结果 合格 结束：2026-09-13 13:35 操作：苏州实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 提交结果 样品出库\":"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0145",
+      "action": "submit_test",
+      "actor": "suzhou_operator01",
+      "evidence": "      - row \"Select this row LIMS-2026-0145 无锡辰岳精密机电有限公司 电机支架正弦振动验证 UI-20260913-TEN-02：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。电机支架正弦振动验证，送样3件，记录试验前后外观及功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-16 - 2026-09-17 预入库 2026-09-13 00:00 实入库 2026-09-13 12:54 出库 尚未出库 ui-test-sample.png 实验结果已提交待出报告 结果已提交 苏州实验室负责人 · 2026-09-13 12:54 样品已到 结果已提交 合格 结束：2026-09-13 13:35 操作：苏州实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 样品出库\":"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0146",
+      "action": "start_test",
+      "actor": "suzhou_operator01"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0146",
+      "action": "end_test",
+      "actor": "suzhou_operator01",
+      "result": "合格",
+      "evidence": "      - row \"Select this row LIMS-2026-0146 常州景禾新能源科技有限公司 电池连接器恒定湿热试验 UI-20260913-TEN-03：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。电池连接器恒定湿热试验，送样3件，记录试验前后外观及功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-18 - 2026-09-19 预入库 2026-09-13 00:00 实入库 2026-09-13 13:03 出库 尚未出库 ui-test-sample.png 实验已结束待提交结果 实验已结束待提交结果 苏州实验室负责人 · 2026-09-13 13:03 样品已到 实验已结束待提交结果 合格 结束：2026-09-13 13:35 操作：苏州实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 提交结果 样品出库\":"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0146",
+      "action": "submit_test",
+      "actor": "suzhou_operator01",
+      "evidence": "      - row \"Select this row LIMS-2026-0146 常州景禾新能源科技有限公司 电池连接器恒定湿热试验 UI-20260913-TEN-03：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。电池连接器恒定湿热试验，送样3件，记录试验前后外观及功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-18 - 2026-09-19 预入库 2026-09-13 00:00 实入库 2026-09-13 13:03 出库 尚未出库 ui-test-sample.png 实验结果已提交待出报告 结果已提交 苏州实验室负责人 · 2026-09-13 13:03 样品已到 结果已提交 合格 结束：2026-09-13 13:35 操作：苏州实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 样品出库\":"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0147",
+      "action": "start_test",
+      "actor": "suzhou_operator01"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0147",
+      "action": "end_test",
+      "actor": "suzhou_operator01",
+      "result": "不合格",
+      "evidence": "      - row \"Select this row LIMS-2026-0147 上海瀚铂工业自动化有限公司 工业传感器高低温运行试验 UI-20260913-TEN-04：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。工业传感器高低温运行试验，送样3件，记录试验前后外观及功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-20 - 2026-09-21 预入库 2026-09-13 00:00 实入库 2026-09-13 13:08 出库 尚未出库 ui-test-sample.png 实验已结束待提交结果 实验已结束待提交结果 苏州实验室负责人 · 2026-09-13 13:08 样品已到 实验已结束待提交结果 不合格 结束：2026-09-13 13:35 操作：苏州实验操作员一号 结论：本次模拟判定：不合格。仅用于系统回归，不作为正式检测依据。 订单详情 提交结果 样品出库\":"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0147",
+      "action": "submit_test",
+      "actor": "suzhou_operator01",
+      "evidence": "      - row \"Select this row LIMS-2026-0147 上海瀚铂工业自动化有限公司 工业传感器高低温运行试验 UI-20260913-TEN-04：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。工业传感器高低温运行试验，送样3件，记录试验前后外观及功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-20 - 2026-09-21 预入库 2026-09-13 00:00 实入库 2026-09-13 13:08 出库 尚未出库 ui-test-sample.png 实验结果已提交待出报告 结果已提交 苏州实验室负责人 · 2026-09-13 13:08 样品已到 结果已提交 不合格 结束：2026-09-13 13:35 操作：苏州实验操作员一号 结论：本次模拟判定：不合格。仅用于系统回归，不作为正式检测依据。 订单详情 样品出库\":"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "start_test",
+      "actor": "suzhou_operator01"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "end_test",
+      "actor": "suzhou_operator01",
+      "result": "合格",
+      "evidence": "      - row \"Select this row LIMS-2026-0148 杭州星澜智能装备有限公司 伺服驱动器运输振动验证 UI-20260913-TEN-05：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。伺服驱动器运输振动验证，送样3件，记录试验前后外观及功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-22 - 2026-09-23 预入库 2026-09-13 00:00 实入库 2026-09-13 13:25 出库 尚未出库 ui-test-sample.png 实验已结束待提交结果 实验已结束待提交结果 苏州实验室负责人 · 2026-09-13 13:25 样品已到 实验已结束待提交结果 合格 结束：2026-09-13 13:35 操作：苏州实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 提交结果 样品出库\":"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "submit_test",
+      "actor": "suzhou_operator01",
+      "evidence": "      - row \"Select this row LIMS-2026-0148 杭州星澜智能装备有限公司 伺服驱动器运输振动验证 UI-20260913-TEN-05：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。伺服驱动器运输振动验证，送样3件，记录试验前后外观及功能。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-09-22 - 2026-09-23 预入库 2026-09-13 00:00 实入库 2026-09-13 13:25 出库 尚未出库 ui-test-sample.png 实验结果已提交待出报告 结果已提交 苏州实验室负责人 · 2026-09-13 13:25 样品已到 结果已提交 合格 结束：2026-09-13 13:35 操作：苏州实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 样品出库\":"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0149",
+      "action": "start_test",
+      "actor": "jiangyin_operator01"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0149",
+      "action": "end_test",
+      "actor": "jiangyin_operator01",
+      "result": "合格",
+      "evidence": "      - row \"Select this row LIMS-2026-0149 江阴恒沐精密制造有限公司 仪表外壳温度冲击试验 UI-20260913-TEN-06：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。仪表外壳温度冲击试验，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-14 - 2026-09-15 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 实验已结束待提交结果 实验已结束待提交结果 江阴实验室负责人 · 2026-09-13 13:31 样品已到 实验已结束待提交结果 合格 结束：2026-09-13 13:36 操作：江阴实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 提交结果 样品出库\":"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0149",
+      "action": "submit_test",
+      "actor": "jiangyin_operator01",
+      "evidence": "      - row \"Select this row LIMS-2026-0149 江阴恒沐精密制造有限公司 仪表外壳温度冲击试验 UI-20260913-TEN-06：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。仪表外壳温度冲击试验，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-14 - 2026-09-15 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 实验结果已提交待出报告 结果已提交 江阴实验室负责人 · 2026-09-13 13:31 样品已到 结果已提交 合格 结束：2026-09-13 13:36 操作：江阴实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 样品出库\":"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0150",
+      "action": "start_test",
+      "actor": "jiangyin_operator01"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0150",
+      "action": "end_test",
+      "actor": "jiangyin_operator01",
+      "result": "合格",
+      "evidence": "      - row \"Select this row LIMS-2026-0150 南京睿川电子技术有限公司 通信模块交变湿热试验 UI-20260913-TEN-07：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。通信模块交变湿热试验，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-16 - 2026-09-17 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 实验已结束待提交结果 实验已结束待提交结果 江阴实验室负责人 · 2026-09-13 13:31 样品已到 实验已结束待提交结果 合格 结束：2026-09-13 13:36 操作：江阴实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 提交结果 样品出库\":"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0150",
+      "action": "submit_test",
+      "actor": "jiangyin_operator01",
+      "evidence": "      - row \"Select this row LIMS-2026-0150 南京睿川电子技术有限公司 通信模块交变湿热试验 UI-20260913-TEN-07：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。通信模块交变湿热试验，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-16 - 2026-09-17 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 实验结果已提交待出报告 结果已提交 江阴实验室负责人 · 2026-09-13 13:31 样品已到 结果已提交 合格 结束：2026-09-13 13:36 操作：江阴实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 样品出库\":"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0151",
+      "action": "start_test",
+      "actor": "jiangyin_operator01"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0151",
+      "action": "end_test",
+      "actor": "jiangyin_operator01",
+      "result": "异常",
+      "evidence": "      - row \"Select this row LIMS-2026-0151 南通启衡电气设备有限公司 配电终端机械振动试验 UI-20260913-TEN-08：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。配电终端机械振动试验，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-18 - 2026-09-19 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 实验已结束待提交结果 实验已结束待提交结果 江阴实验室负责人 · 2026-09-13 13:31 样品已到 实验已结束待提交结果 异常 结束：2026-09-13 13:36 操作：江阴实验操作员一号 结论：本次模拟判定：异常。仅用于系统回归，不作为正式检测依据。 订单详情 提交结果 样品出库\":"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0151",
+      "action": "submit_test",
+      "actor": "jiangyin_operator01",
+      "evidence": "      - row \"Select this row LIMS-2026-0151 南通启衡电气设备有限公司 配电终端机械振动试验 UI-20260913-TEN-08：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。配电终端机械振动试验，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-18 - 2026-09-19 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 实验结果已提交待出报告 结果已提交 江阴实验室负责人 · 2026-09-13 13:31 样品已到 结果已提交 异常 结束：2026-09-13 13:36 操作：江阴实验操作员一号 结论：本次模拟判定：异常。仅用于系统回归，不作为正式检测依据。 订单详情 样品出库\":"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0152",
+      "action": "start_test",
+      "actor": "jiangyin_operator01"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0152",
+      "action": "end_test",
+      "actor": "jiangyin_operator01",
+      "result": "合格",
+      "evidence": "      - row \"Select this row LIMS-2026-0152 宁波朗屿汽车部件有限公司 线束接插件温度循环验证 UI-20260913-TEN-09：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。线束接插件温度循环验证，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-20 - 2026-09-21 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 实验已结束待提交结果 实验已结束待提交结果 江阴实验室负责人 · 2026-09-13 13:31 样品已到 实验已结束待提交结果 合格 结束：2026-09-13 13:36 操作：江阴实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 提交结果 样品出库\":"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0152",
+      "action": "submit_test",
+      "actor": "jiangyin_operator01",
+      "evidence": "      - row \"Select this row LIMS-2026-0152 宁波朗屿汽车部件有限公司 线束接插件温度循环验证 UI-20260913-TEN-09：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。线束接插件温度循环验证，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-20 - 2026-09-21 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 实验结果已提交待出报告 结果已提交 江阴实验室负责人 · 2026-09-13 13:31 样品已到 结果已提交 合格 结束：2026-09-13 13:36 操作：江阴实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 样品出库\":"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0153",
+      "action": "start_test",
+      "actor": "jiangyin_operator01"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0153",
+      "action": "end_test",
+      "actor": "jiangyin_operator01",
+      "result": "合格",
+      "evidence": "      - row \"Select this row LIMS-2026-0153 合肥卓霖光电科技有限公司 光学传感器低温贮存试验 UI-20260913-TEN-10：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。光学传感器低温贮存试验，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-22 - 2026-09-23 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 实验已结束待提交结果 实验已结束待提交结果 江阴实验室负责人 · 2026-09-13 13:31 样品已到 实验已结束待提交结果 合格 结束：2026-09-13 13:36 操作：江阴实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 提交结果 样品出库\":"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0153",
+      "action": "submit_test",
+      "actor": "jiangyin_operator01",
+      "evidence": "      - row \"Select this row LIMS-2026-0153 合肥卓霖光电科技有限公司 光学传感器低温贮存试验 UI-20260913-TEN-10：虚构客户，仅供系统流程测试，不安排真实设备或开具真实发票。光学传感器低温贮存试验，送样3件，记录试验前后外观及功能。 E2E 江阴专用测试台 E2E-JY-20260912 2026-09-22 - 2026-09-23 预入库 2026-09-13 00:00 实入库 2026-09-13 13:31 出库 尚未出库 ui-test-sample.png 实验结果已提交待出报告 结果已提交 江阴实验室负责人 · 2026-09-13 13:31 样品已到 结果已提交 合格 结束：2026-09-13 13:36 操作：江阴实验操作员一号 结论：本次模拟判定：合格。仅用于系统回归，不作为正式检测依据。 订单详情 样品出库\":"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "issue_report",
+      "report": "RPT-LIMS-2026-0144-01",
+      "type": "正式版",
+      "actor": "suzhou_lab01"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "pdf_download_event"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0145",
+      "action": "issue_report",
+      "report": "RPT-LIMS-2026-0145-01",
+      "type": "正式版",
+      "actor": "suzhou_lab01"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0145",
+      "action": "pdf_download_event"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0146",
+      "action": "issue_report",
+      "report": "RPT-LIMS-2026-0146-01",
+      "type": "草稿版",
+      "actor": "suzhou_lab01"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0146",
+      "action": "pdf_download_event"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0147",
+      "action": "issue_report",
+      "report": "RPT-LIMS-2026-0147-01",
+      "type": "正式版",
+      "actor": "suzhou_lab01"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0147",
+      "action": "pdf_download_event"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "issue_report",
+      "report": "RPT-LIMS-2026-0148-01",
+      "type": "正式版",
+      "actor": "suzhou_lab01"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "pdf_download_event"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0149",
+      "action": "issue_report",
+      "report": "RPT-LIMS-2026-0149-01",
+      "type": "正式版",
+      "actor": "jiangyin_lab01"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0149",
+      "action": "pdf_download_event"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0150",
+      "action": "issue_report",
+      "report": "RPT-LIMS-2026-0150-01",
+      "type": "正式版",
+      "actor": "jiangyin_lab01"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0150",
+      "action": "pdf_download_event"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0151",
+      "action": "issue_report",
+      "report": "RPT-LIMS-2026-0151-01",
+      "type": "仅数据",
+      "actor": "jiangyin_lab01"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0151",
+      "action": "pdf_download_event"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0152",
+      "action": "issue_report",
+      "report": "RPT-LIMS-2026-0152-01",
+      "type": "正式版",
+      "actor": "jiangyin_lab01"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0152",
+      "action": "pdf_download_event"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0153",
+      "action": "issue_report",
+      "report": "RPT-LIMS-2026-0153-01",
+      "type": "正式版",
+      "actor": "jiangyin_lab01"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0153",
+      "action": "pdf_download_event"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "sales_report_approve",
+      "report": "RPT-LIMS-2026-0144-01"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0145",
+      "action": "sales_report_approve",
+      "report": "RPT-LIMS-2026-0145-01"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0146",
+      "action": "sales_report_approve",
+      "report": "RPT-LIMS-2026-0146-01"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0147",
+      "action": "sales_report_approve",
+      "report": "RPT-LIMS-2026-0147-01"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "sales_report_approve",
+      "report": "RPT-LIMS-2026-0148-01"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0149",
+      "action": "sales_report_approve",
+      "report": "RPT-LIMS-2026-0149-01"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0150",
+      "action": "sales_report_approve",
+      "report": "RPT-LIMS-2026-0150-01"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0151",
+      "action": "sales_report_approve",
+      "report": "RPT-LIMS-2026-0151-01"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0152",
+      "action": "sales_report_approve",
+      "report": "RPT-LIMS-2026-0152-01"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0153",
+      "action": "sales_report_approve",
+      "report": "RPT-LIMS-2026-0153-01"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "gm_report_approve",
+      "report": "RPT-LIMS-2026-0144-01",
+      "evidence": "Verified approved in UI after browser recovery"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0145",
+      "action": "gm_report_approve",
+      "report": "RPT-LIMS-2026-0145-01",
+      "evidence": "Verified approved in UI after browser recovery"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0146",
+      "action": "gm_report_approve",
+      "report": "RPT-LIMS-2026-0146-01",
+      "evidence": "Verified approved in UI after browser recovery"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0147",
+      "action": "gm_report_approve",
+      "report": "RPT-LIMS-2026-0147-01",
+      "evidence": "Verified approved in UI after browser recovery"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "gm_report_approve",
+      "report": "RPT-LIMS-2026-0148-01",
+      "evidence": "Verified approved in UI after browser recovery"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0149",
+      "action": "gm_report_approve",
+      "report": "RPT-LIMS-2026-0149-01",
+      "evidence": "Verified approved in UI after browser recovery"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0150",
+      "action": "gm_report_approve",
+      "report": "RPT-LIMS-2026-0150-01"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0151",
+      "action": "gm_report_approve",
+      "report": "RPT-LIMS-2026-0151-01"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0152",
+      "action": "gm_report_approve",
+      "report": "RPT-LIMS-2026-0152-01"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0153",
+      "action": "gm_report_approve",
+      "report": "RPT-LIMS-2026-0153-01"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "final_invoice",
+      "invoice": "UI-TEN-20260913-01",
+      "amount": 8600
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0145",
+      "action": "final_invoice",
+      "invoice": "UI-TEN-20260913-02",
+      "amount": 9100
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0146",
+      "action": "final_invoice",
+      "invoice": "UI-TEN-20260913-03",
+      "amount": 9600
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0147",
+      "action": "final_invoice",
+      "invoice": "UI-TEN-20260913-04",
+      "amount": 10100
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "final_invoice",
+      "invoice": "UI-TEN-20260913-05",
+      "amount": 10600
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0149",
+      "action": "final_invoice",
+      "invoice": "UI-TEN-20260913-06",
+      "amount": 11100
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0150",
+      "action": "final_invoice",
+      "invoice": "UI-TEN-20260913-07",
+      "amount": 11600
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0151",
+      "action": "final_invoice",
+      "invoice": "UI-TEN-20260913-08",
+      "amount": 12100
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0152",
+      "action": "final_invoice",
+      "invoice": "UI-TEN-20260913-09",
+      "amount": 12600
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0153",
+      "action": "final_invoice",
+      "invoice": "UI-TEN-20260913-10",
+      "amount": 13100
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0144",
+      "action": "order_closed_verified",
+      "evidence": "Fresh frontend navigation: 已开票办结"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0145",
+      "action": "order_closed_verified",
+      "evidence": "Fresh frontend navigation: 已开票办结"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0146",
+      "action": "order_closed_verified",
+      "evidence": "Fresh frontend navigation: 已开票办结"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0147",
+      "action": "order_closed_verified",
+      "evidence": "Fresh frontend navigation: 已开票办结"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0148",
+      "action": "order_closed_verified",
+      "evidence": "Fresh frontend navigation: 已开票办结"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0149",
+      "action": "order_closed_verified",
+      "evidence": "Fresh frontend navigation: 已开票办结"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0150",
+      "action": "order_closed_verified",
+      "evidence": "Fresh frontend navigation: 已开票办结"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0151",
+      "action": "order_closed_verified",
+      "evidence": "Fresh frontend navigation: 已开票办结"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0152",
+      "action": "order_closed_verified",
+      "evidence": "Fresh frontend navigation: 已开票办结"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0153",
+      "action": "order_closed_verified",
+      "evidence": "Fresh frontend navigation: 已开票办结"
+    }
+  ],
+  "scope_notes": [
+    "All ten orders were created and advanced using browser UI controls and role logins; no direct workflow API calls or database inserts.",
+    "Five Suzhou and five Jiangyin internal orders. Nine role accounts including two operators.",
+    "Ten report download events observed; PDF contents were not independently rendered or inspected.",
+    "This batch covers the internal main flow, not every branch. Outsourcing, rejection/rework, change requests, pre-invoicing, invoice voiding and concurrency were not covered by this batch.",
+    "Customer names, results and invoices are synthetic test records, not real certification or financial transactions."
+  ],
+  "verification": {
+    "selected_django_tests_passed": 12,
+    "full_django_suite_run": false,
+    "typescript_check": "passed",
+    "vite_build": "passed",
+    "pdf_download_events": 10,
+    "workflow_method": "frontend UI only",
+    "accounts": [
+      "sales01",
+      "business01",
+      "tech01",
+      "suzhou_lab01",
+      "jiangyin_lab01",
+      "suzhou_operator01",
+      "jiangyin_operator01",
+      "general_manager01",
+      "accountant01"
+    ]
+  }
 }
