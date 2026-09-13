@@ -109,6 +109,7 @@ export type ScheduleItem = {
   start_time: string
   end_time: string
   is_scheduled: boolean
+  sales_confirmed: boolean
   scheduled_at: string
   scheduled_by: string
   schedule_status: string

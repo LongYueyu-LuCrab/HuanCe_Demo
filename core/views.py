@@ -995,6 +995,7 @@ def _schedule_payload(schedule):
         'start_time': _display_date(schedule.plan_start_time),
         'end_time': _display_date(schedule.plan_end_time),
         'is_scheduled': bool(schedule.scheduled_at),
+        'sales_confirmed': bool(order.sales_confirmed_at),
         'scheduled_at': _display_datetime(schedule.scheduled_at),
         'scheduled_by': _display_user(schedule.scheduled_by),
         'schedule_status': schedule.get_schedule_status_display(),

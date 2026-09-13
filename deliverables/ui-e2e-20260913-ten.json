@@ -17,7 +17,17 @@
     {"case": 10, "customer": "合肥卓霖光电科技有限公司", "project": "光学传感器低温贮存试验", "lab": "jiangyin", "order": "LIMS-2026-0153", "status": "pending_review"}
   ],
   "verified_completed": 0,
+  "stage_checks": {
+    "sales_created_via_ui": 10,
+    "business_approval_submitted_via_ui": 10,
+    "still_pending_technical_review": 10,
+    "technical_approval": 10,
+    "all_ten_verified_pending_scheduling": true,
+    "scheduling_completed": 2,
+    "sample_arrival_with_photo_completed": 2
+  },
   "findings": [
-    {"issue": "New unassigned V2 order displayed as mixed execution", "fix": "Display pending assignment when V2 has no schedules; preserve V1 and assigned labels", "unit_tests_passed": 3, "production_deployed": true, "ui_recheck": "LIMS-2026-0146/0147/0148 display pending assignment"}
+    {"issue": "New unassigned V2 order displayed as mixed execution", "fix": "Display pending assignment when V2 has no schedules; preserve V1 and assigned labels", "unit_tests_passed": 3, "production_deployed": true, "ui_recheck": "LIMS-2026-0146/0147/0148 display pending assignment"},
+    {"issue": "Internal laboratory start button shown before sales requirement confirmation although backend rejects it", "fix": "Expose confirmation flag on schedules; show waiting label and gate internal start button on scheduling and sales confirmation", "ui_recheck": "pending"}
   ]
 }
