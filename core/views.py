@@ -1769,14 +1769,16 @@ def lab_device_availability(request):
 
 
 def _laboratory_schedule_queryset(request):
+    assigned_scope = request.GET.get('scope') == 'assigned'
+    global_reader = _is_chairman(request.user) or ROLE_GENERAL_MANAGER in _roles(request.user)
     try:
         lab_type = int(request.GET.get('lab_type') or _user_lab_type(request.user) or 0)
     except (TypeError, ValueError):
         lab_type = 0
-    if lab_type not in LabDevice.LabType.values:
+    if lab_type not in LabDevice.LabType.values and not (assigned_scope and global_reader):
         return None, None, JsonResponse({'ok': False, 'error': '所属实验室无效'}, status=400, json_dumps_params={'ensure_ascii': False})
     allowed_lab_type = _user_lab_type(request.user)
-    if not (_is_chairman(request.user) or ROLE_GENERAL_MANAGER in _roles(request.user)) and allowed_lab_type != lab_type:
+    if not global_reader and allowed_lab_type != lab_type:
         return None, None, JsonResponse({'ok': False, 'error': '无权查询其他实验室订单'}, status=403, json_dumps_params={'ensure_ascii': False})
     if not _has_any_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_GENERAL_MANAGER):
         return None, None, JsonResponse({'ok': False, 'error': '当前岗位无权查询实验室订单'}, status=403, json_dumps_params={'ensure_ascii': False})
@@ -1795,7 +1797,14 @@ def _laboratory_schedule_queryset(request):
             queryset=Experiment.objects.select_related('test_operator').order_by('-create_time'),
             to_attr='ordered_experiments',
         ),
-    ).filter(_lab_schedule_query(lab_type)).distinct()
+    ).distinct()
+    if assigned_scope:
+        if not global_reader:
+            schedules = schedules.filter(
+                _lab_schedule_query(lab_type) if _is_lab_operator(request.user) else Q(lab_manager=request.user)
+            )
+    else:
+        schedules = schedules.filter(_lab_schedule_query(lab_type))
     keyword = (request.GET.get('keyword') or '').strip()
     if keyword:
         schedules = schedules.filter(

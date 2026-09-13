@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { exportLaboratoryOrders } from '../services/api'
+import { exportLaboratoryOrders, type LabOrderQuery } from '../services/api'
 import type { ScheduleItem, User } from '../types'
 import OutsourceBadge from './OutsourceBadge.vue'
 
@@ -10,10 +10,14 @@ const props = defineProps<{
   user?: User
   labType?: number
   exportable?: boolean
+  remote?: boolean
+  total?: number
+  loading?: boolean
 }>()
 const emit = defineEmits<{
   workflow: [action: string, schedule: ScheduleItem]
   detail: [schedule: ScheduleItem]
+  query: [query: LabOrderQuery]
 }>()
 
 const keyword = ref('')
@@ -25,12 +29,29 @@ const deviceId = ref<number | ''>('')
 const dateRange = ref<[string, string] | []>([])
 const selectedRows = ref<ScheduleItem[]>([])
 const exporting = ref(false)
+let queryTimer: ReturnType<typeof setTimeout> | undefined
+watch([keyword, page, pageSize, orderStatus, scheduleStatus, deviceId, dateRange], () => {
+  if (!props.remote) return
+  clearTimeout(queryTimer)
+  queryTimer = setTimeout(() => emit('query', {
+    keyword: keyword.value,
+    page: page.value,
+    page_size: pageSize.value,
+    order_status: String(orderStatus.value || ''),
+    schedule_status: String(scheduleStatus.value || ''),
+    device_id: String(deviceId.value || ''),
+    start_date: dateRange.value?.[0] || '',
+    end_date: dateRange.value?.[1] || '',
+  }), 150)
+}, { immediate: true, deep: true })
+onUnmounted(() => clearTimeout(queryTimer))
 
 const orderStatusOptions = computed(() => Array.from(new Map(props.orders.map((item) => [item.status_key, item.status])).entries()))
 const scheduleStatusOptions = computed(() => Array.from(new Map(props.orders.map((item) => [item.schedule_status_key, item.schedule_status])).entries()))
 const deviceOptions = computed(() => Array.from(new Map(props.orders.filter((item) => item.device_id).map((item) => [item.device_id as number, `${item.device_code} · ${item.device_name}`])).entries()))
 
 const filteredOrders = computed(() => {
+  if (props.remote) return props.orders
   const value = keyword.value.trim().toLowerCase()
   return props.orders.filter((order) => {
     const matchesKeyword = !value || [order.order_no, order.customer, order.project_name, order.status, order.test_type, order.schedule_status, order.device_code, order.device_name, order.remark]
@@ -50,6 +71,7 @@ const filteredOrders = computed(() => {
 })
 
 const pagedOrders = computed(() => {
+  if (props.remote) return props.orders
   const start = (page.value - 1) * pageSize.value
   return filteredOrders.value.slice(start, start + pageSize.value)
 })
@@ -135,7 +157,7 @@ async function exportOrders(selectedOnly: boolean) {
         @change="resetPage"
       />
     </div>
-    <el-table :data="pagedOrders" stripe height="420" empty-text="暂无匹配任务" @selection-change="handleSelection">
+    <el-table v-loading="loading" :data="pagedOrders" stripe height="420" empty-text="暂无匹配任务" @selection-change="handleSelection">
       <el-table-column v-if="exportable" type="selection" width="48" />
       <el-table-column prop="order_no" label="订单号" min-width="165">
         <template #default="{ row }">
@@ -235,12 +257,12 @@ async function exportOrders(selectedOnly: boolean) {
       </el-table-column>
     </el-table>
     <div class="table-footer">
-      <span>共 {{ filteredOrders.length }} 条</span>
+      <span>共 {{ remote ? total || 0 : filteredOrders.length }} 条</span>
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
         :page-sizes="[10, 15, 20]"
-        :total="filteredOrders.length"
+        :total="remote ? total || 0 : filteredOrders.length"
         layout="sizes, prev, pager, next"
         @size-change="page = 1"
       />

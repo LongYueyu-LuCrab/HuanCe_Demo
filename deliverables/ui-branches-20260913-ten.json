@@ -1,0 +1,341 @@
+{
+  "requested": 10,
+  "method": "Frontend browser UI only",
+  "status": "in_progress",
+  "updated_at": "2026-09-13T10:50:39.673Z",
+  "orders": [
+    {
+      "case": 1,
+      "customer": "苏州景拓汽车电子有限公司",
+      "project": "车载网关温度循环验证",
+      "scenario": "business_reject_resubmit",
+      "marker": "UI-BRANCH-20260913-01",
+      "status": "pending_review",
+      "order": "LIMS-2026-0154"
+    },
+    {
+      "case": 2,
+      "customer": "无锡朗川精密科技有限公司",
+      "project": "连接器振动可行性验证",
+      "scenario": "technical_reject_cancel",
+      "marker": "UI-BRANCH-20260913-02",
+      "status": "cancelled_verified",
+      "order": "LIMS-2026-0155"
+    },
+    {
+      "case": 3,
+      "customer": "常州泽衡新能源有限公司",
+      "project": "电池监控模块湿热验证",
+      "scenario": "pre_sample_change",
+      "marker": "UI-BRANCH-20260913-03",
+      "status": "pending_review",
+      "order": "LIMS-2026-0156"
+    },
+    {
+      "case": 4,
+      "customer": "江阴旭澜机电有限公司",
+      "project": "电机驱动器温升验证",
+      "scenario": "during_test_change",
+      "marker": "UI-BRANCH-20260913-04",
+      "status": "pending_review",
+      "order": "LIMS-2026-0157"
+    },
+    {
+      "case": 5,
+      "customer": "南京启珩传感技术有限公司",
+      "project": "压力传感器低温验证",
+      "scenario": "sales_report_reject",
+      "marker": "UI-BRANCH-20260913-05",
+      "status": "pending_review",
+      "order": "LIMS-2026-0158"
+    },
+    {
+      "case": 6,
+      "customer": "南通望舒电气有限公司",
+      "project": "配电控制器高温验证",
+      "scenario": "gm_report_reject",
+      "marker": "UI-BRANCH-20260913-06",
+      "status": "pending_review",
+      "order": "LIMS-2026-0159"
+    },
+    {
+      "case": 7,
+      "customer": "上海澄序工业技术有限公司",
+      "project": "材料盐雾委外验证",
+      "scenario": "outsource_full",
+      "marker": "UI-BRANCH-20260913-07",
+      "status": "pending_review",
+      "order": "LIMS-2026-0160"
+    },
+    {
+      "case": 8,
+      "customer": "杭州沐辰智能装备有限公司",
+      "project": "控制模块振动与盐雾验证",
+      "scenario": "mixed_routes",
+      "marker": "UI-BRANCH-20260913-08",
+      "status": "pending_review",
+      "order": "LIMS-2026-0161"
+    },
+    {
+      "case": 9,
+      "customer": "宁波泊远汽车部件有限公司",
+      "project": "线束接插件湿热验证",
+      "scenario": "preinvoice_void_limits",
+      "marker": "UI-BRANCH-20260913-09",
+      "status": "pending_review",
+      "order": "LIMS-2026-0162"
+    },
+    {
+      "case": 10,
+      "customer": "合肥知衡光电有限公司",
+      "project": "光电模块温度冲击验证",
+      "scenario": "final_invoice_void_reopen",
+      "marker": "UI-BRANCH-20260913-10",
+      "status": "pending_review",
+      "order": "LIMS-2026-0163"
+    }
+  ],
+  "events": [
+    {
+      "case": 1,
+      "order": "LIMS-2026-0154",
+      "action": "sales_create",
+      "evidence": "UI row verified pending review"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0155",
+      "action": "sales_create",
+      "evidence": "- row \"LIMS-2026-0155 无锡朗川精密科技有限公司 连接器振动可行性验证 自主 待分配 待评审 销售一号 修改重提 退单\":"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "sales_create",
+      "evidence": "- row \"LIMS-2026-0156 常州泽衡新能源有限公司 电池监控模块湿热验证 自主 待分配 待评审 销售一号 修改重提 退单\":"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "sales_create",
+      "evidence": "- row \"LIMS-2026-0157 江阴旭澜机电有限公司 电机驱动器温升验证 自主 待分配 待评审 销售一号 修改重提 退单\":"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0158",
+      "action": "sales_create",
+      "evidence": "- row \"LIMS-2026-0158 南京启珩传感技术有限公司 压力传感器低温验证 自主 待分配 待评审 销售一号 修改重提 退单\":"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0159",
+      "action": "sales_create",
+      "evidence": "- row \"LIMS-2026-0159 南通望舒电气有限公司 配电控制器高温验证 自主 待分配 待评审 销售一号 修改重提 退单\":"
+    },
+    {
+      "case": 7,
+      "action": "outsource_missing_details_blocked",
+      "evidence": "Submit with all outsource commercial fields and contract empty; dialog remains visible, no order created"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0160",
+      "action": "sales_create",
+      "evidence": "- row \"LIMS-2026-0160 委外订单 上海澄序工业技术有限公司 材料盐雾委外验证 委外 待分配 待评审 销售一号 修改重提 退单\":"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "sales_create",
+      "evidence": "- row \"LIMS-2026-0161 委外订单 杭州沐辰智能装备有限公司 控制模块振动与盐雾验证 自主 委外 待分配 待评审 销售一号 修改重提 退单\":"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "sales_create",
+      "evidence": "- row \"LIMS-2026-0162 宁波泊远汽车部件有限公司 线束接插件湿热验证 自主 待分配 待评审 销售一号 修改重提 退单\":"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0163",
+      "action": "sales_create",
+      "evidence": "- row \"LIMS-2026-0163 合肥知衡光电有限公司 光电模块温度冲击验证 自主 待分配 待评审 销售一号 修改重提 退单\":"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0154",
+      "action": "business_reject_submitted",
+      "evidence": "Dialog closed and order removed from business pending list; sales recheck pending"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0155",
+      "action": "business_approve",
+      "evidence": "Order detail workflow shows business completed, technical current"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "business_approve_submitted"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "business_approve_submitted"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0158",
+      "action": "business_approve_submitted"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0159",
+      "action": "business_approve_submitted"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0160",
+      "action": "business_approve_submitted"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "business_approve_submitted"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "business_approve_submitted"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0163",
+      "action": "business_approve_submitted"
+    },
+    {
+      "case": 2,
+      "order": "LIMS-2026-0155",
+      "action": "technical_reject_submitted"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "technical_approve_route",
+      "route": "suzhou"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "technical_approve_route",
+      "route": "jiangyin"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0158",
+      "action": "technical_approve_route",
+      "route": "suzhou"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0159",
+      "action": "technical_approve_route",
+      "route": "jiangyin"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "technical_approve_route",
+      "route": "suzhou"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0163",
+      "action": "technical_approve_route",
+      "route": "jiangyin"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0160",
+      "action": "technical_approve_route",
+      "route": "outsource",
+      "owner": "suzhou_lab01",
+      "evidence": "Contract and outsource commercial details visible in review dialog"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "technical_approve_route",
+      "routes": [
+        "suzhou",
+        "outsource"
+      ],
+      "outsource_owner": "jiangyin_lab01",
+      "lead": "suzhou_lab01"
+    },
+    {
+      "case": 1,
+      "action": "sales_resubmit_after_reject",
+      "order": "LIMS-2026-0154"
+    },
+    {
+      "case": 2,
+      "action": "technical_reject_sales_cancel",
+      "order": "LIMS-2026-0155",
+      "evidence": "Sales saw rejected state; cancellation leaves no workflow actions"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0154",
+      "action": "business_approve_submitted"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0154",
+      "action": "technical_approve_route",
+      "route": "suzhou"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0154",
+      "action": "schedule_sample_arrived",
+      "lab": "suzhou"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "schedule",
+      "start": "2026-09-26",
+      "end": "2026-09-27",
+      "lab": "suzhou",
+      "sample_arrived": false
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0158",
+      "action": "schedule",
+      "start": "2026-09-28",
+      "end": "2026-09-29",
+      "lab": "suzhou",
+      "sample_arrived": true
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "schedule",
+      "start": "2026-09-30",
+      "end": "2026-10-01",
+      "lab": "suzhou",
+      "sample_arrived": true
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "schedule",
+      "start": "2026-10-02",
+      "end": "2026-10-03",
+      "lab": "suzhou",
+      "sample_arrived": true
+    }
+  ]
+}

@@ -1,15 +1,34 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { UploadUserFile } from 'element-plus'
 import ScheduleTable from '../components/ScheduleTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
-import { fetchAvailableDevices, fetchOrderDetail, workflowAction } from '../services/api'
+import { fetchAvailableDevices, fetchLaboratoryOrders, fetchOrderDetail, workflowAction, type LabOrderQuery } from '../services/api'
 import { useSession } from '../stores/session'
 import type { LabDevice, OrderItem, ScheduleItem } from '../types'
 
 const session = useSession()
-const schedules = computed(() => session.state.dashboard?.schedules ?? [])
+const schedules = ref<ScheduleItem[]>([])
+const scheduleTotal = ref(0)
+const schedulesLoading = ref(false)
+let scheduleQuery: LabOrderQuery = { page: 1, page_size: 10 }
+let scheduleRequest = 0
+async function loadSchedules(query: LabOrderQuery = scheduleQuery) {
+  scheduleQuery = query
+  const request = ++scheduleRequest
+  schedulesLoading.value = true
+  try {
+    const data = await fetchLaboratoryOrders({ ...query, scope: 'assigned' })
+    if (request !== scheduleRequest) return
+    schedules.value = data.items
+    scheduleTotal.value = data.total
+  } catch (error) {
+    if (request === scheduleRequest) ElMessage.error(error instanceof Error ? error.message : '排期查询失败')
+  } finally {
+    if (request === scheduleRequest) schedulesLoading.value = false
+  }
+}
 const drawerVisible = ref(false)
 const dialogVisible = ref(false)
 const loading = ref(false)
@@ -116,6 +135,7 @@ async function submitWorkflow() {
     ElMessage.success('任务操作已完成')
     dialogVisible.value = false
     await session.refreshDashboard()
+    await loadSchedules()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '任务操作失败')
   } finally {
@@ -127,7 +147,7 @@ async function submitWorkflow() {
 <template>
   <div class="page-stack">
     <div class="page-toolbar"><div><h2>排期与任务</h2><p>实验室负责人在这里维护本人负责的内部及委外任务、样品、变更和报告。</p></div></div>
-    <ScheduleTable :orders="schedules" :user="session.state.user" @detail="openOrderDetail" @workflow="openWorkflow" />
+    <ScheduleTable :orders="schedules" :user="session.state.user" remote :total="scheduleTotal" :loading="schedulesLoading" @query="loadSchedules" @detail="openOrderDetail" @workflow="openWorkflow" />
 
     <el-dialog v-model="dialogVisible" title="实验室任务操作" width="min(960px, 94vw)">
       <OrderSnapshot :order="selectedOrder" :loading="loading" title="任务关联订单" />
