@@ -355,6 +355,12 @@ def _workflow_progress_payload(order):
     )
     latest_report = max(reports, key=lambda report: report.update_time or report.create_time, default=None)
     report_audits = list(latest_report.audits.all()) if latest_report else []
+    # A remade report starts a new review round; retain older audits only in history.
+    if latest_report and latest_report.generated_at:
+        report_audits = [
+            audit for audit in report_audits
+            if audit.audit_time >= latest_report.generated_at
+        ]
     sales_audits = [audit for audit in report_audits if audit.audit_level == ReportAudit.Level.SALES]
     gm_audits = [audit for audit in report_audits if audit.audit_level == ReportAudit.Level.GENERAL_MANAGER]
     latest_sales_audit = max(sales_audits, key=lambda audit: audit.audit_time, default=None)
