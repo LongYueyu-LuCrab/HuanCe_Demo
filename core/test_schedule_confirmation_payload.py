@@ -20,3 +20,18 @@ class ScheduleConfirmationPayloadTests(SimpleTestCase):
                 ):
                     payload = _schedule_payload(schedule)
                 self.assertEqual(payload['sales_confirmed'], bool(confirmed_at))
+
+    def test_pending_change_does_not_reuse_old_confirmation(self):
+        order = LabOrder(workflow_version=2, sales_confirmed_at=timezone.now())
+        schedule = SchedulePlan(
+            order=order, test_type=1, scheduled_at=timezone.now(),
+            schedule_status=SchedulePlan.Status.CHANGE_PENDING,
+        )
+        with (
+            patch('core.views._schedule_samples', return_value=[]),
+            patch('core.views._schedule_experiment', return_value=None),
+            patch('core.views._sample_photo_payloads', return_value=[]),
+        ):
+            payload = _schedule_payload(schedule)
+        self.assertFalse(payload['is_scheduled'])
+        self.assertFalse(payload['sales_confirmed'])

@@ -2,7 +2,7 @@
   "requested": 10,
   "method": "Frontend browser UI only",
   "status": "in_progress",
-  "updated_at": "2026-09-13T10:50:39.673Z",
+  "updated_at": "2026-09-13T12:03:19.988Z",
   "orders": [
     {
       "case": 1,
@@ -336,6 +336,101 @@
       "end": "2026-10-03",
       "lab": "suzhou",
       "sample_arrived": true
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0160",
+      "action": "outsource_schedule_and_sample_arrival",
+      "supplier": "苏州澄和环境试验有限公司（模拟供应商）"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "schedule",
+      "start": "2026-09-24",
+      "end": "2026-09-25",
+      "lab": "jiangyin",
+      "sample_arrived": true
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0159",
+      "action": "schedule",
+      "start": "2026-09-26",
+      "end": "2026-09-27",
+      "lab": "jiangyin",
+      "sample_arrived": true
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0163",
+      "action": "schedule",
+      "start": "2026-09-28",
+      "end": "2026-09-29",
+      "lab": "jiangyin",
+      "sample_arrived": true
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "outsource_schedule_and_sample_arrival",
+      "lab": "jiangyin"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0154",
+      "action": "sales_confirm"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "sales_confirm_submitted"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0158",
+      "action": "sales_confirm_submitted"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0159",
+      "action": "sales_confirm_submitted"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0160",
+      "action": "sales_confirm_submitted"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "sales_confirm_submitted"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "sales_confirm_submitted"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0163",
+      "action": "sales_confirm_submitted"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "pre_sample_change_submitted"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "attempt_sales_confirm_with_pending_change"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "pending_change_confirm_bug_fixed",
+      "evidence": "      - row \"LIMS-2026-0156 常州泽衡新能源有限公司 电池监控模块湿热验证 自主 苏州内部实验室 排期中 销售一号 填写更改单\":"
     }
   ]
 }

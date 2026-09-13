@@ -190,7 +190,7 @@ def _orders_for_user(user):
         'sale_user', 'lead_lab_manager', 'outsource_requirement'
     ).prefetch_related(
         'documents',
-        Prefetch('schedules', queryset=SchedulePlan.objects.only('id', 'order_id', 'scheduled_at'), to_attr='payload_schedules'),
+        Prefetch('schedules', queryset=SchedulePlan.objects.only('id', 'order_id', 'scheduled_at', 'schedule_status'), to_attr='payload_schedules'),
     )
     if _is_chairman(user):
         return orders
@@ -373,7 +373,7 @@ def _workflow_progress_payload(order):
 
     schedule_count = len(schedules)
     planned_count = sum(
-        bool(schedule.scheduled_at)
+        bool(schedule.scheduled_at) and schedule.schedule_status != SchedulePlan.Status.CHANGE_PENDING
         if is_v2
         else bool(schedule.plan_start_time and schedule.plan_end_time)
         for schedule in schedules
@@ -534,7 +534,9 @@ def _workflow_progress_payload(order):
         'technical_review': bool(latest_technical or advanced_to_scheduling),
         'route_assignment': bool(schedule_count or advanced_to_testing),
         'scheduling': bool((schedule_count and planned_count == schedule_count) or advanced_to_testing),
-        'sales_confirmation': bool(order.sales_confirmed_at or advanced_to_testing),
+        'sales_confirmation': bool(order.sales_confirmed_at or advanced_to_testing) and not any(
+            schedule.schedule_status == SchedulePlan.Status.CHANGE_PENDING for schedule in schedules
+        ),
         'sample_arrival': bool((schedule_count and arrived_count == schedule_count) or advanced_to_testing),
         'experiment': experiments_ended,
         'result_submission': results_submitted,
@@ -687,8 +689,13 @@ def _order_payload(order, include_sample_records=False):
         'workflow_label': order.get_workflow_version_display(),
         'lead_lab_manager': _display_user(order.lead_lab_manager),
         'lead_lab_manager_username': order.lead_lab_manager.username if order.lead_lab_manager else '',
-        'sales_confirmed': bool(order.sales_confirmed_at),
-        'all_routes_scheduled': bool(schedules) and all(schedule.scheduled_at for schedule in schedules),
+        'sales_confirmed': bool(order.sales_confirmed_at) and all(
+            schedule.schedule_status != SchedulePlan.Status.CHANGE_PENDING for schedule in schedules
+        ),
+        'all_routes_scheduled': bool(schedules) and all(
+            schedule.scheduled_at and schedule.schedule_status != SchedulePlan.Status.CHANGE_PENDING
+            for schedule in schedules
+        ),
         'expected_sample_arrival': sample_arrival_value,
         'expected_delivery_date': delivery_value,
         'total_quote': str(order.total_quote),
@@ -994,8 +1001,8 @@ def _schedule_payload(schedule):
         'test_type': schedule.get_test_type_display(),
         'start_time': _display_date(schedule.plan_start_time),
         'end_time': _display_date(schedule.plan_end_time),
-        'is_scheduled': bool(schedule.scheduled_at),
-        'sales_confirmed': bool(order.sales_confirmed_at),
+        'is_scheduled': bool(schedule.scheduled_at) and schedule.schedule_status != SchedulePlan.Status.CHANGE_PENDING,
+        'sales_confirmed': bool(order.sales_confirmed_at) and schedule.schedule_status != SchedulePlan.Status.CHANGE_PENDING,
         'scheduled_at': _display_datetime(schedule.scheduled_at),
         'scheduled_by': _display_user(schedule.scheduled_by),
         'schedule_status': schedule.get_schedule_status_display(),
@@ -1976,7 +1983,7 @@ def _sales_order_queryset(request, require_sales_role=True):
             'sale_user', 'lead_lab_manager', 'outsource_requirement',
         ).prefetch_related(
             'documents',
-            Prefetch('schedules', queryset=SchedulePlan.objects.only('id', 'order_id', 'scheduled_at'), to_attr='payload_schedules'),
+            Prefetch('schedules', queryset=SchedulePlan.objects.only('id', 'order_id', 'scheduled_at', 'schedule_status'), to_attr='payload_schedules'),
         )
         if not can_view_all_sales_orders:
             orders = orders.filter(sale_user=request.user)
@@ -2395,6 +2402,34 @@ def download_test_report(request, report_id):
     return FileResponse(report.report_file.open('rb'), content_type='application/pdf', as_attachment=True, filename=filename)
 
 
+PENDING_CHANGE_BLOCKED_ACTIONS = frozenset({
+    'sales_confirm', 'schedule_assign', 'start_test', 'outsource_result',
+    'submit_test', 'issue_report',
+})
+
+
+def _pending_change_error(order, action):
+    if (
+        order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT
+        and action in PENDING_CHANGE_BLOCKED_ACTIONS
+        and order.change_requests.exclude(change_status=ChangeRequest.Status.APPLIED).exists()
+    ):
+        return JsonResponse(
+            {'ok': False, 'error': '订单存在待处理更改单，请先由实验室处理变更并重新排期，再由销售确认需求。'},
+            status=400, json_dumps_params={'ensure_ascii': False},
+        )
+    if (
+        order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT
+        and action in {'submit_test', 'issue_report'}
+        and not order.sales_confirmed_at
+    ):
+        return JsonResponse(
+            {'ok': False, 'error': '请先由销售确认最新排期和试验需求，再提交结果或出具报告。'},
+            status=400, json_dumps_params={'ensure_ascii': False},
+        )
+    return None
+
+
 @csrf_exempt
 @transaction.atomic
 def lims_action(request):
@@ -2440,6 +2475,13 @@ def lims_action(request):
     handler = handlers.get(action)
     if not handler:
         return JsonResponse({'ok': False, 'error': '未知流程动作'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if action in PENDING_CHANGE_BLOCKED_ACTIONS:
+        order, error = _get_order(payload)
+        if error:
+            return error
+        change_error = _pending_change_error(order, action)
+        if change_error:
+            return change_error
     return handler(request, payload)
 
 
@@ -2619,7 +2661,8 @@ def _action_create_change(request, payload):
     change_content = payload.get('change_content') or '订单需求发生变更，回流负责人重新调整排期。'
     for schedule in target_schedules:
         schedule.schedule_status = SchedulePlan.Status.CHANGE_PENDING
-        schedule.save(update_fields=['schedule_status', 'update_time'])
+        schedule.scheduled_at = None
+        schedule.save(update_fields=['schedule_status', 'scheduled_at', 'update_time'])
         ChangeRequest.objects.create(
             order=order,
             schedule=schedule,
@@ -2900,6 +2943,7 @@ def _action_process_change(request, payload):
     change = pending_changes.first()
     if not change:
         return JsonResponse({'ok': False, 'error': '没有待处理变更单'}, status=400, json_dumps_params={'ensure_ascii': False})
+    before_demand = order.test_demand
     before_start = change.schedule.plan_start_time if change.schedule else None
     before_end = change.schedule.plan_end_time if change.schedule else None
     before_device = change.schedule.device.device_name if change.schedule and change.schedule.device else ''
@@ -2924,6 +2968,15 @@ def _action_process_change(request, payload):
             return sample_error
     change.change_status = ChangeRequest.Status.APPLIED
     change.save(update_fields=['change_status', 'update_time'])
+    order.test_demand = change.new_test_demand
+    order.sales_confirmed_at = None
+    order.save(update_fields=['test_demand', 'sales_confirmed_at', 'update_time'])
+    if change.schedule:
+        change.schedule.remark = change.new_test_demand
+        change.schedule.save(update_fields=['remark', 'update_time'])
+        change.schedule.experiments.filter(
+            test_status__in=[Experiment.Status.WAITING, Experiment.Status.RUNNING],
+        ).update(test_item_list=change.new_test_demand, update_time=timezone.now())
     _event(
         order,
         request.user,
@@ -2931,6 +2984,7 @@ def _action_process_change(request, payload):
         event_type=WorkflowEvent.EventType.CHANGE,
         action_code='lab_change_process',
         changes={
+            'test_demand': _audit_change('试验需求', before_demand, order.test_demand),
             'plan_start_time': _audit_change('计划开始', before_start, change.schedule.plan_start_time if change.schedule else None),
             'plan_end_time': _audit_change('计划结束', before_end, change.schedule.plan_end_time if change.schedule else None),
             'device': _audit_change('试验设备', before_device, change.schedule.device.device_name if change.schedule and change.schedule.device else ''),
