@@ -1,8 +1,8 @@
 {
   "requested": 10,
   "method": "Frontend browser UI only",
-  "status": "in_progress",
-  "updated_at": "2026-09-13T12:03:19.988Z",
+  "status": "completed",
+  "updated_at": "2026-09-13T14:20:22.181Z",
   "orders": [
     {
       "case": 1,
@@ -10,8 +10,9 @@
       "project": "车载网关温度循环验证",
       "scenario": "business_reject_resubmit",
       "marker": "UI-BRANCH-20260913-01",
-      "status": "pending_review",
-      "order": "LIMS-2026-0154"
+      "status": "closed_verified",
+      "order": "LIMS-2026-0154",
+      "final_ui_evidence": "- row \"LIMS-2026-0154 苏州景拓汽车电子有限公司 车载网关温度循环验证 自主 苏州内部实验室 已开票办结 销售一号 无可操作\":"
     },
     {
       "case": 2,
@@ -20,7 +21,8 @@
       "scenario": "technical_reject_cancel",
       "marker": "UI-BRANCH-20260913-02",
       "status": "cancelled_verified",
-      "order": "LIMS-2026-0155"
+      "order": "LIMS-2026-0155",
+      "final_ui_evidence": "- row \"LIMS-2026-0155 无锡朗川精密科技有限公司 连接器振动可行性验证 自主 待分配 退单 销售一号 无可操作\":"
     },
     {
       "case": 3,
@@ -28,8 +30,9 @@
       "project": "电池监控模块湿热验证",
       "scenario": "pre_sample_change",
       "marker": "UI-BRANCH-20260913-03",
-      "status": "pending_review",
-      "order": "LIMS-2026-0156"
+      "status": "closed_verified",
+      "order": "LIMS-2026-0156",
+      "final_ui_evidence": "- row \"LIMS-2026-0156 常州泽衡新能源有限公司 电池监控模块湿热验证 自主 苏州内部实验室 已开票办结 销售一号 无可操作\":"
     },
     {
       "case": 4,
@@ -37,8 +40,9 @@
       "project": "电机驱动器温升验证",
       "scenario": "during_test_change",
       "marker": "UI-BRANCH-20260913-04",
-      "status": "pending_review",
-      "order": "LIMS-2026-0157"
+      "status": "closed_verified",
+      "order": "LIMS-2026-0157",
+      "final_ui_evidence": "- row \"LIMS-2026-0157 江阴旭澜机电有限公司 电机驱动器温升验证 自主 江阴内部实验室 已开票办结 销售一号 无可操作\":"
     },
     {
       "case": 5,
@@ -46,8 +50,9 @@
       "project": "压力传感器低温验证",
       "scenario": "sales_report_reject",
       "marker": "UI-BRANCH-20260913-05",
-      "status": "pending_review",
-      "order": "LIMS-2026-0158"
+      "status": "closed_verified",
+      "order": "LIMS-2026-0158",
+      "final_ui_evidence": "- row \"LIMS-2026-0158 南京启珩传感技术有限公司 压力传感器低温验证 自主 苏州内部实验室 已开票办结 销售一号 无可操作\":"
     },
     {
       "case": 6,
@@ -55,8 +60,9 @@
       "project": "配电控制器高温验证",
       "scenario": "gm_report_reject",
       "marker": "UI-BRANCH-20260913-06",
-      "status": "pending_review",
-      "order": "LIMS-2026-0159"
+      "status": "closed_verified",
+      "order": "LIMS-2026-0159",
+      "final_ui_evidence": "- row \"LIMS-2026-0159 南通望舒电气有限公司 配电控制器高温验证 自主 江阴内部实验室 已开票办结 销售一号 无可操作\":"
     },
     {
       "case": 7,
@@ -64,8 +70,9 @@
       "project": "材料盐雾委外验证",
       "scenario": "outsource_full",
       "marker": "UI-BRANCH-20260913-07",
-      "status": "pending_review",
-      "order": "LIMS-2026-0160"
+      "status": "closed_verified",
+      "order": "LIMS-2026-0160",
+      "final_ui_evidence": "- row \"LIMS-2026-0160 委外订单 上海澄序工业技术有限公司 材料盐雾委外验证 委外 外部委外 已开票办结 销售一号 无可操作\":"
     },
     {
       "case": 8,
@@ -73,8 +80,9 @@
       "project": "控制模块振动与盐雾验证",
       "scenario": "mixed_routes",
       "marker": "UI-BRANCH-20260913-08",
-      "status": "pending_review",
-      "order": "LIMS-2026-0161"
+      "status": "closed_verified",
+      "order": "LIMS-2026-0161",
+      "final_ui_evidence": "- row \"LIMS-2026-0161 委外订单 杭州沐辰智能装备有限公司 控制模块振动与盐雾验证 自主 委外 多路径并行 已开票办结 销售一号 无可操作\":"
     },
     {
       "case": 9,
@@ -82,8 +90,9 @@
       "project": "线束接插件湿热验证",
       "scenario": "preinvoice_void_limits",
       "marker": "UI-BRANCH-20260913-09",
-      "status": "pending_review",
-      "order": "LIMS-2026-0162"
+      "status": "closed_verified",
+      "order": "LIMS-2026-0162",
+      "final_ui_evidence": "- row \"LIMS-2026-0162 宁波泊远汽车部件有限公司 线束接插件湿热验证 自主 苏州内部实验室 已开票办结 销售一号 无可操作\":"
     },
     {
       "case": 10,
@@ -91,8 +100,9 @@
       "project": "光电模块温度冲击验证",
       "scenario": "final_invoice_void_reopen",
       "marker": "UI-BRANCH-20260913-10",
-      "status": "pending_review",
-      "order": "LIMS-2026-0163"
+      "status": "closed_verified",
+      "order": "LIMS-2026-0163",
+      "final_ui_evidence": "- row \"LIMS-2026-0163 合肥知衡光电有限公司 光电模块温度冲击验证 自主 江阴内部实验室 已开票办结 销售一号 无可操作\":"
     }
   ],
   "events": [
@@ -431,6 +441,563 @@
       "order": "LIMS-2026-0156",
       "action": "pending_change_confirm_bug_fixed",
       "evidence": "      - row \"LIMS-2026-0156 常州泽衡新能源有限公司 电池监控模块湿热验证 自主 苏州内部实验室 排期中 销售一号 填写更改单\":"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "change_applied",
+      "evidence": "      - row \"Select this row LIMS-2026-0156 常州泽衡新能源有限公司 电池监控模块湿热验证 UI-BRANCH-20260913-03：模拟客户到样前变更，样品从3件增加至5件，湿热观察由24小时调整为48小时，交付顺延。 E2E 苏州专用测试台 E2E-SZ-20260912 2026-10-04 - 2026-10-05 预入库 2026-09-14 00:00 实入库 尚未入库 出库 尚未出库 排期中 新建 苏州实验室负责人 · 2026-09-13 20:12 样品未到 尚未开始 订单详情 重新排期 样品入库 待销售确认需求\":"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "sales_reconfirmed_after_change"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "preinvoice_full_balance_blocked",
+      "amount": 20000,
+      "evidence": "提交后预开票弹窗仍保留，未关闭"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "preinvoice_created",
+      "invoice": "SIM-BR-20260913-09-P1",
+      "amount": 4000
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "preinvoice_submitted",
+      "invoice": "SIM-BR-20260913-09-P2",
+      "amount": 3000
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0163",
+      "action": "preinvoice_submitted",
+      "invoice": "SIM-BR-20260913-10-P1",
+      "amount": 5000
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "preinvoice_void",
+      "invoice": "SIM-BR-20260913-09-P1",
+      "amount": 4000,
+      "empty_reason_blocked": true,
+      "evidence": "      - row \"LIMS-2026-0162 暂未生成报告 宁波泊远汽车部件有限公司 线束接插件湿热验证 评审后预开票 实验未结束 13000.00 订单 20000.00 · 已开 7000.00 · 余额 13000.00 待预开票 排期中 订单详情 预开票\":\n      - row \"SIM-BR-20260913-09-P2 LIMS-2026-0162 宁波泊远汽车部件有限公司 线束接插件湿热验证 评审后预开票 实验未结束 3000.00 订单 20000.00 · 已开 7000.00 · 余额 13000.00 未收款 未办结 2026-09-13 会计一号 订单详情 更新回款 作废\":\n      - row \"SIM-BR-20260913-09-P1 LIMS-2026-0162 宁波泊远汽车部件有限公司 线束接插件湿热验证 评审后预开票 实验未结束 4000.00 订单 20000.00 · 已开 7000.00 · 余额 13000.00 未收款 未办结 2026-09-13 会计一号 订单详情 更新回款 作废\":"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "void_balance_verified_and_payment_updated",
+      "valid_amount": 3000,
+      "remaining": 17000,
+      "paid_invoice": "SIM-BR-20260913-09-P2"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "operator_sample_arrival",
+      "missing_sample_start_hidden": true
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0154",
+      "action": "internal_started_ended_and_submitted",
+      "actor": "suzhou_operator01"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "internal_start"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "internal_end"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "internal_submit"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0158",
+      "action": "internal_start"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0158",
+      "action": "internal_end"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0158",
+      "action": "internal_submit"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "internal_start"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "internal_end"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "internal_submit"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "internal_start"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "internal_end"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0160",
+      "action": "internal_submit"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "internal_start"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "during_test_change_created",
+      "actor": "jiangyin_operator01"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0160",
+      "action": "outsource_result_returned_and_submitted",
+      "actor": "suzhou_operator01"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0159",
+      "action": "internal_start"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0159",
+      "action": "internal_end"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0159",
+      "action": "internal_submit"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0163",
+      "action": "internal_start"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0163",
+      "action": "internal_end"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0163",
+      "action": "internal_submit"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "internal_submit"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "mixed_outsource_result_submitted",
+      "actor": "jiangyin_operator01",
+      "internal_alone_did_not_advance": true
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "during_test_change_processed",
+      "start": "2026-09-30",
+      "end": "2026-10-01"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "sales_reconfirmed_during_test_change"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "ended_unsubmitted_visible_to_accountant",
+      "stage": "实验结束后预开票",
+      "result_state": "实验已结束，结果待提交"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "ended_stage_preinvoice",
+      "invoice": "SIM-BR-20260913-09-P3",
+      "amount": 2000
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "internal_submit"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "sample_outbound",
+      "actor": "suzhou_operator01"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0154",
+      "action": "report_created_pdf_download_event",
+      "report": "RPT-LIMS-2026-0154-01",
+      "version": "正式版"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "report_created_pdf_download_event",
+      "version": "仅数据",
+      "revision": "首次生成",
+      "report": "        - row \"报告编号 RPT-LIMS-2026-0156-01\":"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0158",
+      "action": "report_created_pdf_download_event",
+      "version": "草稿版",
+      "revision": "首次生成",
+      "report": "        - row \"报告编号 RPT-LIMS-2026-0158-01\":"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0160",
+      "action": "report_created_pdf_download_event",
+      "version": "正式版",
+      "revision": "首次生成",
+      "report": "        - row \"报告编号 RPT-LIMS-2026-0160-01\":"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "report_created_pdf_download_event",
+      "version": "正式版",
+      "revision": "首次生成",
+      "report": "        - row \"报告编号 RPT-LIMS-2026-0161-01\":"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "report_created_pdf_download_event",
+      "version": "正式版",
+      "revision": "首次生成",
+      "report": "        - row \"报告编号 RPT-LIMS-2026-0162-01\":"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "internal_end"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "internal_submit"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "report_created_pdf_download_event",
+      "version": "正式版",
+      "report": "        - row \"报告编号 RPT-LIMS-2026-0157-01\":"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0159",
+      "action": "report_created_pdf_download_event",
+      "version": "正式版",
+      "report": "        - row \"报告编号 RPT-LIMS-2026-0159-01\":"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0163",
+      "action": "report_created_pdf_download_event",
+      "version": "正式版",
+      "report": "        - row \"报告编号 RPT-LIMS-2026-0163-01\":"
+    },
+    {
+      "case": 5,
+      "order": "LIMS-2026-0158",
+      "action": "sales_report_rejected"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0154",
+      "action": "sales_report_approved"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "sales_report_approved"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "sales_report_approved"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0159",
+      "action": "sales_report_approved"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0160",
+      "action": "sales_report_approved"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "sales_report_approved"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "sales_report_approved"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0163",
+      "action": "sales_report_approved"
+    },
+    {
+      "case": 6,
+      "order": "LIMS-2026-0159",
+      "action": "gm_report_rejected"
+    },
+    {
+      "case": 1,
+      "order": "LIMS-2026-0154",
+      "action": "gm_report_approved"
+    },
+    {
+      "case": 3,
+      "order": "LIMS-2026-0156",
+      "action": "gm_report_approved"
+    },
+    {
+      "case": 4,
+      "order": "LIMS-2026-0157",
+      "action": "gm_report_approved"
+    },
+    {
+      "case": 7,
+      "order": "LIMS-2026-0160",
+      "action": "gm_report_approved"
+    },
+    {
+      "case": 8,
+      "order": "LIMS-2026-0161",
+      "action": "gm_report_approved"
+    },
+    {
+      "case": 9,
+      "order": "LIMS-2026-0162",
+      "action": "gm_report_approved"
+    },
+    {
+      "case": 10,
+      "order": "LIMS-2026-0163",
+      "action": "gm_report_approved"
+    },
+    {
+      "order": "LIMS-2026-0158",
+      "action": "sales_rejection_remake_pdf_download",
+      "evidence": "        - row \"报告编号 RPT-LIMS-2026-0158-01\":"
+    },
+    {
+      "order": "LIMS-2026-0159",
+      "action": "gm_rejection_remake_pdf_download",
+      "evidence": "        - row \"报告编号 RPT-LIMS-2026-0159-01\":"
+    },
+    {
+      "order": "LIMS-2026-0159",
+      "action": "remade_report_graph_bug",
+      "evidence": "报告待销售初审，但图形节点销售初审显示已完成。旧轮次审核被复用。"
+    },
+    {
+      "order": "LIMS-2026-0159",
+      "action": "remade_report_graph_fixed",
+      "evidence": "销售初审当前处理，总经理终审待处理；旧审核未计入新轮次。",
+      "commit": "1d9ff6e"
+    },
+    {
+      "order": "LIMS-2026-0158",
+      "action": "remade_sales_approve"
+    },
+    {
+      "order": "LIMS-2026-0159",
+      "action": "remade_sales_approve"
+    },
+    {
+      "order": "LIMS-2026-0158",
+      "action": "remade_gm_approve"
+    },
+    {
+      "order": "LIMS-2026-0159",
+      "action": "remade_gm_approve"
+    },
+    {
+      "order": "LIMS-2026-0154",
+      "action": "final_invoice_submitted",
+      "invoice": "SIM-BR-20260913-01-F1",
+      "expected_amount": 20000
+    },
+    {
+      "order": "LIMS-2026-0156",
+      "action": "final_invoice_submitted",
+      "invoice": "SIM-BR-20260913-03-F1",
+      "expected_amount": 20000
+    },
+    {
+      "order": "LIMS-2026-0157",
+      "action": "final_invoice_submitted",
+      "invoice": "SIM-BR-20260913-04-F1",
+      "expected_amount": 20000
+    },
+    {
+      "order": "LIMS-2026-0158",
+      "action": "final_invoice_submitted",
+      "invoice": "SIM-BR-20260913-05-F1",
+      "expected_amount": 20000
+    },
+    {
+      "order": "LIMS-2026-0159",
+      "action": "final_invoice_submitted",
+      "invoice": "SIM-BR-20260913-06-F1",
+      "expected_amount": 20000
+    },
+    {
+      "order": "LIMS-2026-0160",
+      "action": "final_invoice_submitted",
+      "invoice": "SIM-BR-20260913-07-F1",
+      "expected_amount": 20000
+    },
+    {
+      "order": "LIMS-2026-0161",
+      "action": "final_invoice_submitted",
+      "invoice": "SIM-BR-20260913-08-F1",
+      "expected_amount": 20000
+    },
+    {
+      "order": "LIMS-2026-0162",
+      "action": "final_invoice_submitted",
+      "invoice": "SIM-BR-20260913-09-F1",
+      "expected_amount": 15000
+    },
+    {
+      "order": "LIMS-2026-0163",
+      "action": "final_invoice_submitted",
+      "invoice": "SIM-BR-20260913-10-F1",
+      "expected_amount": 15000
+    },
+    {
+      "order": "LIMS-2026-0163",
+      "action": "final_invoice_void_submitted",
+      "invoice": "SIM-BR-20260913-10-F1"
+    },
+    {
+      "order": "LIMS-2026-0163",
+      "action": "final_void_balance_reopened_verified",
+      "evidence": "      - row \"LIMS-2026-0163 委外订单 RPT-LIMS-2026-0163-01 合肥知衡光电有限公司 光电模块温度冲击验证 最终总开票 实验结果已提交 15000.00 订单 20000.00 · 已开 5000.00 · 余额 15000.00 待开票 报告审核中 订单详情 最终总开票\":\n      - row \"SIM-BR-20260913-10-F1 LIMS-2026-0163 合肥知衡光电有限公司 光电模块温度冲击验证 最终总开票 实验结果已提交 15000.00 订单 20000.00 · 已开 5000.00 · 余额 15000.00 未收款 已作废 未办结 2026-09-13 22:16 · 模拟回归：最终票抬头录入错误，作废验证订单重新打开及15000元余额恢复，保留原5000元预开票。 2026-09-13 会计一号 订单详情\":\n      - row \"SIM-BR-20260913-10-P1 LIMS-2026-0163 合肥知衡光电有限公司 光电模块温度冲击验证 评审后预开票 实验结果已提交 5000.00 订单 20000.00 · 已开 5000.00 · 余额 15000.00 未收款 未办结 2026-09-13 会计一号 订单详情 更新回款 作废\":"
+    },
+    {
+      "order": "LIMS-2026-0163",
+      "action": "final_invoice_reissue_submitted",
+      "invoice": "SIM-BR-20260913-10-F2",
+      "expected_amount": 15000
+    },
+    {
+      "order": "LIMS-2026-0163",
+      "action": "final_reissue_closed_verified",
+      "evidence": "      - row \"SIM-BR-20260913-10-F2 LIMS-2026-0163 合肥知衡光电有限公司 光电模块温度冲击验证 最终总开票 实验结果已提交 15000.00 订单 20000.00 · 已开 20000.00 · 余额 0.00 未收款 全部流程完成 2026-09-13 会计一号 订单详情 更新回款 作废\":\n      - row \"SIM-BR-20260913-10-F1 LIMS-2026-0163 合肥知衡光电有限公司 光电模块温度冲击验证 最终总开票 实验结果已提交 15000.00 订单 20000.00 · 已开 20000.00 · 余额 0.00 已作废 未办结 2026-09-13 22:16 · 模拟回归：最终票抬头录入错误，作废验证订单重新打开及15000元余额恢复，保留原5000元预开票。 2026-09-13 会计一号 订单详情\":\n      - row \"SIM-BR-20260913-10-P1 LIMS-2026-0163 合肥知衡光电有限公司 光电模块温度冲击验证 评审后预开票 实验结果已提交 5000.00 订单 20000.00 · 已开 20000.00 · 余额 0.00 未收款 未办结 2026-09-13 会计一号 订单详情 更新回款 作废\":"
+    },
+    {
+      "order": "LIMS-2026-0163",
+      "action": "preinvoice_void_blocked_with_valid_final",
+      "evidence": "界面仍提供作废按钮；提交后显示：订单已有有效的最终总票，请先由最终票开票人作废最终总票。"
+    },
+    {
+      "action": "all_ten_final_sales_ui_readback",
+      "evidence": [
+        "      - row \"LIMS-2026-0163 合肥知衡光电有限公司 光电模块温度冲击验证 自主 江阴内部实验室 已开票办结 销售一号 无可操作\":",
+        "      - row \"LIMS-2026-0162 宁波泊远汽车部件有限公司 线束接插件湿热验证 自主 苏州内部实验室 已开票办结 销售一号 无可操作\":",
+        "      - row \"LIMS-2026-0161 委外订单 杭州沐辰智能装备有限公司 控制模块振动与盐雾验证 自主 委外 多路径并行 已开票办结 销售一号 无可操作\":",
+        "      - row \"LIMS-2026-0160 委外订单 上海澄序工业技术有限公司 材料盐雾委外验证 委外 外部委外 已开票办结 销售一号 无可操作\":",
+        "      - row \"LIMS-2026-0159 南通望舒电气有限公司 配电控制器高温验证 自主 江阴内部实验室 已开票办结 销售一号 无可操作\":",
+        "      - row \"LIMS-2026-0158 南京启珩传感技术有限公司 压力传感器低温验证 自主 苏州内部实验室 已开票办结 销售一号 无可操作\":",
+        "      - row \"LIMS-2026-0157 江阴旭澜机电有限公司 电机驱动器温升验证 自主 江阴内部实验室 已开票办结 销售一号 无可操作\":",
+        "      - row \"LIMS-2026-0156 常州泽衡新能源有限公司 电池监控模块湿热验证 自主 苏州内部实验室 已开票办结 销售一号 无可操作\":",
+        "      - row \"LIMS-2026-0155 无锡朗川精密科技有限公司 连接器振动可行性验证 自主 待分配 退单 销售一号 无可操作\":",
+        "      - row \"LIMS-2026-0154 苏州景拓汽车电子有限公司 车载网关温度循环验证 自主 苏州内部实验室 已开票办结 销售一号 无可操作\":"
+      ]
+    },
+    {
+      "order": "LIMS-2026-0163",
+      "action": "invoice_void_visibility_fixed_verified",
+      "evidence": "重登会计后，有效最终票F2保留作废；已作废F1及受最终票保护的预开票P1均无作废按钮。余额0，累计有效开票20000。"
     }
-  ]
+  ],
+  "summary": {
+    "orders": 10,
+    "closed": 9,
+    "cancelled": 1,
+    "ui_only_business_operations": true,
+    "direct_workflow_api_calls": false,
+    "direct_production_database_writes": false,
+    "report_download_events": 11,
+    "unit_tests_passed": 60,
+    "coverage": [
+      "商务驳回修改重提",
+      "技术驳回退单",
+      "样品前变更",
+      "试验中变更",
+      "纯委外",
+      "内部与委外混合汇总",
+      "销售报告驳回重制重审",
+      "总经理报告驳回重制双级重审",
+      "双评审后预开票",
+      "实验结束未提交结果时预开票",
+      "多次预开票及限额",
+      "预开票作废余额回补",
+      "回款状态更新",
+      "最终总开票",
+      "最终票作废重开",
+      "有效最终票下禁止预开票作废"
+    ],
+    "limits": [
+      "不代表所有角色权限组合、并发和压力场景均已覆盖",
+      "PDF验证为浏览器下载事件，未逐份独立渲染核验",
+      "订单及票据为明确标记的模拟记录，不是真实业务或税务开票"
+    ]
+  }
 }

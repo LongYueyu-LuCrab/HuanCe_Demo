@@ -893,6 +893,11 @@ def _invoice_payload(invoice, current_user=None):
     order = invoice.order
     report = invoice.report
     invoiced_total, remaining_amount = _invoice_amounts(order)
+    has_valid_final = any(
+        record.invoice_stage == Invoice.Stage.FINAL
+        and record.record_status == Invoice.RecordStatus.VALID
+        for record in order.invoices.all()
+    ) if invoice.invoice_stage != Invoice.Stage.FINAL else False
     return {
         'invoice_no': invoice.invoice_no,
         'order_no': order.order_no,
@@ -919,6 +924,7 @@ def _invoice_payload(invoice, current_user=None):
             current_user
             and invoice.record_status == Invoice.RecordStatus.VALID
             and invoice.finance_user_id == current_user.id
+            and not has_valid_final
         ),
         'voided_by': invoice.voided_by.first_name or invoice.voided_by.username
         if invoice.voided_by
