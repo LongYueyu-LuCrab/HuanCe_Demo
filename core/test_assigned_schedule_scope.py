@@ -37,6 +37,12 @@ class AssignedScheduleScopeTests(SimpleTestCase):
         _, _, error = self.query({'scope': 'assigned', 'lab_type': '2'})
         self.assertEqual(error.status_code, 403)
 
+    def test_outsource_filter_keeps_owner_scope(self):
+        rows, _, error = self.query({'scope': 'assigned', 'test_type': '3'})
+        self.assertIsNone(error)
+        self.assertIn('"test_type" = 3', str(rows.query))
+        self.assertIn('"lab_manager_id" = 701', str(rows.query))
+
     def test_chairman_can_query_assigned_tasks_without_lab_selector(self):
         rows, _, error = self.query({'scope': 'assigned'}, chairman=True, lab_type=None)
         self.assertIsNone(error)

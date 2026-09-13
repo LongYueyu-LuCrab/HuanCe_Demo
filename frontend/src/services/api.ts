@@ -181,6 +181,7 @@ export async function fetchAvailableDevices(scheduleId: number, startDate: strin
 export type LabOrderQuery = {
   lab_type?: number
   scope?: 'assigned'
+  test_type?: number
   keyword?: string
   order_status?: string
   schedule_status?: string

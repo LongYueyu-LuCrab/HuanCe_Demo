@@ -234,7 +234,7 @@ async function exportOrders(selectedOnly: boolean) {
                 <el-button v-if="(row.status_key === 3 || row.status_key === 4) && ![4, 5].includes(row.schedule_status_key)" size="small" type="success" plain @click="emit('workflow', 'sample_arrival', row)">{{ row.sample_arrived ? '补充样品图片' : '样品入库' }}</el-button>
                 <el-button v-if="row.schedule_status.includes('变更')" size="small" type="warning" plain @click="emit('workflow', 'process_change', row)">处理变更</el-button>
                 <template v-if="row.test_type.includes('委外')">
-                  <el-button v-if="!row.experiment_status.includes('结束') && !row.experiment_status.includes('提交')" size="small" type="success" plain @click="emit('workflow', 'outsource_result', row)">委外回传 / 结束实验</el-button>
+                  <el-button v-if="row.is_scheduled && row.sales_confirmed && row.sample_arrived && !row.experiment_status.includes('结束') && !row.experiment_status.includes('提交')" size="small" type="success" plain @click="emit('workflow', 'outsource_result', row)">委外回传 / 结束实验</el-button>
                 </template>
                 <template v-else>
                   <el-tag v-if="row.is_scheduled && !row.sales_confirmed && !row.experiment_status" size="small" type="info" effect="plain">待销售确认需求</el-tag>

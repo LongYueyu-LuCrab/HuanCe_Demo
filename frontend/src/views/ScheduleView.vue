@@ -9,6 +9,7 @@ import { useSession } from '../stores/session'
 import type { LabDevice, OrderItem, ScheduleItem } from '../types'
 
 const session = useSession()
+const props = defineProps<{ outsourcedOnly?: boolean }>()
 const schedules = ref<ScheduleItem[]>([])
 const scheduleTotal = ref(0)
 const schedulesLoading = ref(false)
@@ -19,7 +20,7 @@ async function loadSchedules(query: LabOrderQuery = scheduleQuery) {
   const request = ++scheduleRequest
   schedulesLoading.value = true
   try {
-    const data = await fetchLaboratoryOrders({ ...query, scope: 'assigned' })
+    const data = await fetchLaboratoryOrders({ ...query, scope: 'assigned', test_type: props.outsourcedOnly ? 3 : undefined })
     if (request !== scheduleRequest) return
     schedules.value = data.items
     scheduleTotal.value = data.total
@@ -146,7 +147,7 @@ async function submitWorkflow() {
 
 <template>
   <div class="page-stack">
-    <div class="page-toolbar"><div><h2>排期与任务</h2><p>实验室负责人在这里维护本人负责的内部及委外任务、样品、变更和报告。</p></div></div>
+    <div class="page-toolbar"><div><h2>{{ outsourcedOnly ? '委外排期与执行' : '排期与任务' }}</h2><p>实验室负责人在这里维护本人负责的内部及委外任务、样品、变更和报告。</p></div></div>
     <ScheduleTable :orders="schedules" :user="session.state.user" remote :total="scheduleTotal" :loading="schedulesLoading" @query="loadSchedules" @detail="openOrderDetail" @workflow="openWorkflow" />
 
     <el-dialog v-model="dialogVisible" title="实验室任务操作" width="min(960px, 94vw)">

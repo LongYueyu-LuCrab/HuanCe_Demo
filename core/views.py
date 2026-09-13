@@ -1805,6 +1805,8 @@ def _laboratory_schedule_queryset(request):
             )
     else:
         schedules = schedules.filter(_lab_schedule_query(lab_type))
+    if request.GET.get('test_type') in {'1', '2', '3'}:
+        schedules = schedules.filter(test_type=int(request.GET['test_type']))
     keyword = (request.GET.get('keyword') or '').strip()
     if keyword:
         schedules = schedules.filter(
