@@ -78,6 +78,7 @@ const pagedOrders = computed(() => {
 
 const roleSet = computed(() => new Set(props.user?.roles || []))
 const isChairman = computed(() => Boolean(props.user?.is_chairman))
+const isBusinessDept = computed(() => roleSet.value.has('商务部'))
 const canLabOperate = computed(() => isChairman.value || roleSet.value.has('苏州实验室') || roleSet.value.has('江阴实验室') || roleSet.value.has('实验操作员'))
 const canIssueReport = computed(() => isChairman.value || roleSet.value.has('苏州实验室') || roleSet.value.has('江阴实验室'))
 
@@ -228,20 +229,20 @@ async function exportOrders(selectedOnly: boolean) {
         <template #default="{ row }">
           <div class="row-actions">
             <el-button size="small" plain @click="emit('detail', row)">订单详情</el-button>
+            <el-button v-if="isBusinessDept && row.workflow_version === 2 && [3, 4].includes(row.status_key) && ![2, 4, 5].includes(row.schedule_status_key)" size="small" type="primary" plain @click="emit('workflow', 'schedule_assign', row)">{{ row.is_scheduled ? '重新排期' : '排期 / 排台' }}</el-button>
             <template v-if="canLabOperate">
               <template v-if="row.workflow_version === 2">
                 <el-button v-if="(row.status_key === 3 || row.status_key === 4) && ![4, 5].includes(row.schedule_status_key) && !row.schedule_status.includes('变更')" size="small" type="primary" plain @click="emit('workflow', 'schedule_assign', row)">{{ row.is_scheduled ? '重新排期' : '排期 / 排台' }}</el-button>
                 <el-button v-if="(row.status_key === 3 || row.status_key === 4) && ![4, 5].includes(row.schedule_status_key)" size="small" type="success" plain @click="emit('workflow', 'sample_arrival', row)">{{ row.sample_arrived ? '补充样品图片' : '样品入库' }}</el-button>
                 <el-button v-if="row.schedule_status.includes('变更')" size="small" type="warning" plain @click="emit('workflow', 'process_change', row)">处理变更</el-button>
                 <template v-if="row.test_type.includes('委外')">
-                  <el-button v-if="row.is_scheduled && row.sales_confirmed && row.sample_arrived && !row.experiment_status.includes('结束') && !row.experiment_status.includes('提交')" size="small" type="success" plain @click="emit('workflow', 'outsource_result', row)">委外回传 / 结束实验</el-button>
+                  <el-button v-if="row.is_scheduled && row.sample_arrived && !row.experiment_status.includes('结束') && !row.experiment_status.includes('提交')" size="small" type="success" plain @click="emit('workflow', 'outsource_result', row)">委外回传 / 结束实验</el-button>
                 </template>
                 <template v-else>
-                  <el-tag v-if="row.is_scheduled && !row.sales_confirmed && !row.experiment_status" size="small" type="info" effect="plain">待销售确认需求</el-tag>
-                  <el-button v-if="row.is_scheduled && row.sales_confirmed && row.sample_arrived && row.device_id && !row.experiment_status" size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
+                  <el-button v-if="row.is_scheduled && row.sample_arrived && row.device_id && !row.experiment_status" size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
                   <el-button v-if="row.experiment_status.includes('试验中')" size="small" type="warning" plain @click="emit('workflow', 'end_test', row)">实验结束</el-button>
                 </template>
-                <el-button v-if="row.experiment_status.includes('待提交结果') && row.sales_confirmed && !row.schedule_status.includes('变更')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">提交结果</el-button>
+                <el-button v-if="row.experiment_status.includes('待提交结果') && !row.schedule_status.includes('变更')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">提交结果</el-button>
                 <el-button v-if="row.sample_arrived && [4, 5].includes(row.schedule_status_key) && !row.sample_outbound_at" size="small" plain @click="emit('workflow', 'sample_outbound', row)">样品出库</el-button>
                 <el-button v-if="row.is_lead && canIssueReport && (row.status_key === 8 || row.status_key === 5)" size="small" type="primary" plain @click="emit('workflow', 'issue_report', row)">汇总出报告</el-button>
               </template>

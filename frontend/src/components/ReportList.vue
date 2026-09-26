@@ -34,7 +34,7 @@ const roleSet = computed(() => new Set(props.user?.roles || []))
 const isChairman = computed(() => Boolean(props.user?.is_chairman))
 
 function hasRole(role: string) {
-  return isChairman.value || roleSet.value.has(role)
+  return isChairman.value || roleSet.value.has(role) || (role === '销售' && roleSet.value.has('商务部'))
 }
 
 function actionsFor(report: ReportItem) {

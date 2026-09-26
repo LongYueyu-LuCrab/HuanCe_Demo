@@ -2,6 +2,11 @@
 
 This document is the development baseline for the Suzhou HuanCe LIMS project. Future work should follow this file unless the user explicitly changes the architecture or business process.
 
+
+## Current workflow override - 2026-09-23
+
+This section supersedes older workflow descriptions below. 商务部 has ordinary sales capabilities plus all-order query/export and direct scheduling/rescheduling. 董事长 performs business review; 总经理 performs technical review and route/lead assignment, in addition to existing duties. Old 商务/技术 reviewer groups are retired. All orders no longer require sales schedule/requirement confirmation: no sales_confirm workflow node, no confirmation gate for start, outsourcing, result submission or report creation. Existing sales_confirmed_at values are historical only and must not be cleared or fabricated. Scheduling, device, sample arrival, pending-change and result completeness checks remain. Sales/商务部 report initial review remains; 总经理 report final review remains. Production V1 orders were explicitly deleted with backups: 140 removed, 145 V2 retained.
+
 ## 1. Project
 
 - Project name: HuanCe LIMS

@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import OrderSnapshot from './OrderSnapshot.vue'
 import OutsourceBadge from './OutsourceBadge.vue'
 import { fetchOrderDetail } from '../services/api'
+import { useSession } from '../stores/session'
 import type { OrderItem, User } from '../types'
 
 const props = defineProps<{
@@ -97,25 +98,25 @@ async function openOrder(order: OrderItem) {
 
 const roleSet = computed(() => new Set(props.user?.roles || []))
 const isChairman = computed(() => Boolean(props.user?.is_chairman))
+const session = useSession()
+const isLabAccount = computed(() => ['苏州实验室', '江阴实验室', '实验操作员', '商务部'].some((role) => (props.user || session.state.user).roles?.includes(role)))
 
 function hasRole(role: string) {
-  return isChairman.value || roleSet.value.has(role)
+  return isChairman.value || roleSet.value.has(role) || (role === '销售' && roleSet.value.has('商务部'))
 }
 
 function actionsFor(order: OrderItem) {
   const actions: Array<{ key: string; label: string; type?: 'primary' | 'danger' | 'warning' | 'success' }> = []
-  if (order.status_key === 1 && (hasRole('商务') || hasRole('技术'))) {
+  const canSalesOperate = hasRole('销售') && (!roleSet.value.has('商务部') || isChairman.value || order.sales_owner_username === props.user?.username)
+  if (order.status_key === 1 && (isChairman.value || roleSet.value.has('总经理'))) {
     actions.push({ key: 'review_pass', label: '评审通过', type: 'success' })
     actions.push({ key: 'review_reject', label: '评审驳回', type: 'danger' })
   }
-  if ([1, 2].includes(order.status_key) && hasRole('销售')) {
+  if ([1, 2].includes(order.status_key) && canSalesOperate) {
     actions.push({ key: 'order_update', label: '修改重提', type: 'primary' })
     actions.push({ key: 'order_cancel', label: '退单', type: 'danger' })
   }
-  if (order.status_key === 3 && hasRole('销售')) {
-    if (order.all_routes_scheduled) {
-      actions.push({ key: 'sales_confirm', label: '确认无变更', type: 'success' })
-    }
+  if (order.status_key === 3 && canSalesOperate) {
     actions.push({ key: 'create_change', label: '填写更改单', type: 'warning' })
   }
   if (order.workflow_version === 1 && [3, 4].includes(order.status_key) && hasRole('质量部')) {
@@ -209,6 +210,7 @@ function actionsFor(order: OrderItem) {
       <el-table-column label="流程操作" fixed="right" min-width="220">
         <template #default="{ row }">
           <div class="row-actions">
+            <el-button v-if="isLabAccount && row.workflow_version === 2 && [3, 4].includes(row.status_key)" size="small" type="primary" plain @click.stop="openOrder(row)">排期 / 查看任务</el-button>
             <el-button
               v-for="action in actionsFor(row)"
               :key="action.key"
@@ -219,7 +221,7 @@ function actionsFor(order: OrderItem) {
             >
               {{ action.label }}
             </el-button>
-            <span v-if="actionsFor(row).length === 0" class="cell-sub">无可操作</span>
+            <span v-if="actionsFor(row).length === 0 && !(isLabAccount && row.workflow_version === 2 && [3, 4].includes(row.status_key))" class="cell-sub">无可操作</span>
           </div>
         </template>
       </el-table-column>

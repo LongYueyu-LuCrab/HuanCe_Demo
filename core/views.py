@@ -27,7 +27,8 @@ from .report_pdf import build_test_report_pdf
 
 ROLE_SALES = '销售'
 ROLE_SALES_MANAGER = '销售经理'
-ROLE_BUSINESS = '商务'
+ROLE_BUSINESS = '商务'  # Retired role; retained only for historical references.
+ROLE_BUSINESS_DEPT = '商务部'
 ROLE_TECH = '技术'
 ROLE_QUALITY = '质量部'
 ROLE_SUZHOU_LAB = '苏州实验室'
@@ -40,8 +41,7 @@ ROLE_CHAIRMAN = '董事长'
 VALID_ROLES = [
     ROLE_SALES,
     ROLE_SALES_MANAGER,
-    ROLE_BUSINESS,
-    ROLE_TECH,
+    ROLE_BUSINESS_DEPT,
     ROLE_QUALITY,
     ROLE_SUZHOU_LAB,
     ROLE_JIANGYIN_LAB,
@@ -143,6 +143,10 @@ def _lab_schedule_query(lab_type):
     )
 
 
+def _can_schedule_task(user, schedule):
+    return ROLE_BUSINESS_DEPT in _roles(user) or _can_operate_schedule(user, schedule)
+
+
 def _can_operate_schedule(user, schedule):
     if _is_chairman(user):
         return True
@@ -196,13 +200,11 @@ def _orders_for_user(user):
         return orders
 
     roles = set(_roles(user))
-    if ROLE_SALES_MANAGER in roles:
+    if ROLE_SALES_MANAGER in roles or ROLE_BUSINESS_DEPT in roles:
         return orders
     query = Q()
-    if ROLE_SALES in roles:
+    if (ROLE_SALES in roles or ROLE_BUSINESS_DEPT in roles):
         query |= Q(sale_user=user)
-    if ROLE_BUSINESS in roles or ROLE_TECH in roles:
-        query |= Q(order_status__in=[LabOrder.Status.PENDING_REVIEW, LabOrder.Status.SCHEDULING])
     if ROLE_QUALITY in roles:
         query |= Q(order_status__in=[
             LabOrder.Status.SCHEDULING,
@@ -336,7 +338,7 @@ def _experiment_lifecycle_payload(order):
 
 
 def _workflow_progress_payload(order):
-    reviews = list(order.reviews.all())
+    reviews = list(_current_reviews(order))
     schedules = list(order.schedules.all())
     reports = list(order.reports.all())
     invoices = list(order.invoices.all())
@@ -449,37 +451,27 @@ def _workflow_progress_payload(order):
         },
         {
             'key': 'business_review', 'sequence': 2, 'phase': 'intake', 'phase_title': '业务准入',
-            'title': '商务评审', 'owner': '商务', 'state': 'pending',
+            'title': '商务评审', 'owner': '董事长', 'state': 'pending',
             'detail': _display_user(latest_business.biz_review_user) if latest_business else '核对报价、成本与交付条件',
             'time': _display_datetime(latest_business.review_time) if latest_business else '',
         },
         {
             'key': 'technical_review', 'sequence': 3, 'phase': 'intake', 'phase_title': '业务准入',
-            'title': '技术评审', 'owner': '技术', 'state': 'pending',
+            'title': '技术评审', 'owner': '总经理', 'state': 'pending',
             'detail': _display_user(latest_technical.tech_review_user) if latest_technical else '核对方法、标准与技术可行性',
             'time': _display_datetime(latest_technical.review_time) if latest_technical else '',
         },
         {
             'key': 'route_assignment', 'sequence': 4, 'phase': 'preparation', 'phase_title': '实施准备',
-            'title': '路径与主责分配', 'owner': '技术' if is_v2 else '商务/质量部', 'state': 'pending',
+            'title': '路径与主责分配', 'owner': '总经理' if is_v2 else '商务/质量部', 'state': 'pending',
             'detail': f'已分配{schedule_count}条执行路径' if schedule_count else '选择苏州、江阴、委外路径及主责负责人',
             'time': _display_datetime(min((schedule.create_time for schedule in schedules), default=None)),
         },
         {
             'key': 'scheduling', 'sequence': 5, 'phase': 'preparation', 'phase_title': '实施准备',
-            'title': '排期排台', 'owner': '实验室' if is_v2 else '质量部', 'state': 'pending',
+            'title': '排期排台', 'owner': '实验室/商务部' if is_v2 else '质量部', 'state': 'pending',
             'detail': f'{planned_count}/{schedule_count}条路径完成排期' if schedule_count else '等待执行路径分配',
             'time': _display_datetime(latest_scheduling_time),
-        },
-        {
-            'key': 'sales_confirmation', 'sequence': 6, 'phase': 'preparation', 'phase_title': '实施准备',
-            'title': '销售确认需求', 'owner': '销售', 'state': 'pending',
-            'detail': (
-                '已确认样品与试验需求' if order.sales_confirmed_at
-                else '流程已继续，历史记录未保存确认时间' if advanced_to_testing
-                else '等待确认排期与需求是否变更'
-            ),
-            'time': _display_datetime(order.sales_confirmed_at),
         },
         {
             'key': 'sample_arrival', 'sequence': 7, 'phase': 'preparation', 'phase_title': '实施准备',
@@ -532,6 +524,8 @@ def _workflow_progress_payload(order):
             'time': _display_datetime(final_invoice.invoice_date) if final_invoice else '',
         },
     ]
+    for sequence, step in enumerate(steps, start=1):
+        step['sequence'] = sequence
     step_map = {step['key']: step for step in steps}
 
     completed = {
@@ -540,9 +534,6 @@ def _workflow_progress_payload(order):
         'technical_review': bool(latest_technical or advanced_to_scheduling),
         'route_assignment': bool(schedule_count or advanced_to_testing),
         'scheduling': bool((schedule_count and planned_count == schedule_count) or advanced_to_testing),
-        'sales_confirmation': bool(order.sales_confirmed_at or advanced_to_testing) and not any(
-            schedule.schedule_status == SchedulePlan.Status.CHANGE_PENDING for schedule in schedules
-        ),
         'sample_arrival': bool((schedule_count and arrived_count == schedule_count) or advanced_to_testing),
         'experiment': experiments_ended,
         'result_submission': results_submitted,
@@ -583,7 +574,7 @@ def _workflow_progress_payload(order):
         summary = '商务与技术并行评审'
     elif order.order_status == LabOrder.Status.SCHEDULING:
         current_keys = [next(
-            (key for key in ['route_assignment', 'scheduling', 'sales_confirmation', 'sample_arrival'] if step_map[key]['state'] != 'completed'),
+            (key for key in ['route_assignment', 'scheduling', 'sample_arrival'] if step_map[key]['state'] != 'completed'),
             'experiment',
         )]
     elif order.order_status == LabOrder.Status.TESTING:
@@ -837,15 +828,22 @@ def _invoice_amounts(order):
     return invoiced_total, remaining_amount
 
 
+def _current_reviews(order):
+    reviews = order.reviews.all()
+    if order.review_reset_at:
+        reviews = reviews.filter(create_time__gte=order.review_reset_at)
+    return reviews
+
+
 def _has_dual_review_pass(order):
     prefetched_reviews = getattr(order, '_prefetched_objects_cache', {}).get('reviews')
     if prefetched_reviews is not None:
-        approved_reviews = [review for review in prefetched_reviews if review.review_result]
+        approved_reviews = [review for review in prefetched_reviews if review.review_result and (not order.review_reset_at or review.create_time >= order.review_reset_at)]
         return (
             any(review.biz_review_user_id for review in approved_reviews)
             and any(review.tech_review_user_id for review in approved_reviews)
         )
-    reviews = order.reviews.filter(review_result=True)
+    reviews = _current_reviews(order).filter(review_result=True)
     return reviews.filter(biz_review_user__isnull=False).exists() and reviews.filter(tech_review_user__isnull=False).exists()
 
 
@@ -1232,7 +1230,7 @@ def _lab_payload(test_type, name, related_orders=None, user=None):
         schedules = schedules.filter(order__in=related_orders)
     if user is not None and not _is_chairman(user):
         roles = set(_roles(user))
-        can_view_lab = ROLE_QUALITY in roles or ROLE_GENERAL_MANAGER in roles
+        can_view_lab = ROLE_QUALITY in roles or ROLE_GENERAL_MANAGER in roles or ROLE_BUSINESS_DEPT in roles
         if ROLE_SUZHOU_LAB in roles and test_type == SchedulePlan.TestType.SUZHOU:
             can_view_lab = True
             schedules = schedules.filter(lab_manager=user)
@@ -1258,7 +1256,7 @@ def _pending_reports_for_user(user, related_orders):
         return reports
     roles = set(_roles(user))
     query = Q()
-    if ROLE_SALES in roles:
+    if (ROLE_SALES in roles or ROLE_BUSINESS_DEPT in roles):
         query |= Q(order__sale_user=user)
     if ROLE_GENERAL_MANAGER in roles:
         return reports
@@ -1598,6 +1596,8 @@ def add_employee(request):
 
     if not username or not password:
         return JsonResponse({'ok': False, 'error': '用户名和密码必填'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if role not in VALID_ROLES:
+        return JsonResponse({'ok': False, 'error': '请选择有效岗位；商务评审由董事长负责，技术评审由总经理负责'}, status=400)
     if role == ROLE_QUALITY:
         return JsonResponse({'ok': False, 'error': 'V2 工作流已取消质量部岗位，请选择实验室负责人'}, status=400, json_dumps_params={'ensure_ascii': False})
     if role == ROLE_LAB_OPERATOR and lab_type not in LabDevice.LabType.values:
@@ -1759,7 +1759,7 @@ def lab_device_availability(request):
     auth_error = _require_auth(request)
     if auth_error:
         return auth_error
-    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
+    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_BUSINESS_DEPT)
     if role_error:
         return role_error
     try:
@@ -1769,7 +1769,7 @@ def lab_device_availability(request):
     schedule = SchedulePlan.objects.select_related('order').filter(id=schedule_id).first()
     if not schedule or schedule.test_type == SchedulePlan.TestType.OUTSOURCE:
         return JsonResponse({'ok': False, 'error': '内部实验室排期不存在'}, status=404, json_dumps_params={'ensure_ascii': False})
-    if not _can_operate_schedule(request.user, schedule):
+    if not _can_schedule_task(request.user, schedule):
         return JsonResponse({'ok': False, 'error': '无权查询该排期设备'}, status=403, json_dumps_params={'ensure_ascii': False})
     start_time, end_time, range_error = _parse_plan_range(
         request.GET.get('start_date'), request.GET.get('end_date')
@@ -1789,7 +1789,7 @@ def lab_device_availability(request):
 
 def _laboratory_schedule_queryset(request):
     assigned_scope = request.GET.get('scope') == 'assigned'
-    global_reader = _is_chairman(request.user) or ROLE_GENERAL_MANAGER in _roles(request.user)
+    global_reader = _is_chairman(request.user) or bool({ROLE_GENERAL_MANAGER, ROLE_BUSINESS_DEPT}.intersection(_roles(request.user)))
     try:
         lab_type = int(request.GET.get('lab_type') or _user_lab_type(request.user) or 0)
     except (TypeError, ValueError):
@@ -1799,7 +1799,7 @@ def _laboratory_schedule_queryset(request):
     allowed_lab_type = _user_lab_type(request.user)
     if not global_reader and allowed_lab_type != lab_type:
         return None, None, JsonResponse({'ok': False, 'error': '无权查询其他实验室订单'}, status=403, json_dumps_params={'ensure_ascii': False})
-    if not _has_any_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_GENERAL_MANAGER):
+    if not _has_any_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_GENERAL_MANAGER, ROLE_BUSINESS_DEPT):
         return None, None, JsonResponse({'ok': False, 'error': '当前岗位无权查询实验室订单'}, status=403, json_dumps_params={'ensure_ascii': False})
 
     schedules = SchedulePlan.objects.select_related(
@@ -1854,6 +1854,13 @@ def _laboratory_schedule_queryset(request):
         schedules = schedules.filter(id__in=selected_ids)
     schedules = schedules.annotate(
         operation_priority=Case(
+            When(
+                order__workflow_version=LabOrder.WorkflowVersion.LAB_DIRECT,
+                order__order_status__in=[LabOrder.Status.SCHEDULING, LabOrder.Status.TESTING],
+                schedule_status=SchedulePlan.Status.NEW,
+                scheduled_at__isnull=True,
+                then=Value(-1),
+            ),
             When(schedule_status=SchedulePlan.Status.CHANGE_PENDING, then=Value(0)),
             When(schedule_status=SchedulePlan.Status.NEW, sample_arrived=True, then=Value(1)),
             When(schedule_status=SchedulePlan.Status.RUNNING, then=Value(2)),
@@ -1983,7 +1990,7 @@ def laboratory_orders_export(request):
 
 def _sales_order_queryset(request, require_sales_role=True):
     roles = set(_roles(request.user))
-    can_view_all_sales_orders = _is_chairman(request.user) or ROLE_SALES_MANAGER in roles
+    can_view_all_sales_orders = _is_chairman(request.user) or ROLE_SALES_MANAGER in roles or ROLE_BUSINESS_DEPT in roles
     if require_sales_role and not can_view_all_sales_orders and ROLE_SALES not in roles:
         return None, JsonResponse(
             {'ok': False, 'error': '仅销售或销售经理可以查询销售订单'},
@@ -2072,7 +2079,7 @@ def sales_manager_orders_export(request):
     workbook = Workbook()
     sheet = workbook.active
     roles = set(_roles(request.user))
-    can_view_all_sales_orders = _is_chairman(request.user) or ROLE_SALES_MANAGER in roles
+    can_view_all_sales_orders = _is_chairman(request.user) or ROLE_SALES_MANAGER in roles or ROLE_BUSINESS_DEPT in roles
     sheet.title = '全部销售订单' if can_view_all_sales_orders else '我的全部订单'
     headers = [
         '序号', '订单号', '销售账号', '销售姓名', '客户名称', '项目名称', '行业', '执行属性',
@@ -2196,7 +2203,7 @@ def create_order(request):
         return JsonResponse({'ok': False, 'error': '请先登录'}, status=401, json_dumps_params={'ensure_ascii': False})
 
     roles = set(_roles(request.user))
-    if not (_is_chairman(request.user) or ROLE_SALES in roles):
+    if not (_is_chairman(request.user) or ROLE_SALES in roles or ROLE_BUSINESS_DEPT in roles):
         return JsonResponse({'ok': False, 'error': '仅销售或董事长可以下单'}, status=403, json_dumps_params={'ensure_ascii': False})
 
     payload, parse_error = _request_order_payload(request)
@@ -2415,7 +2422,7 @@ def download_test_report(request, report_id):
 
 
 PENDING_CHANGE_BLOCKED_ACTIONS = frozenset({
-    'sales_confirm', 'schedule_assign', 'start_test', 'outsource_result',
+    'schedule_assign', 'start_test', 'outsource_result',
     'submit_test', 'issue_report',
 })
 
@@ -2427,16 +2434,7 @@ def _pending_change_error(order, action):
         and order.change_requests.exclude(change_status=ChangeRequest.Status.APPLIED).exists()
     ):
         return JsonResponse(
-            {'ok': False, 'error': '订单存在待处理更改单，请先由实验室处理变更并重新排期，再由销售确认需求。'},
-            status=400, json_dumps_params={'ensure_ascii': False},
-        )
-    if (
-        order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT
-        and action in {'submit_test', 'issue_report'}
-        and not order.sales_confirmed_at
-    ):
-        return JsonResponse(
-            {'ok': False, 'error': '请先由销售确认最新排期和试验需求，再提交结果或出具报告。'},
+            {'ok': False, 'error': '订单存在待处理更改单，请先由实验室处理变更并重新排期。'},
             status=400, json_dumps_params={'ensure_ascii': False},
         )
     return None
@@ -2498,17 +2496,21 @@ def lims_action(request):
 
 
 def _action_review_pass(request, payload):
-    role_error = _require_role(request.user, ROLE_BUSINESS, ROLE_TECH)
+    role_error = _require_role(request.user, ROLE_CHAIRMAN, ROLE_GENERAL_MANAGER)
     if role_error:
         return role_error
     order, error = _get_order(payload)
     if error:
         return error
+    order = LabOrder.objects.select_for_update().get(pk=order.pk)
     if order.order_status != LabOrder.Status.PENDING_REVIEW:
         return JsonResponse({'ok': False, 'error': '只有待评审订单可以评审通过'}, status=400, json_dumps_params={'ensure_ascii': False})
     roles = set(_roles(request.user))
-    is_business = ROLE_BUSINESS in roles
-    is_tech = ROLE_TECH in roles
+    is_business = _is_chairman(request.user)
+    is_tech = not is_business and ROLE_GENERAL_MANAGER in roles
+    field = 'biz_review_user' if is_business else 'tech_review_user'
+    if _current_reviews(order).filter(review_result=True, **{field + '__isnull': False}).exists():
+        return _status_response('当前岗位已评审通过，等待另一岗位评审', order)
     if is_tech and order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
         routing_error = _configure_v2_routes(order, request.user, payload)
         if routing_error:
@@ -2522,8 +2524,8 @@ def _action_review_pass(request, payload):
         review_result=True,
         review_time=timezone.now(),
     )
-    has_business_pass = order.reviews.filter(review_result=True, biz_review_user__isnull=False).exists()
-    has_tech_pass = order.reviews.filter(review_result=True, tech_review_user__isnull=False).exists()
+    has_business_pass = _current_reviews(order).filter(review_result=True, biz_review_user__isnull=False).exists()
+    has_tech_pass = _current_reviews(order).filter(review_result=True, tech_review_user__isnull=False).exists()
     if has_business_pass and has_tech_pass:
         if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
             order.mark_status(LabOrder.Status.SCHEDULING, request.user, '商务与技术双评审通过，技术已分配至实验室负责人')
@@ -2536,19 +2538,20 @@ def _action_review_pass(request, payload):
 
 
 def _action_review_reject(request, payload):
-    role_error = _require_role(request.user, ROLE_BUSINESS, ROLE_TECH)
+    role_error = _require_role(request.user, ROLE_CHAIRMAN, ROLE_GENERAL_MANAGER)
     if role_error:
         return role_error
     order, error = _get_order(payload)
     if error:
         return error
+    order = LabOrder.objects.select_for_update().get(pk=order.pk)
     if order.order_status != LabOrder.Status.PENDING_REVIEW:
         return JsonResponse({'ok': False, 'error': '只有待评审订单可以驳回'}, status=400, json_dumps_params={'ensure_ascii': False})
     reason = payload.get('reject_reason') or '评审不通过，退回销售补充信息。'
     BusinessReview.objects.create(
         order=order,
-        biz_review_user=request.user if ROLE_BUSINESS in _roles(request.user) else _first_user_in_group(ROLE_BUSINESS),
-        tech_review_user=request.user if ROLE_TECH in _roles(request.user) else _first_user_in_group(ROLE_TECH),
+        biz_review_user=request.user if _is_chairman(request.user) else None,
+        tech_review_user=request.user if not _is_chairman(request.user) and ROLE_GENERAL_MANAGER in _roles(request.user) else None,
         biz_quote_detail=payload.get('biz_quote_detail') or '',
         tech_feasible=bool(payload.get('tech_feasible', False)),
         review_result=False,
@@ -2564,7 +2567,7 @@ def _action_review_reject(request, payload):
 
 
 def _action_order_update(request, payload):
-    role_error = _require_role(request.user, ROLE_SALES)
+    role_error = _require_role(request.user, ROLE_SALES, ROLE_BUSINESS_DEPT)
     if role_error:
         return role_error
     order, error = _get_order(payload)
@@ -2572,6 +2575,7 @@ def _action_order_update(request, payload):
         return error
     if not _is_chairman(request.user) and order.sale_user_id != request.user.id:
         return JsonResponse({'ok': False, 'error': '销售只能修改自己的订单'}, status=403, json_dumps_params={'ensure_ascii': False})
+    order = LabOrder.objects.select_for_update().get(pk=order.pk)
     if order.order_status not in [LabOrder.Status.PENDING_REVIEW, LabOrder.Status.REVIEW_REJECTED]:
         return JsonResponse({'ok': False, 'error': '当前订单状态不可修改'}, status=400, json_dumps_params={'ensure_ascii': False})
     order.customer_name = payload.get('customer_name') or order.customer_name
@@ -2587,7 +2591,7 @@ def _action_order_update(request, payload):
         order.total_quote = Decimal(str(payload.get('quoted_amount')))
     order.expect_sample_arrive = _parse_datetime(payload.get('expected_sample_arrival')) or order.expect_sample_arrive
     order.expect_delivery_time = _parse_datetime(payload.get('expected_delivery_date')) or order.expect_delivery_time
-    order.sales_confirmed_at = None
+    order.review_reset_at = timezone.now()
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
         order.lead_lab_manager = None
         order.schedules.filter(samples__isnull=True, experiments__isnull=True).delete()
@@ -2599,7 +2603,7 @@ def _action_order_update(request, payload):
 
 
 def _action_order_cancel(request, payload):
-    role_error = _require_role(request.user, ROLE_SALES)
+    role_error = _require_role(request.user, ROLE_SALES, ROLE_BUSINESS_DEPT)
     if role_error:
         return role_error
     order, error = _get_order(payload)
@@ -2614,37 +2618,15 @@ def _action_order_cancel(request, payload):
 
 
 def _action_sales_confirm(request, payload):
-    role_error = _require_role(request.user, ROLE_SALES)
-    if role_error:
-        return role_error
-    order, error = _get_order(payload)
-    if error:
-        return error
-    if not _is_chairman(request.user) and order.sale_user_id != request.user.id:
-        return JsonResponse({'ok': False, 'error': '销售只能确认自己的订单'}, status=403, json_dumps_params={'ensure_ascii': False})
-    if order.order_status != LabOrder.Status.SCHEDULING:
-        return JsonResponse({'ok': False, 'error': '只有排期中订单可以确认需求'}, status=400, json_dumps_params={'ensure_ascii': False})
-    if (
-        order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT
-        and (
-            not order.schedules.exists()
-            or order.schedules.filter(scheduled_at__isnull=True).exists()
-        )
-    ):
-        return JsonResponse(
-            {'ok': False, 'error': '全部执行路径完成排期排台后，销售才能确认需求'},
-            status=400,
-            json_dumps_params={'ensure_ascii': False},
-        )
-    order.sales_confirmed_at = timezone.now()
-    order.save(update_fields=['sales_confirmed_at', 'update_time'])
-    target = '实验室负责人确认到样状态并执行试验' if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT else '历史质量流程继续处理'
-    _event(order, request.user, payload.get('note') or f'销售确认样品与需求无变更，流转{target}')
-    return _status_response('销售已确认无变更', order)
+    # Retired action: stale clients must refresh instead of recording a fake confirmation.
+    return JsonResponse(
+        {'ok': False, 'error': '销售确认环节已取消，排期后按样品和设备状态继续，请刷新页面。'},
+        status=410, json_dumps_params={'ensure_ascii': False},
+    )
 
 
 def _action_create_change(request, payload):
-    role_error = _require_role(request.user, ROLE_SALES, ROLE_QUALITY, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
+    role_error = _require_role(request.user, ROLE_SALES, ROLE_BUSINESS_DEPT, ROLE_QUALITY, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
     if role_error:
         return role_error
     order, error = _get_order(payload)
@@ -2654,13 +2636,15 @@ def _action_create_change(request, payload):
     if (
         order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT
         and ROLE_QUALITY in roles
-        and not ({ROLE_SALES, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR} & roles)
+        and not ({ROLE_SALES, ROLE_BUSINESS_DEPT, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR} & roles)
         and not _is_chairman(request.user)
     ):
         return JsonResponse({'ok': False, 'error': 'V2 订单已取消质量部操作权限'}, status=403, json_dumps_params={'ensure_ascii': False})
+    if ROLE_BUSINESS_DEPT in roles and not _is_chairman(request.user) and order.sale_user_id != request.user.id:
+        return JsonResponse({'ok': False, 'error': '只能变更自己下单的试验需求'}, status=403)
     scene = int(payload.get('change_scene') or ChangeRequest.Scene.BEFORE_SAMPLE)
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        if ROLE_SALES in roles or _is_chairman(request.user):
+        if ROLE_SALES in roles or ROLE_BUSINESS_DEPT in roles or _is_chairman(request.user):
             target_schedules = list(order.schedules.all())
         else:
             assigned_schedule = _schedule_for_actor(order, payload, request.user)
@@ -2699,8 +2683,6 @@ def _action_create_change(request, payload):
                 },
                 schedule=schedule,
             )
-    order.sales_confirmed_at = None
-    order.save(update_fields=['sales_confirmed_at', 'update_time'])
     order.mark_status(LabOrder.Status.SCHEDULING, request.user, f'创建变更单：{change_content}')
     return _status_response('变更单已创建，回流排期负责人', order)
 
@@ -2845,7 +2827,7 @@ def _action_schedule_assign(request, payload):
     if error:
         return error
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
+        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_BUSINESS_DEPT)
     else:
         role_error = _require_role(request.user, ROLE_QUALITY)
     if role_error:
@@ -2853,7 +2835,12 @@ def _action_schedule_assign(request, payload):
     if order.order_status not in [LabOrder.Status.SCHEDULING, LabOrder.Status.TESTING]:
         return JsonResponse({'ok': False, 'error': '当前订单不可排期'}, status=400, json_dumps_params={'ensure_ascii': False})
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        schedule = _schedule_for_actor(order, payload, request.user)
+        if ROLE_BUSINESS_DEPT in _roles(request.user):
+            schedule = order.schedules.filter(pk=payload.get('schedule_id')).first()
+            # Scheduling must not mutate sample arrival or upload photos.
+            payload.pop('sample_arrived', None)
+        else:
+            schedule = _schedule_for_actor(order, payload, request.user)
         if not schedule:
             return JsonResponse({'ok': False, 'error': '没有分配给当前负责人的任务'}, status=403, json_dumps_params={'ensure_ascii': False})
         if schedule.schedule_status in [SchedulePlan.Status.ENDED, SchedulePlan.Status.FINISHED]:
@@ -2865,6 +2852,7 @@ def _action_schedule_assign(request, payload):
         before_start = schedule.plan_start_time
         before_end = schedule.plan_end_time
         before_device = schedule.device.device_name if schedule.device else ''
+        before_device_id = schedule.device_id
         start_time, end_time, range_error = _parse_plan_range(
             payload.get('plan_start_time'), payload.get('plan_end_time')
         )
@@ -2886,7 +2874,7 @@ def _action_schedule_assign(request, payload):
         schedule.scheduled_by = request.user
         schedule.remark = payload.get('remark') or schedule.remark or order.test_demand
         schedule.save()
-        sample_error, sample_changes = _update_sample_arrival(request, payload, order, schedule)
+        sample_error, sample_changes = (None, {}) if ROLE_BUSINESS_DEPT in _roles(request.user) else _update_sample_arrival(request, payload, order, schedule)
         if sample_error:
             transaction.set_rollback(True)
             return sample_error
@@ -2981,8 +2969,7 @@ def _action_process_change(request, payload):
     change.change_status = ChangeRequest.Status.APPLIED
     change.save(update_fields=['change_status', 'update_time'])
     order.test_demand = change.new_test_demand
-    order.sales_confirmed_at = None
-    order.save(update_fields=['test_demand', 'sales_confirmed_at', 'update_time'])
+    order.save(update_fields=['test_demand', 'update_time'])
     if change.schedule:
         change.schedule.remark = change.new_test_demand
         change.schedule.save(update_fields=['remark', 'update_time'])
@@ -3026,8 +3013,6 @@ def _action_start_test(request, payload):
             status=400,
             json_dumps_params={'ensure_ascii': False},
         )
-    if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not order.sales_confirmed_at:
-        return JsonResponse({'ok': False, 'error': '销售尚未确认需求，不能开始试验'}, status=400, json_dumps_params={'ensure_ascii': False})
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
         if not schedule.device:
             return JsonResponse({'ok': False, 'error': '请先完成设备排台'}, status=400, json_dumps_params={'ensure_ascii': False})
@@ -3191,8 +3176,6 @@ def _action_outsource_result(request, payload):
             status=400,
             json_dumps_params={'ensure_ascii': False},
         )
-    if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT and not order.sales_confirmed_at:
-        return JsonResponse({'ok': False, 'error': '销售尚未确认需求，不能回传委外试验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
     if not schedule.sample_arrived:
         return JsonResponse({'ok': False, 'error': '委外样品尚未到达，不能回传试验结果'}, status=400, json_dumps_params={'ensure_ascii': False})
     existing_experiment = order.experiments.filter(schedule=schedule).order_by('-create_time').first()
@@ -3475,6 +3458,8 @@ def _audit_report(request, payload, expected_status, level, result, next_status,
     report, error = _get_report(payload)
     if error:
         return error
+    if level == ReportAudit.Level.SALES and ROLE_BUSINESS_DEPT in _roles(request.user) and not _is_chairman(request.user) and report.order.sale_user_id != request.user.id:
+        return JsonResponse({'ok': False, 'error': '只能初审自己订单的报告'}, status=403)
     if report.report_status != expected_status:
         return JsonResponse({'ok': False, 'error': '报告当前状态不可执行此审核'}, status=400, json_dumps_params={'ensure_ascii': False})
     ReportAudit.objects.create(
@@ -3494,14 +3479,14 @@ def _audit_report(request, payload, expected_status, level, result, next_status,
 
 
 def _action_report_sales_pass(request, payload):
-    role_error = _require_role(request.user, ROLE_SALES)
+    role_error = _require_role(request.user, ROLE_SALES, ROLE_BUSINESS_DEPT)
     if role_error:
         return role_error
     return _audit_report(request, payload, TestReport.Status.SALES_REVIEW, ReportAudit.Level.SALES, ReportAudit.Result.APPROVED, TestReport.Status.GM_REVIEW, '销售初审通过，提交总经理终审')
 
 
 def _action_report_sales_reject(request, payload):
-    role_error = _require_role(request.user, ROLE_SALES)
+    role_error = _require_role(request.user, ROLE_SALES, ROLE_BUSINESS_DEPT)
     if role_error:
         return role_error
     return _audit_report(request, payload, TestReport.Status.SALES_REVIEW, ReportAudit.Level.SALES, ReportAudit.Result.REJECTED, TestReport.Status.REJECTED, '销售初审驳回，退回质量部重制')
@@ -3967,7 +3952,7 @@ def lims_dashboard(request):
         'routing_options': {
             'suzhou_managers': _role_user_options(ROLE_SUZHOU_LAB),
             'jiangyin_managers': _role_user_options(ROLE_JIANGYIN_LAB),
-        } if _has_any_role(request.user, ROLE_TECH) else {
+        } if _has_any_role(request.user, ROLE_GENERAL_MANAGER) else {
             'suzhou_managers': [],
             'jiangyin_managers': [],
         },

@@ -22,3 +22,12 @@ media/
 .idea/
 .vscode/
 *.log
+
+# Local handoff documents contain live account passwords or private credentials.
+/output/pdf/HuanCe-current-workflow-20260923.pdf
+/output/pdf/HuanCe-V3-workflow-report.pdf
+/docs/lims_test_process_render.docx
+/docs/环测LIMS系统全流程测试执行表.docx
+/handoff/
+*.pem
+*.key

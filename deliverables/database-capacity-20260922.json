@@ -1,0 +1,433 @@
+{
+  "database": [
+    {
+      "name": "huance",
+      "version": "PostgreSQL 14.23 (Ubuntu 14.23-0ubuntu0.22.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0, 64-bit",
+      "now": "2026-09-22 06:54:38.342456+00:00",
+      "bytes": 13684059,
+      "started": "2026-06-25 15:34:36.856276+00:00"
+    }
+  ],
+  "tables": [
+    {
+      "relname": "lims_workflow_event",
+      "total_bytes": 663552,
+      "heap_bytes": 434176,
+      "index_bytes": 188416,
+      "n_live_tup": 1656,
+      "n_dead_tup": 0,
+      "last_autovacuum": "2026-09-21 13:03:19.486358+00:00",
+      "last_autoanalyze": "2026-09-13 13:26:33.672705+00:00"
+    },
+    {
+      "relname": "django_session",
+      "total_bytes": 622592,
+      "heap_bytes": 483328,
+      "index_bytes": 98304,
+      "n_live_tup": 178,
+      "n_dead_tup": 44,
+      "last_autovacuum": "2026-09-21 06:32:54.444507+00:00",
+      "last_autoanalyze": "2026-09-21 14:35:20.746117+00:00"
+    },
+    {
+      "relname": "lims_sales_order",
+      "total_bytes": 262144,
+      "heap_bytes": 122880,
+      "index_bytes": 98304,
+      "n_live_tup": 275,
+      "n_dead_tup": 57,
+      "last_autovacuum": "2026-09-12 05:37:26.079532+00:00",
+      "last_autoanalyze": "2026-09-21 14:32:20.716409+00:00"
+    },
+    {
+      "relname": "lims_project_schedule",
+      "total_bytes": 237568,
+      "heap_bytes": 65536,
+      "index_bytes": 131072,
+      "n_live_tup": 304,
+      "n_dead_tup": 44,
+      "last_autovacuum": "2026-09-13 11:25:12.124086+00:00",
+      "last_autoanalyze": "2026-09-21 13:25:19.713089+00:00"
+    },
+    {
+      "relname": "lims_test_record",
+      "total_bytes": 229376,
+      "heap_bytes": 106496,
+      "index_bytes": 81920,
+      "n_live_tup": 189,
+      "n_dead_tup": 51,
+      "last_autovacuum": "2026-09-12 16:46:34.462072+00:00",
+      "last_autoanalyze": "2026-09-13 05:35:27.348621+00:00"
+    },
+    {
+      "relname": "lims_sample_info",
+      "total_bytes": 204800,
+      "heap_bytes": 49152,
+      "index_bytes": 114688,
+      "n_live_tup": 205,
+      "n_dead_tup": 19,
+      "last_autovacuum": "2026-06-28 08:20:15.615520+00:00",
+      "last_autoanalyze": "2026-09-13 12:39:33.092242+00:00"
+    },
+    {
+      "relname": "lims_test_report",
+      "total_bytes": 204800,
+      "heap_bytes": 65536,
+      "index_bytes": 98304,
+      "n_live_tup": 80,
+      "n_dead_tup": 40,
+      "last_autovacuum": "2026-06-28 08:20:15.647550+00:00",
+      "last_autoanalyze": "2026-09-13 13:11:33.479133+00:00"
+    },
+    {
+      "relname": "lims_biz_review",
+      "total_bytes": 172032,
+      "heap_bytes": 57344,
+      "index_bytes": 81920,
+      "n_live_tup": 358,
+      "n_dead_tup": 62,
+      "last_autovacuum": null,
+      "last_autoanalyze": "2026-09-13 04:15:06.104364+00:00"
+    },
+    {
+      "relname": "lims_finance_invoice",
+      "total_bytes": 147456,
+      "heap_bytes": 8192,
+      "index_bytes": 131072,
+      "n_live_tup": 46,
+      "n_dead_tup": 22,
+      "last_autovacuum": null,
+      "last_autoanalyze": "2026-06-30 15:49:22.039797+00:00"
+    },
+    {
+      "relname": "lims_sample_photo",
+      "total_bytes": 114688,
+      "heap_bytes": 16384,
+      "index_bytes": 65536,
+      "n_live_tup": 63,
+      "n_dead_tup": 0,
+      "last_autovacuum": null,
+      "last_autoanalyze": "2026-09-13 05:32:27.307220+00:00"
+    },
+    {
+      "relname": "lims_outsource_requirement",
+      "total_bytes": 106496,
+      "heap_bytes": 8192,
+      "index_bytes": 98304,
+      "n_live_tup": 18,
+      "n_dead_tup": 0,
+      "last_autovacuum": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "lims_report_audit",
+      "total_bytes": 106496,
+      "heap_bytes": 16384,
+      "index_bytes": 49152,
+      "n_live_tup": 119,
+      "n_dead_tup": 0,
+      "last_autovacuum": "2026-06-28 08:21:15.600918+00:00",
+      "last_autoanalyze": "2026-09-13 05:54:27.564079+00:00"
+    },
+    {
+      "relname": "lims_order_change",
+      "total_bytes": 81920,
+      "heap_bytes": 8192,
+      "index_bytes": 65536,
+      "n_live_tup": 20,
+      "n_dead_tup": 8,
+      "last_autovacuum": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "lims_lab_device",
+      "total_bytes": 81920,
+      "heap_bytes": 8192,
+      "index_bytes": 65536,
+      "n_live_tup": 8,
+      "n_dead_tup": 4,
+      "last_autovacuum": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "auth_user_groups",
+      "total_bytes": 73728,
+      "heap_bytes": 8192,
+      "index_bytes": 65536,
+      "n_live_tup": 16,
+      "n_dead_tup": 14,
+      "last_autovacuum": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "auth_user",
+      "total_bytes": 65536,
+      "heap_bytes": 8192,
+      "index_bytes": 49152,
+      "n_live_tup": 16,
+      "n_dead_tup": 16,
+      "last_autovacuum": null,
+      "last_autoanalyze": "2026-09-21 13:34:19.834329+00:00"
+    },
+    {
+      "relname": "lims_order_document",
+      "total_bytes": 65536,
+      "heap_bytes": 8192,
+      "index_bytes": 49152,
+      "n_live_tup": 23,
+      "n_dead_tup": 0,
+      "last_autovacuum": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "auth_group",
+      "total_bytes": 57344,
+      "heap_bytes": 8192,
+      "index_bytes": 49152,
+      "n_live_tup": 12,
+      "n_dead_tup": 1,
+      "last_autovacuum": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "auth_permission",
+      "total_bytes": 57344,
+      "heap_bytes": 8192,
+      "index_bytes": 49152,
+      "n_live_tup": 88,
+      "n_dead_tup": 0,
+      "last_autovacuum": null,
+      "last_autoanalyze": "2026-06-24 16:22:42.642786+00:00"
+    },
+    {
+      "relname": "lims_test_standard",
+      "total_bytes": 49152,
+      "heap_bytes": 8192,
+      "index_bytes": 32768,
+      "n_live_tup": 14,
+      "n_dead_tup": 0,
+      "last_autovacuum": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "lims_lab_staff_profile",
+      "total_bytes": 40960,
+      "heap_bytes": 8192,
+      "index_bytes": 32768,
+      "n_live_tup": 4,
+      "n_dead_tup": 0,
+      "last_autovacuum": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "django_content_type",
+      "total_bytes": 40960,
+      "heap_bytes": 8192,
+      "index_bytes": 32768,
+      "n_live_tup": 22,
+      "n_dead_tup": 0,
+      "last_autovacuum": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "auth_user_user_permissions",
+      "total_bytes": 32768,
+      "heap_bytes": 0,
+      "index_bytes": 32768,
+      "n_live_tup": 0,
+      "n_dead_tup": 0,
+      "last_autovacuum": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "django_migrations",
+      "total_bytes": 32768,
+      "heap_bytes": 8192,
+      "index_bytes": 16384,
+      "n_live_tup": 36,
+      "n_dead_tup": 0,
+      "last_autovacuum": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "auth_group_permissions",
+      "total_bytes": 32768,
+      "heap_bytes": 0,
+      "index_bytes": 32768,
+      "n_live_tup": 0,
+      "n_dead_tup": 0,
+      "last_autovacuum": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "django_admin_log",
+      "total_bytes": 32768,
+      "heap_bytes": 0,
+      "index_bytes": 24576,
+      "n_live_tup": 0,
+      "n_dead_tup": 0,
+      "last_autovacuum": null,
+      "last_autoanalyze": null
+    }
+  ],
+  "activity": [
+    {
+      "state": "active",
+      "connections": 1
+    }
+  ],
+  "stats": [
+    {
+      "numbackends": 1,
+      "xact_commit": 597642,
+      "xact_rollback": 27,
+      "blks_read": 1941,
+      "blks_hit": 25861346,
+      "temp_files": 0,
+      "temp_bytes": 0,
+      "deadlocks": 0,
+      "stats_reset": "2026-06-24 16:22:37.051722+00:00"
+    }
+  ],
+  "settings": [
+    {
+      "name": "autovacuum",
+      "setting": "on",
+      "unit": null
+    },
+    {
+      "name": "max_connections",
+      "setting": "100",
+      "unit": null
+    },
+    {
+      "name": "max_wal_size",
+      "setting": "1024",
+      "unit": "MB"
+    },
+    {
+      "name": "min_wal_size",
+      "setting": "80",
+      "unit": "MB"
+    },
+    {
+      "name": "shared_buffers",
+      "setting": "16384",
+      "unit": "8kB"
+    },
+    {
+      "name": "work_mem",
+      "setting": "4096",
+      "unit": "kB"
+    }
+  ],
+  "age_buckets": [
+    {
+      "total": 275,
+      "oldest": "2026-06-24 16:22:38.937881+00:00",
+      "newest": "2026-09-21 12:45:38.630381+00:00",
+      "older_30d": 140,
+      "older_90d": 0,
+      "older_180d": 0,
+      "older_365d": 0
+    }
+  ],
+  "monthly": [
+    {
+      "month": "2026-06-01 00:00:00+00:00",
+      "count": 138
+    },
+    {
+      "month": "2026-07-01 00:00:00+00:00",
+      "count": 2
+    },
+    {
+      "month": "2026-08-01 00:00:00+00:00",
+      "count": 3
+    },
+    {
+      "month": "2026-09-01 00:00:00+00:00",
+      "count": 132
+    }
+  ],
+  "recent_daily": [
+    {
+      "day": "2026-08-31",
+      "count": 3
+    },
+    {
+      "day": "2026-09-12",
+      "count": 101
+    },
+    {
+      "day": "2026-09-13",
+      "count": 20
+    },
+    {
+      "day": "2026-09-21",
+      "count": 11
+    }
+  ],
+  "statuses": [
+    {
+      "status": "实验结果已提交待出报告",
+      "count": 5
+    },
+    {
+      "status": "实验已结束待提交结果",
+      "count": 4
+    },
+    {
+      "status": "退单",
+      "count": 8
+    },
+    {
+      "status": "待评审",
+      "count": 45
+    },
+    {
+      "status": "报告审核中",
+      "count": 41
+    },
+    {
+      "status": "评审驳回",
+      "count": 16
+    },
+    {
+      "status": "试验中",
+      "count": 36
+    },
+    {
+      "status": "已开票办结",
+      "count": 37
+    },
+    {
+      "status": "排期中",
+      "count": 83
+    }
+  ],
+  "explicit_test_markers": {
+    "count": 111,
+    "total": 275,
+    "patterns": "order/customer/project E2E; project 排期回归0921 or UI- (candidate identification only)"
+  },
+  "media": {
+    "root": "/opt/huance/media",
+    "count": 166,
+    "logical_bytes": 19706475
+  },
+  "media_groups": {
+    "private_sample_photos": {
+      "count": 63,
+      "logical_bytes": 513190
+    },
+    "private_test_reports": {
+      "count": 80,
+      "logical_bytes": 17703640
+    },
+    "private_order_documents": {
+      "count": 23,
+      "logical_bytes": 1489645
+    }
+  }
+}

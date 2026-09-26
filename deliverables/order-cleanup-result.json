@@ -1,0 +1,22 @@
+{
+  "policy_label": "只删除V1旧质量部调度流程订单",
+  "deleted_orders": 140,
+  "remaining_orders": 145,
+  "deleted_records": 1437,
+  "by_model": {
+    "core.ReportAudit": 63,
+    "core.BusinessReview": 135,
+    "core.ChangeRequest": 15,
+    "core.Invoice": 15,
+    "core.WorkflowEvent": 557,
+    "core.SchedulePlan": 188,
+    "core.Sample": 142,
+    "core.Experiment": 135,
+    "core.TestReport": 47,
+    "core.LabOrder": 140
+  },
+  "retained_core_data_sha256": "42e239c77b4138018eff8bc2864ec5c57b3bf06b666810629645b207fcca7a1f",
+  "remaining_data_unchanged": true,
+  "backup": "/opt/huance/backups/order-cleanup-20260923-075752",
+  "media_policy": "附件原文件保留在备份及磁盘，不执行文件清除；订单关联记录按数据库级联删除"
+}

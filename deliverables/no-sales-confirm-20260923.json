@@ -1,0 +1,45 @@
+{
+  "v1": 0,
+  "v2": 145,
+  "hashes": {
+    "core/views.py": "6bf2d3dd41c99d8ef777fc36db6e989ffdb8c8443809daa9079d9506845aad9a",
+    "core/models.py": "3e1b8c4ef7735e171a5368a57ce39a31df1f7dc8e4f6f26421b486f728748f85",
+    "core/admin.py": "628396816daa6caa7834f8dab187926fe1726b6bcb408dd66b825d5082e0a6be",
+    "core/tests.py": "73aa483825d510827e7eccd43c3a3ae96a0e0216945de83b26796671da420bbf",
+    "core/test_no_sales_confirmation.py": "eae1b6a7aa3d1e29b11b2fac36b9ae61a22545aa61421b723971aad435d7d7ca",
+    "core/test_pending_change_guard.py": "6cbe47c788db58668f5137f37b06c9c5c112b9ae7a5464e4d238fa746a8ebaa3",
+    "core/test_advance_schedule.py": "d8e331adedba736ffbc003a19ce84ebf6a17313dcd1d4492ec4c456200d37033",
+    "core/test_review_roles.py": "7ce65814c5177c6198915e610ccafb96326db7ca93c1ba2270e08478d766704a",
+    "frontend/src/types.ts": "286688e4d2a7a23ffe9827d0abcd28ab2725b3d02c68ae58262002a4ca321f76",
+    "frontend/src/components/OrderTable.vue": "2b1540fcb2cf2742aa8fca50c9c225445395f86b2d353dd5e45953cf2c170fda",
+    "frontend/src/components/OrderSnapshot.vue": "a9fa1a07775dbacc31bc05264b9bc87f9b8c4d8e80ea5386f4e41ac2e784f018",
+    "frontend/src/components/ScheduleTable.vue": "3a5db4ff461b01e365e7916288e8002d1fd70cbff7c08900a28e3b4b376d1834",
+    "frontend/src/views/OrdersView.vue": "e9c87d4863744c51e7b9f4dd202126e87070f9f2c8e078d137735d9c1cd0432d",
+    "static/frontend/index.html": "459e0fda6f1a2d29b89f506a455b7bb1095ca8c47712c20b7f881fa2e618df18"
+  },
+  "api_checks": [
+    {
+      "order_no": "LIMS-2026-0040",
+      "steps": 12,
+      "no_confirmation_node": true
+    },
+    {
+      "order_no": "LIMS-2026-0164",
+      "steps": 12,
+      "no_confirmation_node": true
+    },
+    {
+      "order_no": "LIMS-2026-0175",
+      "steps": 12,
+      "no_confirmation_node": true
+    },
+    {
+      "order_no": "LIMS-2026-0176",
+      "steps": 12,
+      "no_confirmation_node": true
+    }
+  ],
+  "source_hashes_match": true,
+  "five_order_tests": "5 local HTTP end-to-end cases passed through final invoice; sales_confirmed_at stayed NULL",
+  "frontend_checks": "live /orders shows145orders and no sales-confirm action"
+}

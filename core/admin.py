@@ -157,7 +157,6 @@ class LabOrderAdmin(admin.ModelAdmin):
                 'execution_mode',
                 ('autonomous_execution', 'outsourced_execution'),
                 'lead_lab_manager',
-                'sales_confirmed_at',
                 'expect_sample_arrive',
                 'expect_delivery_time',
             )

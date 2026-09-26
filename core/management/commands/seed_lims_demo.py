@@ -28,8 +28,7 @@ class Command(BaseCommand):
 
         for group_name in [
             '销售',
-            '商务',
-            '技术',
+            '商务部',
             '质量部',
             '苏州实验室',
             '江阴实验室',

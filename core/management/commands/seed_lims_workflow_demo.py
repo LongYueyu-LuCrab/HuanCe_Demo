@@ -147,8 +147,7 @@ class Command(BaseCommand):
             'sales01': ('销售一号', '销售', self.demo_password, False),
             'sales02': ('销售二号', '销售', self.demo_password, False),
             'sales03': ('销售三号', '销售', self.demo_password, False),
-            'business01': ('商务评审一号', '商务', self.demo_password, False),
-            'tech01': ('技术评审一号', '技术', self.demo_password, False),
+            'business_dept01': ('商务部一号', '商务部', self.demo_password, False),
             'quality01': ('质量专员一号', '质量部', self.demo_password, False),
             'suzhou_lab01': ('苏州实验室负责人', '苏州实验室', self.demo_password, False),
             'jiangyin_lab01': ('江阴实验室负责人', '江阴实验室', self.demo_password, False),
@@ -179,6 +178,8 @@ class Command(BaseCommand):
             legacy_chairman.save()
             legacy_chairman.groups.clear()
             legacy_chairman.groups.add(chairman_group)
+        users['business01'] = users['zhihao']
+        users['tech01'] = users['general_manager01']
         return users
 
     def build_scenarios(self):

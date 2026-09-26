@@ -31,8 +31,8 @@ class PendingChangeGuardTests(SimpleTestCase):
         for action in ('process_change', 'sample_arrival', 'end_test', 'invoice_pay'):
             self.assertIsNone(_pending_change_error(self.order(True), action))
 
-    def test_results_require_sales_reconfirmation_after_change(self):
+    def test_results_do_not_require_sales_confirmation_after_change(self):
         order = self.order(False)
         order.sales_confirmed_at = None
         for action in ('submit_test', 'issue_report'):
-            self.assertEqual(_pending_change_error(order, action).status_code, 400)
+            self.assertIsNone(_pending_change_error(order, action))

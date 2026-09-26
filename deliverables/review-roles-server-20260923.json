@@ -1,0 +1,226 @@
+{
+  "groups": [
+    "销售",
+    "质量部",
+    "苏州实验室",
+    "江阴实验室",
+    "委外供应商",
+    "总经理",
+    "会计",
+    "董事长",
+    "实验操作员",
+    "销售经理",
+    "商务部"
+  ],
+  "orders": [
+    {
+      "order_no": "LIMS-2026-0175",
+      "review_reset_at": "None",
+      "reviews": [
+        {
+          "biz_review_user__username": "zhihao",
+          "tech_review_user__username": null,
+          "review_result": true,
+          "reject_reason": ""
+        },
+        {
+          "biz_review_user__username": null,
+          "tech_review_user__username": "general_manager01",
+          "review_result": true,
+          "reject_reason": ""
+        }
+      ]
+    },
+    {
+      "order_no": "LIMS-2026-0176",
+      "review_reset_at": "None",
+      "reviews": [
+        {
+          "biz_review_user__username": "zhihao",
+          "tech_review_user__username": null,
+          "review_result": true,
+          "reject_reason": ""
+        },
+        {
+          "biz_review_user__username": null,
+          "tech_review_user__username": "general_manager01",
+          "review_result": true,
+          "reject_reason": ""
+        }
+      ]
+    },
+    {
+      "order_no": "LIMS-2026-0177",
+      "review_reset_at": "None",
+      "reviews": [
+        {
+          "biz_review_user__username": "zhihao",
+          "tech_review_user__username": null,
+          "review_result": true,
+          "reject_reason": ""
+        },
+        {
+          "biz_review_user__username": null,
+          "tech_review_user__username": "general_manager01",
+          "review_result": true,
+          "reject_reason": ""
+        }
+      ]
+    },
+    {
+      "order_no": "LIMS-2026-0178",
+      "review_reset_at": "None",
+      "reviews": [
+        {
+          "biz_review_user__username": "zhihao",
+          "tech_review_user__username": null,
+          "review_result": true,
+          "reject_reason": ""
+        },
+        {
+          "biz_review_user__username": null,
+          "tech_review_user__username": "general_manager01",
+          "review_result": true,
+          "reject_reason": ""
+        }
+      ]
+    },
+    {
+      "order_no": "LIMS-2026-0179",
+      "review_reset_at": "None",
+      "reviews": [
+        {
+          "biz_review_user__username": "zhihao",
+          "tech_review_user__username": null,
+          "review_result": true,
+          "reject_reason": ""
+        },
+        {
+          "biz_review_user__username": null,
+          "tech_review_user__username": "general_manager01",
+          "review_result": true,
+          "reject_reason": ""
+        }
+      ]
+    },
+    {
+      "order_no": "LIMS-2026-0180",
+      "review_reset_at": "None",
+      "reviews": [
+        {
+          "biz_review_user__username": "zhihao",
+          "tech_review_user__username": null,
+          "review_result": true,
+          "reject_reason": ""
+        },
+        {
+          "biz_review_user__username": null,
+          "tech_review_user__username": "general_manager01",
+          "review_result": true,
+          "reject_reason": ""
+        }
+      ]
+    },
+    {
+      "order_no": "LIMS-2026-0181",
+      "review_reset_at": "None",
+      "reviews": [
+        {
+          "biz_review_user__username": "zhihao",
+          "tech_review_user__username": null,
+          "review_result": true,
+          "reject_reason": ""
+        },
+        {
+          "biz_review_user__username": null,
+          "tech_review_user__username": "general_manager01",
+          "review_result": true,
+          "reject_reason": ""
+        }
+      ]
+    },
+    {
+      "order_no": "LIMS-2026-0182",
+      "review_reset_at": "None",
+      "reviews": [
+        {
+          "biz_review_user__username": "zhihao",
+          "tech_review_user__username": null,
+          "review_result": true,
+          "reject_reason": ""
+        },
+        {
+          "biz_review_user__username": null,
+          "tech_review_user__username": "general_manager01",
+          "review_result": true,
+          "reject_reason": ""
+        }
+      ]
+    },
+    {
+      "order_no": "LIMS-2026-0183",
+      "review_reset_at": "2026-09-23 06:37:53.415367+00:00",
+      "reviews": [
+        {
+          "biz_review_user__username": "zhihao",
+          "tech_review_user__username": null,
+          "review_result": false,
+          "reject_reason": "角色回归0923预期驳回：请补充试验范围后修改重提。"
+        },
+        {
+          "biz_review_user__username": "zhihao",
+          "tech_review_user__username": null,
+          "review_result": true,
+          "reject_reason": ""
+        },
+        {
+          "biz_review_user__username": null,
+          "tech_review_user__username": "general_manager01",
+          "review_result": true,
+          "reject_reason": ""
+        }
+      ]
+    },
+    {
+      "order_no": "LIMS-2026-0184",
+      "review_reset_at": "None",
+      "reviews": [
+        {
+          "biz_review_user__username": null,
+          "tech_review_user__username": "general_manager01",
+          "review_result": true,
+          "reject_reason": ""
+        },
+        {
+          "biz_review_user__username": "zhihao",
+          "tech_review_user__username": null,
+          "review_result": true,
+          "reject_reason": ""
+        }
+      ]
+    }
+  ],
+  "hashes": {
+    "core/management/commands/seed_lims_demo.py": "86f4c3d6afa82c157ca20dfaf2a4572a0f9d550eee5c76fec6721b5939efeb1c",
+    "core/management/commands/seed_lims_workflow_demo.py": "c746e805e4986b56b897fb89b62ce8945de7abec4583148509349c38a12fedb8",
+    "core/models.py": "cffcb095eb36506d16ab87713bf788a59ec506dafb13f3bd97cb3255be7b17cf",
+    "core/tests.py": "a174c2a3945eb6db2cf7d8a9f8c0d995d35633800f78a313f254714c710d518b",
+    "core/views.py": "48187ecd2958eb3b8adb7a531569b089d6c23c5c0472d2036923665bb223b3b2",
+    "frontend/src/components/OrderSnapshot.vue": "c8db39852aa40602bc12244bc6b5c31c2d2a22033228241030046ee247d108ac",
+    "frontend/src/components/OrderTable.vue": "b2a6c373a40b854e29dc46e51ae048f7bde6fa6a7af1f32a227a180763b7fc4b",
+    "frontend/src/components/ReportList.vue": "106a5dd923287e5f1d76afc45edb1f3631f5d6c6d75b8d5fda2e34f9d28f9723",
+    "frontend/src/components/ScheduleTable.vue": "2636bec3eaf966b0fd85f1a4242653050eb8e0d125fa9e31f7aea327f1c05c2f",
+    "frontend/src/permissions.ts": "2d437fbcfedf1fd2d0e1add54e6240a26f1bcbd29125a2d0f545c56ac180f4a3",
+    "frontend/src/stores/session.ts": "545fd56d7ca938449d3398edd82b520224530a8291d02119580a042de77a4108",
+    "frontend/src/views/EmployeesView.vue": "5b59d67def44658617dd1f5a7c696f6d292a6972b2e2ab3d9ea7f6e9ffa19e77",
+    "frontend/src/views/LabView.vue": "279ee9c83ebcfcefc3760058a30f1ba3a887a062c0fb8c0ff9825a9de6c2e8c6",
+    "frontend/src/views/OrdersView.vue": "86331ea7f51f5f9c1ee166caa1a58ecea247c6ad4370ec79517c4c52ed56a466",
+    "frontend/src/views/ScheduleView.vue": "3c809a5b8525b3d8f4dca0e90c71cdd5a626aa7cf810fceb45b8bfd208ec1f56",
+    "core/migrations/0019_review_responsibilities.py": "1a7024b42c9d72fb66a5b2c40259bda2d2e58299ec2de9873b2b5dd0c9ff9e56",
+    "core/test_review_roles.py": "6a91d0c8e86022abbce1a3f9c087a9b99807bc1e82de0d130750ef6f45718e7d",
+    "core/test_advance_schedule.py": "7dde2af84340be5cdc8f3e200c5f55c094683018b8683a0a45ea72263a64b008",
+    "frontend/tests/rescheduling.test.cjs": "e7e14eebffa9d38fdd8f3a5b4885ca9efe4ecb801bfa323971bfcb17f8830de4",
+    "static/frontend/index.html": "9a453ee539accb0e53331079e072f65e89c29120ce8d74a820ba4a86efd21348"
+  },
+  "all_local_server_hashes_match": true
+}

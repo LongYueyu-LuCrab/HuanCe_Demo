@@ -6,11 +6,12 @@ import WorkflowProgress from './WorkflowProgress.vue'
 import OutsourceBadge from './OutsourceBadge.vue'
 import { useSession } from '../stores/session'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   order?: OrderItem | null
   loading?: boolean
+  showActions?: boolean
   title?: string
-}>()
+}>(), { showActions: true })
 
 const router = useRouter()
 const session = useSession()
@@ -19,17 +20,19 @@ const isLabAccount = computed(() => (
   labRoles.value.has('苏州实验室')
   || labRoles.value.has('江阴实验室')
   || labRoles.value.has('实验操作员')
+  || labRoles.value.has('商务部')
 ))
 const actionableSchedules = computed(() => {
   if (!isLabAccount.value || !props.order) return []
   return (props.order.schedule_records || []).filter((schedule) => {
     if (![3, 4].includes(schedule.status_key) || [4, 5].includes(schedule.schedule_status_key)) return false
+    if (labRoles.value.has('商务部')) return schedule.schedule_status_key !== 2
     if (labRoles.value.has('实验操作员')) return schedule.lab_type === session.state.user.lab_type
     return schedule.lab_manager_username === session.state.user.username
   })
 })
 
-function openLabAction(scheduleId: number, labType: number | null, action: 'schedule_assign' | 'sample_arrival') {
+function openLabAction(scheduleId: number, labType: number | null, action: 'schedule_assign' | 'sample_arrival' | 'process_change') {
   const lab = labType === 2 ? 'jiangyin' : 'suzhou'
   void router.push({
     name: 'lab',
@@ -73,7 +76,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
     <el-empty v-else-if="!order" description="订单详情暂时无法读取" :image-size="64" />
     <template v-else>
       <WorkflowProgress v-if="order.workflow_progress" :progress="order.workflow_progress" />
-      <section v-if="actionableSchedules.length" class="snapshot-action-panel" aria-label="当前实验室操作">
+      <section v-if="showActions !== false && actionableSchedules.length" class="snapshot-action-panel" aria-label="当前实验室操作">
         <div>
           <strong>当前节点可操作</strong>
           <p>排期与样品入库是两个独立动作，操作后都会记录人员、时间和变更内容。</p>
@@ -81,10 +84,10 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
         <div v-for="schedule in actionableSchedules" :key="schedule.id" class="snapshot-action-row">
           <span>{{ schedule.test_type }} · {{ schedule.remark || order.project_name }}</span>
           <el-space wrap>
-            <el-button type="primary" @click="openLabAction(schedule.id, schedule.lab_type, 'schedule_assign')">
-              {{ schedule.is_scheduled ? '重新排期' : '排期 / 排台' }}
+            <el-button type="primary" @click="openLabAction(schedule.id, schedule.lab_type, schedule.schedule_status_key === 2 ? 'process_change' : 'schedule_assign')">
+              {{ schedule.schedule_status_key === 2 ? '处理变更并排期' : schedule.is_scheduled ? '重新排期' : '排期 / 排台' }}
             </el-button>
-            <el-button type="success" @click="openLabAction(schedule.id, schedule.lab_type, 'sample_arrival')">
+            <el-button v-if="!labRoles.has('商务部')" type="success" @click="openLabAction(schedule.id, schedule.lab_type, 'sample_arrival')">
               {{ schedule.sample_arrived ? '补充样品图片' : '样品入库' }}
             </el-button>
           </el-space>
@@ -114,11 +117,6 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
       <el-descriptions-item label="当前执行路径">{{ order.execution_mode }}</el-descriptions-item>
       <el-descriptions-item label="工作流">{{ order.workflow_label }}</el-descriptions-item>
       <el-descriptions-item label="主责实验室负责人">{{ order.lead_lab_manager || '待技术分配' }}</el-descriptions-item>
-      <el-descriptions-item label="销售需求确认">
-        <el-tag :type="order.sales_confirmed ? 'success' : 'warning'" size="small" effect="plain">
-          {{ order.sales_confirmed ? '已确认' : '待确认' }}
-        </el-tag>
-      </el-descriptions-item>
       <el-descriptions-item label="订单报价">{{ formatQuote(order.total_quote) }}</el-descriptions-item>
       <el-descriptions-item label="创建时间">{{ order.created_at || '未记录' }}</el-descriptions-item>
       <el-descriptions-item label="预计样品到达">{{ order.expected_sample_arrival || '待确认' }}</el-descriptions-item>

@@ -34,7 +34,6 @@ export type OrderItem = {
   workflow_label: string
   lead_lab_manager: string
   lead_lab_manager_username: string
-  sales_confirmed: boolean
   all_routes_scheduled: boolean
   expected_sample_arrival: string
   expected_delivery_date: string
@@ -109,7 +108,6 @@ export type ScheduleItem = {
   start_time: string
   end_time: string
   is_scheduled: boolean
-  sales_confirmed: boolean
   scheduled_at: string
   scheduled_by: string
   schedule_status: string

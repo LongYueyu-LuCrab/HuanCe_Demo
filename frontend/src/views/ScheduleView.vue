@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { UploadUserFile } from 'element-plus'
 import ScheduleTable from '../components/ScheduleTable.vue'
@@ -9,6 +9,7 @@ import { useSession } from '../stores/session'
 import type { LabDevice, OrderItem, ScheduleItem } from '../types'
 
 const session = useSession()
+const isBusinessDept = computed(() => (session.state.user.roles || []).includes('商务部'))
 const props = defineProps<{ outsourcedOnly?: boolean }>()
 const schedules = ref<ScheduleItem[]>([])
 const scheduleTotal = ref(0)
@@ -40,6 +41,9 @@ const activeAction = ref('')
 const availabilityLoading = ref(false)
 const availableDevices = ref<LabDevice[]>([])
 const samplePhotoFiles = ref<UploadUserFile[]>([])
+const availabilityMessage = ref('')
+let availabilityRequest = 0
+let preferredDeviceId: number | undefined
 const form = reactive({
   plan_start_time: '', plan_end_time: '', outsource_factory: '', outsource_price: '', outsource_cycle: '',
   device_id: undefined as number | undefined,
@@ -67,6 +71,7 @@ function openOrderDetail(schedule: ScheduleItem) {
 }
 
 function openWorkflow(action: string, schedule: ScheduleItem) {
+  resetDeviceSelection()
   activeAction.value = action
   activeSchedule.value = schedule
   Object.assign(form, {
@@ -78,6 +83,7 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
     test_standard: '', test_raw_data: '', test_conclusion_temp: '', result_status: '', test_start_time: '', test_end_time: '',
     change_scene: 2, new_test_demand: '', change_content: '', report_no: '', report_type: 'formal', final_conclusion: '',
   })
+  preferredDeviceId = form.device_id
   dialogVisible.value = true
   void loadOrder(schedule.order_no)
   availableDevices.value = []
@@ -88,6 +94,10 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
 }
 
 function resetDeviceSelection() {
+  preferredDeviceId = undefined
+  availabilityRequest++
+  availabilityLoading.value = false
+  availabilityMessage.value = ''
   availableDevices.value = []
   form.device_id = undefined
 }
@@ -97,26 +107,67 @@ async function queryAvailableDevices() {
     ElMessage.warning('请先选择计划开始和结束日期')
     return
   }
+  if (form.plan_end_time < form.plan_start_time) return false
+  const request = ++availabilityRequest
+  preferredDeviceId = form.device_id ?? preferredDeviceId
+  const candidateId = preferredDeviceId
   availabilityLoading.value = true
+  availabilityMessage.value = ''
   try {
-    availableDevices.value = await fetchAvailableDevices(activeSchedule.value.id, form.plan_start_time, form.plan_end_time)
-    const selected = availableDevices.value.find((item) => item.id === form.device_id)
-    if (selected && !selected.available) form.device_id = undefined
+    const devices = await fetchAvailableDevices(activeSchedule.value.id, form.plan_start_time, form.plan_end_time)
+    if (request !== availabilityRequest) return false
+    availableDevices.value = devices
+    availabilityMessage.value = devices.length ? `共 ${devices.length} 台设备，${devices.filter((item) => item.available).length} 台可用；不可用原因见设备选项。` : '当前实验室尚未配置设备，请先到设备管理添加设备。'
+    const selected = devices.find((item) => item.id === candidateId)
+    form.device_id = selected?.available ? selected.id : undefined
+    if (candidateId && !selected?.available) {
+      availabilityMessage.value += ` 原选设备${selected?.unavailable_reason ? '：' + selected.unavailable_reason : '当前不可用'}，请选择其他可用设备。`
+    }
+    return true
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '设备可用性查询失败')
+    if (request !== availabilityRequest) return false
+    availableDevices.value = []
+    form.device_id = undefined
+    availabilityMessage.value = error instanceof Error ? error.message : '设备可用性查询失败'
+    ElMessage.error(availabilityMessage.value)
+    return false
   } finally {
-    availabilityLoading.value = false
+    if (request === availabilityRequest) availabilityLoading.value = false
+  }
+}
+
+async function onPlanDatesChange() {
+  const candidateId = form.device_id ?? preferredDeviceId
+  resetDeviceSelection()
+  preferredDeviceId = candidateId
+  if (!activeSchedule.value?.test_type.includes('委外') && form.plan_start_time && form.plan_end_time
+    && form.plan_end_time >= form.plan_start_time) {
+    await queryAvailableDevices()
   }
 }
 
 async function submitWorkflow() {
+  if (activeAction.value === 'schedule_assign' || activeAction.value === 'process_change') {
+    if (!form.plan_start_time || !form.plan_end_time || form.plan_end_time < form.plan_start_time) {
+      ElMessage.warning('请填写完整排期，结束日期不能早于开始日期')
+      return
+    }
+    if (!activeSchedule.value?.test_type.includes('委外')) {
+      // Revalidate the current dates, including edits committed by this click.
+      if (!await queryAvailableDevices()) return
+      if (!form.device_id) {
+        ElMessage.warning('请选择一台当前日期可用的试验设备')
+        return
+      }
+    }
+  }
   if (!activeSchedule.value) return
   if ((activeAction.value === 'end_test' || activeAction.value === 'outsource_result') && !form.result_status) {
     ElMessage.warning('请选择实验结果')
     return
   }
   if ((activeAction.value === 'schedule_assign' || activeAction.value === 'process_change')
-    && form.sample_arrived && activeSchedule.value.sample_photos.length === 0 && samplePhotoFiles.value.length === 0) {
+    && !isBusinessDept.value && form.sample_arrived && activeSchedule.value.sample_photos.length === 0 && samplePhotoFiles.value.length === 0) {
     ElMessage.warning('选择“样品已到”时必须上传至少一张样品照片')
     return
   }
@@ -151,11 +202,11 @@ async function submitWorkflow() {
     <ScheduleTable :orders="schedules" :user="session.state.user" remote :total="scheduleTotal" :loading="schedulesLoading" @query="loadSchedules" @detail="openOrderDetail" @workflow="openWorkflow" />
 
     <el-dialog v-model="dialogVisible" title="实验室任务操作" width="min(960px, 94vw)">
-      <OrderSnapshot :order="selectedOrder" :loading="loading" title="任务关联订单" />
+      <p><strong>{{ activeSchedule?.order_no }}</strong> · {{ activeSchedule?.project_name }} · {{ activeSchedule?.remark }}</p>
       <el-form label-position="top" class="form-grid mt-16">
         <template v-if="activeAction === 'schedule_assign' || activeAction === 'process_change'">
-          <el-form-item label="计划开始"><el-date-picker v-model="form.plan_start_time" value-format="YYYY-MM-DD" type="date" @change="resetDeviceSelection" /></el-form-item>
-          <el-form-item label="计划结束"><el-date-picker v-model="form.plan_end_time" value-format="YYYY-MM-DD" type="date" @change="resetDeviceSelection" /></el-form-item>
+          <el-form-item label="计划开始"><el-date-picker v-model="form.plan_start_time" value-format="YYYY-MM-DD" type="date" @change="onPlanDatesChange" /></el-form-item>
+          <el-form-item label="计划结束"><el-date-picker v-model="form.plan_end_time" value-format="YYYY-MM-DD" type="date" @change="onPlanDatesChange" /></el-form-item>
           <template v-if="activeAction === 'schedule_assign' && activeSchedule?.test_type.includes('委外')">
             <el-form-item label="委外厂家"><el-input v-model="form.outsource_factory" /></el-form-item>
             <el-form-item label="委外价格"><el-input v-model="form.outsource_price" type="number" /></el-form-item>
@@ -164,7 +215,7 @@ async function submitWorkflow() {
           <template v-else-if="!activeSchedule?.test_type.includes('委外')">
             <el-form-item label="查询设备可用性"><el-button :loading="availabilityLoading" plain @click="queryAvailableDevices">查询所选日期的可用设备</el-button></el-form-item>
             <el-form-item label="试验设备">
-              <el-select v-model="form.device_id" filterable placeholder="请先查询，再选择设备">
+              <el-select v-model="form.device_id" filterable :loading="availabilityLoading" :disabled="availabilityLoading" placeholder="查询后选择可用设备">
                 <el-option
                   v-for="device in availableDevices"
                   :key="device.id"
@@ -175,13 +226,14 @@ async function submitWorkflow() {
               </el-select>
             </el-form-item>
           </template>
-          <el-form-item label="样品到样状态">
+          <el-alert v-if="availabilityMessage" class="form-wide" :title="availabilityMessage" :closable="false" type="info" />
+          <el-form-item v-if="!isBusinessDept" label="样品到样状态">
             <el-radio-group v-model="form.sample_arrived">
               <el-radio-button :value="false">样品未到</el-radio-button>
               <el-radio-button :value="true">样品已到</el-radio-button>
             </el-radio-group>
           </el-form-item>
-          <el-form-item v-if="form.sample_arrived" label="样品照片" class="form-wide">
+          <el-form-item v-if="!isBusinessDept && form.sample_arrived" label="样品照片" class="form-wide">
             <el-upload v-model:file-list="samplePhotoFiles" :auto-upload="false" multiple accept=".jpg,.jpeg,.png">
               <el-button plain>上传样品图片</el-button>
               <template #tip><div class="el-upload__tip">支持 JPG、PNG，单张不超过 10MB，本次合计不超过 30MB。</div></template>
@@ -262,7 +314,8 @@ async function submitWorkflow() {
           <el-form-item label="最终结论" class="form-wide"><el-input v-model="form.final_conclusion" type="textarea" :rows="4" /></el-form-item>
         </template>
       </el-form>
-      <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" :loading="submitting" @click="submitWorkflow">确认提交</el-button></template>
+      <el-collapse class="mt-16"><el-collapse-item title="查看订单详情与流程" name="context"><OrderSnapshot :order="selectedOrder" :loading="loading" :show-actions="false" title="任务关联订单" /></el-collapse-item></el-collapse>
+      <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" :loading="submitting" :disabled="availabilityLoading" @click="submitWorkflow">确认提交</el-button></template>
     </el-dialog>
 
     <el-drawer v-model="drawerVisible" title="订单详情" size="min(720px, 94vw)"><OrderSnapshot :order="selectedOrder" :loading="loading" title="排期订单信息" /></el-drawer>

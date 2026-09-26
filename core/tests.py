@@ -36,7 +36,7 @@ class LimsDashboardTests(TestCase):
             username='tester',
             password='password123',
         )
-        sales_group = Group.objects.create(name='销售')
+        sales_group = Group.objects.get_or_create(name='销售')[0]
         self.user.groups.add(sales_group)
         self.order = LabOrder.objects.create(
             order_no='TEST-001',
@@ -113,8 +113,8 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(order['remark'], '加急；完整信息测试')
         self.assertIn('documents', order)
         progress = order['workflow_progress']
-        self.assertEqual(progress['total_steps'], 13)
-        self.assertEqual(len(progress['steps']), 13)
+        self.assertEqual(progress['total_steps'], 12)
+        self.assertEqual(len(progress['steps']), 12)
         self.assertEqual(progress['current_step'], '实验执行')
         self.assertEqual(
             next(step for step in progress['steps'] if step['key'] == 'experiment')['state'],
@@ -163,7 +163,7 @@ class LimsDashboardTests(TestCase):
             username='technical-reviewer',
             password='password123',
         )
-        technical_user.groups.add(Group.objects.create(name='技术'))
+        technical_user.groups.add(Group.objects.get_or_create(name='总经理')[0])
         self.order.order_status = LabOrder.Status.PENDING_REVIEW
         self.order.autonomous_execution = True
         self.order.outsourced_execution = True
@@ -388,7 +388,7 @@ class LimsDashboardTests(TestCase):
 class SalesManagerTests(TestCase):
     def setUp(self):
         user_model = get_user_model()
-        sales_group = Group.objects.create(name='销售')
+        sales_group = Group.objects.get_or_create(name='销售')[0]
         manager_group = Group.objects.get(name='销售经理')
         self.sales_a = user_model.objects.create_user(
             username='sales-a', password='password123', first_name='销售甲',
@@ -470,8 +470,8 @@ class SalesManagerTests(TestCase):
 class LimsFullRoleWorkflowTests(TestCase):
     roles = {
         'sales': '销售',
-        'business': '商务',
-        'tech': '技术',
+        'business': '董事长',
+        'tech': '总经理',
         'quality': '质量部',
         'suzhou_lab': '苏州实验室',
         'jiangyin_lab': '江阴实验室',
@@ -483,7 +483,7 @@ class LimsFullRoleWorkflowTests(TestCase):
         user_model = get_user_model()
         self.users = {}
         for username, role_name in self.roles.items():
-            group = Group.objects.create(name=role_name)
+            group = Group.objects.get_or_create(name=role_name)[0]
             user = user_model.objects.create_user(
                 username=username,
                 password='password123',
@@ -690,7 +690,7 @@ class LimsFullRoleWorkflowTests(TestCase):
         self.assertEqual(progress['steps'][-1]['state'], 'completed')
         self.assertEqual(
             set(Group.objects.values_list('name', flat=True)),
-            set(self.roles.values()) | {'实验操作员', '销售经理'},
+            set(self.roles.values()) | {'实验操作员', '销售经理', '商务部'},
         )
 
 
@@ -706,9 +706,9 @@ class InvoiceWorkflowTests(TestCase):
         self.accountant = user_model.objects.create_user(
             username='invoice_accountant', password='password123', first_name='会计',
         )
-        self.business.groups.add(Group.objects.create(name='商务'))
-        self.technical.groups.add(Group.objects.create(name='技术'))
-        self.accountant.groups.add(Group.objects.create(name='会计'))
+        self.business.groups.add(Group.objects.get_or_create(name='董事长')[0])
+        self.technical.groups.add(Group.objects.get_or_create(name='总经理')[0])
+        self.accountant.groups.add(Group.objects.get_or_create(name='会计')[0])
         self.order = LabOrder.objects.create(
             order_no='INVOICE-FLOW-001',
             customer_name='预开票流程测试客户',
@@ -984,8 +984,8 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         self.users = {}
         for username, role in {
             'sales_v2': '销售',
-            'business_v2': '商务',
-            'tech_v2': '技术',
+            'business_v2': '董事长',
+            'tech_v2': '总经理',
             'quality_v1': '质量部',
             'suzhou_v2': '苏州实验室',
             'jiangyin_v2': '江阴实验室',
@@ -1081,7 +1081,7 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         detail_payload = detail.json()['order']
         self.assertFalse(detail_payload['all_routes_scheduled'])
         premature_confirmation = self.action('sales_v2', 'sales_confirm', note='不应提前确认')
-        self.assertEqual(premature_confirmation.status_code, 400)
+        self.assertEqual(premature_confirmation.status_code, 410)
 
         arrived = self.action(
             'suzhou_v2',
@@ -1174,7 +1174,7 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         self.assertEqual(quality_denied.status_code, 403)
 
         confirmed = self.action('sales_v2', 'sales_confirm', note='销售确认无变更')
-        self.assertEqual(confirmed.status_code, 200)
+        self.assertEqual(confirmed.status_code, 410)
 
         for user_key, schedule in (
             ('suzhou_v2', suzhou_schedule),
@@ -1199,6 +1199,8 @@ class LimsV2DirectLabWorkflowTests(TestCase):
             schedule.refresh_from_db()
             self.assertTrue(schedule.sample_arrived)
             self.assertEqual(schedule.sample_photos.count(), 1)
+
+        self.assertEqual(self.action('sales_v2', 'sales_confirm').status_code, 410)
 
         for user_key, schedule in (('suzhou_v2', suzhou_schedule), ('jiangyin_v2', jiangyin_schedule)):
             self.assertEqual(
@@ -1275,7 +1277,7 @@ class LimsV2DirectLabWorkflowTests(TestCase):
 class LabDeviceSchedulingTests(TestCase):
     def setUp(self):
         user_model = get_user_model()
-        group = Group.objects.create(name='苏州实验室')
+        group = Group.objects.get_or_create(name='苏州实验室')[0]
         self.manager = user_model.objects.create_user(username='device_manager', password='password123')
         self.manager.groups.add(group)
         self.device = LabDevice.objects.create(
@@ -1334,6 +1336,40 @@ class LabDeviceSchedulingTests(TestCase):
         )
         self.assertEqual(conflict.status_code, 400)
         self.assertIn('排期冲突', conflict.json()['error'])
+
+    def test_rescheduling_preserves_history_without_returning_to_sales_confirmation(self):
+        payload = dict(device_id=self.device.id, plan_start_time='2026-09-22', plan_end_time='2026-09-22')
+        self.assertEqual(self.action('schedule_assign', **payload).status_code, 200)
+        confirmed = timezone.now()
+        self.order.sales_confirmed_at = confirmed
+        self.order.order_status = LabOrder.Status.TESTING
+        self.order.save()
+        self.assertEqual(self.action('schedule_assign', **payload).status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.sales_confirmed_at, confirmed)
+        payload['plan_end_time'] = '2026-09-23'
+        self.assertEqual(self.action('schedule_assign', **payload).status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.sales_confirmed_at, confirmed)
+        self.assertEqual(self.order.order_status, LabOrder.Status.TESTING)
+
+    def test_new_unscheduled_task_precedes_legacy_change_backlog(self):
+        old_order = LabOrder.objects.create(order_no='LEGACY-BACKLOG', workflow_version=1, order_status=3)
+        SchedulePlan.objects.create(order=old_order, test_type=1, lab_manager=self.manager, schedule_status=2)
+        self.client.force_login(self.manager)
+        response = self.client.get(reverse('laboratory_orders'), {'scope': 'assigned', 'page_size': 10})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['items'][0]['id'], self.schedule.id)
+
+    def test_failed_schedule_preserves_confirmation_and_does_not_allocate_device(self):
+        confirmed = self.order.sales_confirmed_at
+        response = self.action('schedule_assign', device_id=self.device.id, plan_start_time='2026-09-23', plan_end_time='2026-09-22')
+        self.assertEqual(response.status_code, 400)
+        self.order.refresh_from_db()
+        self.schedule.refresh_from_db()
+        self.assertEqual(self.order.sales_confirmed_at, confirmed)
+        self.assertIsNone(self.schedule.scheduled_at)
+        self.assertIsNone(self.schedule.device_id)
 
     def test_device_crud_and_historical_delete_protection(self):
         self.client.force_login(self.manager)
@@ -1615,6 +1651,7 @@ class LaboratoryOperatorTests(TestCase):
                 sample_arrived=arrived,
                 schedule_status=status,
                 remark=f'排序验证-{suffix}',
+                scheduled_at=timezone.now(),
             )
 
         change_pending = create_schedule('CHANGE', SchedulePlan.Status.CHANGE_PENDING, False, 5)

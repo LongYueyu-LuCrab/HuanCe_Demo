@@ -82,14 +82,14 @@ function rawFiles(files: UploadUserFile[]) {
   return files.map((file) => file.raw).filter((file): file is UploadRawFile => Boolean(file))
 }
 
-const isSalesManager = computed(() => (session.state.user.roles || []).includes('销售经理'))
-const isSales = computed(() => (session.state.user.roles || []).includes('销售'))
+const isSalesManager = computed(() => ['销售经理', '商务部'].some(role => (session.state.user.roles || []).includes(role)))
+const isSales = computed(() => ['销售', '商务部'].some(role => (session.state.user.roles || []).includes(role)))
 const managerOrders = ref<OrderItem[]>([])
 const managerOrderTotal = ref(0)
 const managerOrdersLoading = ref(false)
 const managerOrderQuery = reactive({ keyword: '', page: 1, page_size: 10 })
 const orders = computed(() => managerOrders.value)
-const isTechnicalReviewer = computed(() => (session.state.user.roles || []).includes('技术'))
+const isTechnicalReviewer = computed(() => !session.state.user.is_chairman && (session.state.user.roles || []).includes('总经理'))
 const routingOptions = computed(() => session.state.dashboard?.routing_options)
 const allLabManagers = computed(() => [
   ...(routingOptions.value?.suzhou_managers || []),
@@ -140,7 +140,6 @@ const actionTitleMap: Record<string, string> = {
   review_reject: '评审驳回',
   order_update: '修改订单并重新提交',
   order_cancel: '退单',
-  sales_confirm: '确认无变更',
   create_change: '填写更改单',
   schedule_assign: '排期分配',
   process_change: '处理变更',
@@ -552,10 +551,6 @@ async function submit() {
 
         <template v-else-if="activeAction === 'order_cancel'">
           <el-form-item label="退单原因" class="form-wide"><el-input v-model="actionForm.reason" type="textarea" :rows="3" /></el-form-item>
-        </template>
-
-        <template v-else-if="activeAction === 'sales_confirm'">
-          <el-form-item label="确认说明" class="form-wide"><el-input v-model="actionForm.note" type="textarea" :rows="3" placeholder="确认样品到货时间和试验需求无变更" /></el-form-item>
         </template>
 
         <template v-else-if="activeAction === 'create_change'">

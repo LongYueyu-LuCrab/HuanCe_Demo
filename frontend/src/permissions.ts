@@ -61,24 +61,16 @@ export function getMenuGroups(user: User): MenuGroup[] {
     ].filter(Boolean) as MenuGroup[]
   }
 
-  if (hasRole(user, '商务')) {
-    return [
-      group('商务工作台', [
-        { key: 'dashboard', label: '评审看板', path: '/dashboard', icon: 'DataBoard' },
-        { key: 'orders', label: '订单评审中心', path: '/orders', icon: 'Tickets' },
-        { key: 'audit', label: '报价与评审台账', path: '/audit', icon: 'Clock' },
-      ]),
-    ].filter(Boolean) as MenuGroup[]
-  }
-
-  if (hasRole(user, '技术')) {
-    return [
-      group('技术工作台', [
-        { key: 'dashboard', label: '技术看板', path: '/dashboard', icon: 'DataBoard' },
-        { key: 'orders', label: '技术评审工作台', path: '/orders', icon: 'Tickets' },
-        { key: 'audit', label: '检测标准与记录', path: '/audit', icon: 'Clock' },
-      ]),
-    ].filter(Boolean) as MenuGroup[]
+  if (hasRole(user, '商务部')) {
+    return [group('商务部', [
+      { key: 'dashboard', label: '商务工作台', path: '/dashboard', icon: 'DataBoard' },
+      { key: 'orders', label: '全部订单与下单', path: '/orders', icon: 'Tickets' },
+      { key: 'schedule', label: '排期管理', path: '/schedule', icon: 'Calendar' },
+      { key: 'suzhou', label: '苏州排期', path: '/labs/suzhou', icon: 'Cpu' },
+      { key: 'jiangyin', label: '江阴排期', path: '/labs/jiangyin', icon: 'Operation' },
+      { key: 'reports', label: '报告初审', path: '/reports', icon: 'DocumentChecked' },
+      { key: 'audit', label: '订单档案', path: '/audit', icon: 'Clock' },
+    ])].filter(Boolean) as MenuGroup[]
   }
 
   if (hasRole(user, '质量部')) {
@@ -183,13 +175,6 @@ export function getMetricCards(user: User, dashboard: Dashboard | null) {
       { key: 'active_orders', label: '我的进行中订单', value: metrics?.active_orders ?? 0 },
       { key: 'pending_reports', label: '待我初审报告', value: metrics?.pending_reports ?? 0 },
       { key: 'change_requests', label: '我的变更待确认', value: metrics?.change_requests ?? 0 },
-    ]
-  }
-  if ((hasRole(user, '商务') || hasRole(user, '技术')) && !canSeeAllBusiness(user)) {
-    return [
-      { key: 'orders', label: '待评审订单', value: metrics?.orders ?? 0 },
-      { key: 'active_orders', label: '评审中订单', value: metrics?.active_orders ?? 0 },
-      { key: 'change_requests', label: '评审驳回/变更', value: metrics?.change_requests ?? 0 },
     ]
   }
   if (hasRole(user, '质量部') && !canSeeAllBusiness(user)) {

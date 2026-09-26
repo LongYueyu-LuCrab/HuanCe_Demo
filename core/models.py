@@ -82,6 +82,8 @@ class LabOrder(TimeStampedModel):
         blank=True,
         related_name='lims_lead_orders',
     )
+    review_reset_at = models.DateTimeField('本轮评审起始时间', null=True, blank=True)
+    # Historical audit data only; no workflow transition requires sales confirmation.
     sales_confirmed_at = models.DateTimeField('销售确认需求时间', null=True, blank=True)
     sale_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
