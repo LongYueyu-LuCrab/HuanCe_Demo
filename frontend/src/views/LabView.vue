@@ -73,7 +73,7 @@ function openActionFromDetail(action: string, schedule: ScheduleItem) {
 async function openRequestedAction() {
   const action = String(route.query.action || '')
   const scheduleId = Number(route.query.schedule || 0)
-  const allowedActions = new Set(['schedule_assign', 'sample_arrival', 'process_change'])
+  const allowedActions = new Set(['schedule_assign', 'sample_arrival', 'process_change', 'start_test'])
   const key = `${route.fullPath}:${scheduleId}:${action}`
   if (!scheduleId || !allowedActions.has(action) || handledActionKey.value === key) return
   handledActionKey.value = key

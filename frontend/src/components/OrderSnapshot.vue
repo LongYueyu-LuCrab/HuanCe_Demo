@@ -32,7 +32,7 @@ const actionableSchedules = computed(() => {
   })
 })
 
-function openLabAction(scheduleId: number, labType: number | null, action: 'schedule_assign' | 'sample_arrival' | 'process_change') {
+function openLabAction(scheduleId: number, labType: number | null, action: 'schedule_assign' | 'sample_arrival' | 'process_change' | 'start_test') {
   const lab = labType === 2 ? 'jiangyin' : 'suzhou'
   void router.push({
     name: 'lab',
@@ -79,7 +79,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
       <section v-if="showActions !== false && actionableSchedules.length" class="snapshot-action-panel" aria-label="当前实验室操作">
         <div>
           <strong>当前节点可操作</strong>
-          <p>排期与样品入库是两个独立动作，操作后都会记录人员、时间和变更内容。</p>
+          <p>排期、样品入库和实验执行分别记录操作人员、时间和变更内容。</p>
         </div>
         <div v-for="schedule in actionableSchedules" :key="schedule.id" class="snapshot-action-row">
           <span>{{ schedule.test_type }} · {{ schedule.remark || order.project_name }}</span>
@@ -90,6 +90,11 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
             <el-button v-if="!labRoles.has('商务部')" type="success" @click="openLabAction(schedule.id, schedule.lab_type, 'sample_arrival')">
               {{ schedule.sample_arrived ? '补充样品图片' : '样品入库' }}
             </el-button>
+            <el-button
+              v-if="!labRoles.has('商务部') && !schedule.test_type.includes('委外') && schedule.schedule_status_key !== 2 && schedule.is_scheduled && schedule.sample_arrived && schedule.device_id && !schedule.experiment_status"
+              type="primary"
+              @click="openLabAction(schedule.id, schedule.lab_type, 'start_test')"
+            >开始试验</el-button>
           </el-space>
         </div>
       </section>
