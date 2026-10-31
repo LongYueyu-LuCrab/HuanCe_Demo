@@ -18,9 +18,9 @@ const roleText = computed(() => session.state.user.roles?.join(' / ') || '普通
   <div class="page-stack">
     <section class="command-panel">
       <div>
-        <p class="panel-kicker">ROLE WORKBENCH</p>
-        <h2>{{ roleText }}工作台</h2>
-        <p>聚焦当前岗位的待办、订单状态和关键风险，敏感模块已按角色隔离。</p>
+        <p class="dashboard-context">{{ roleText }} · 今日工作台</p>
+        <h2>今天要推进哪些工作？</h2>
+        <p>从待处理订单到报告交付，先处理当前岗位最紧急的任务。</p>
       </div>
     </section>
 

@@ -174,7 +174,7 @@ function actionsFor(order: OrderItem) {
       </div>
     </template>
 
-    <el-table v-loading="loading" :data="pagedOrders" stripe height="540" empty-text="暂无匹配订单" @row-click="openOrder">
+    <el-table v-loading="loading" :data="pagedOrders" height="540" empty-text="暂无匹配订单" @row-click="openOrder">
       <el-table-column prop="order_no" label="订单号" min-width="150">
         <template #default="{ row }">
           <span class="order-reference">

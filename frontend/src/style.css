@@ -1255,3 +1255,284 @@ select {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* GPT2 / Main_V2: Accent Ladder application direction.
+   Brand colour is reserved for task state, focus and progress; surfaces stay quiet. */
+:root {
+  --hc-ground: #f7f9fb;
+  --hc-surface: #ffffff;
+  --hc-ink: #172033;
+  --hc-muted: #64748b;
+  --hc-border: #dfe7ef;
+  --hc-primary: #176b8f;
+  --hc-primary-soft: #e8f4f7;
+  --hc-primary-track: #c8e5eb;
+  --hc-green: #087f5b;
+  --hc-green-soft: #e9f7f1;
+}
+
+.shell-aside {
+  color: var(--hc-ink);
+  background: #f0f5f8;
+  border-right: 1px solid var(--hc-border);
+}
+
+.brand-block {
+  height: 78px;
+  padding: 16px 20px;
+  border-bottom: 0;
+}
+
+.brand-block strong {
+  color: var(--hc-ink);
+  font-size: 17px;
+}
+
+.brand-block span {
+  color: var(--hc-muted);
+  opacity: 1;
+}
+
+.role-card {
+  margin: 12px 16px 8px;
+  border: 0;
+  border-radius: 8px;
+  padding: 13px;
+  background: #e4eef2;
+}
+
+.role-card span,
+.role-card small {
+  color: #567080;
+}
+
+.role-card strong {
+  color: var(--hc-ink);
+  font-size: 16px;
+}
+
+.menu-scroll {
+  height: calc(100vh - 178px);
+  padding: 12px 12px 22px;
+}
+
+.menu-group p {
+  margin: 16px 10px 7px;
+  color: #718494;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.side-menu .el-menu-item {
+  height: 38px;
+  margin-bottom: 3px;
+  border-radius: 7px;
+  color: #496172;
+  font-weight: 600;
+}
+
+.side-menu .el-menu-item:hover,
+.side-menu .el-menu-item.is-active {
+  color: #0d536e;
+  background: var(--hc-primary-soft);
+}
+
+.side-menu .el-menu-item:hover {
+  transform: none;
+}
+
+.shell-header {
+  height: 76px;
+  padding: 0 28px;
+  background: #fff;
+  backdrop-filter: none;
+  border-bottom: 1px solid var(--hc-border);
+}
+
+.shell-header h1 {
+  margin-top: 5px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.system-health {
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: var(--hc-green);
+  background: var(--hc-green-soft);
+  font-weight: 600;
+}
+
+.system-health span {
+  box-shadow: none;
+}
+
+.shell-main {
+  min-height: calc(100vh - 76px);
+  padding: 28px 32px 40px;
+  background: var(--hc-ground);
+}
+
+.page-stack {
+  gap: 20px;
+}
+
+.command-panel {
+  border: 1px solid var(--hc-border);
+  border-left: 4px solid var(--hc-primary);
+  border-radius: 8px;
+  padding: 22px 24px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.command-panel h2 {
+  margin: 6px 0 6px;
+  color: var(--hc-ink);
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.dashboard-context {
+  margin: 0;
+  color: var(--hc-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.metric-grid {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--hc-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.metric-card {
+  border: 0;
+  border-right: 1px solid var(--hc-border);
+  border-radius: 0;
+  box-shadow: none;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.metric-card:last-child {
+  border-right: 0;
+}
+
+.metric-card.active,
+.metric-card.active:hover {
+  border-color: var(--hc-border);
+  background: var(--hc-primary-soft);
+  box-shadow: none;
+}
+
+.metric-card:hover {
+  transform: none;
+  border-color: var(--hc-border);
+  background: #f8fbfc;
+}
+
+.metric-card .el-card__body {
+  min-height: 104px;
+  padding: 18px;
+}
+
+.metric-card span {
+  color: var(--hc-muted);
+  font-size: 13px;
+}
+
+.metric-card strong {
+  color: var(--hc-ink);
+  font-size: 30px;
+  font-weight: 600;
+}
+
+.metric-card.active strong {
+  color: #0d536e;
+}
+
+.hc-card {
+  border: 1px solid var(--hc-border);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.card-heading h2,
+.page-toolbar h2 {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.card-heading p,
+.page-toolbar p {
+  font-size: 13px;
+}
+
+.el-table {
+  --el-table-header-bg-color: #fff;
+  --el-table-header-text-color: #617282;
+  --el-table-row-hover-bg-color: #f1f8fa;
+  --el-table-border-color: #e5ebf0;
+}
+
+.el-table th.el-table__cell {
+  height: 42px;
+  font-weight: 700;
+}
+
+.el-table td.el-table__cell {
+  padding: 12px 0;
+}
+
+.cell-main {
+  font-weight: 600;
+}
+
+.el-table .el-tag {
+  border: 0;
+  background: #eef3f6;
+  color: #536675;
+}
+
+.el-table .el-tag.el-tag--warning {
+  background: #fff3d6;
+  color: #8b5e00;
+}
+
+.table-footer {
+  padding-top: 14px;
+}
+
+@media (max-width: 1100px) {
+  .metric-card {
+    border-bottom: 1px solid var(--hc-border);
+  }
+
+  .metric-card:nth-child(2n) {
+    border-right: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .shell-header {
+    height: auto;
+    min-height: 76px;
+    padding: 16px;
+  }
+
+  .shell-main {
+    min-height: calc(100svh - 76px);
+    padding: 20px 16px 28px;
+  }
+
+  .metric-grid {
+    border-radius: 8px;
+  }
+
+  .metric-card:nth-child(2n) {
+    border-right: 0;
+  }
+}
