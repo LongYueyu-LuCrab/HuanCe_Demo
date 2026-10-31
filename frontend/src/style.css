@@ -1506,6 +1506,122 @@ select {
   padding-top: 14px;
 }
 
+.workbench-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: 20px;
+}
+
+.workbench-grid > .hc-card {
+  min-width: 0;
+}
+
+.priority-panel {
+  min-width: 0;
+  border: 1px solid var(--hc-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.priority-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid var(--hc-border);
+}
+
+.priority-panel-heading h3 {
+  margin: 4px 0 0;
+  color: var(--hc-ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.priority-panel-heading > span {
+  color: var(--hc-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.priority-label {
+  margin: 0;
+  color: var(--hc-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.priority-list {
+  display: grid;
+}
+
+.priority-item {
+  padding: 14px 18px;
+  border-bottom: 1px solid #edf1f4;
+}
+
+.priority-item:last-child {
+  border-bottom: 0;
+}
+
+.priority-item-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.priority-item-topline strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--hc-ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.priority-item p,
+.priority-item small {
+  display: block;
+  margin: 5px 0 0;
+  overflow: hidden;
+  color: var(--hc-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.priority-item small {
+  color: #8796a2;
+}
+
+.priority-urgent {
+  flex: none;
+  border-radius: 4px;
+  padding: 3px 6px;
+  color: #8b5e00;
+  background: #fff3d6;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.priority-empty {
+  display: grid;
+  gap: 6px;
+  padding: 28px 18px;
+  color: var(--hc-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.priority-empty strong {
+  color: var(--hc-ink);
+  font-size: 14px;
+}
+
 @media (max-width: 1100px) {
   .metric-card {
     border-bottom: 1px solid var(--hc-border);
@@ -1513,6 +1629,10 @@ select {
 
   .metric-card:nth-child(2n) {
     border-right: 0;
+  }
+
+  .workbench-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1534,5 +1654,9 @@ select {
 
   .metric-card:nth-child(2n) {
     border-right: 0;
+  }
+
+  .priority-panel {
+    order: -1;
   }
 }

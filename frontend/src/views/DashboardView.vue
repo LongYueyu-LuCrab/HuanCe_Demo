@@ -12,6 +12,22 @@ const selectedKey = computed(() => activeMetric.value || cards.value[0]?.key || 
 const orders = computed(() => session.state.dashboard?.order_groups?.[selectedKey.value] ?? [])
 const selectedLabel = computed(() => cards.value.find((card) => card.key === selectedKey.value)?.label || '相关订单')
 const roleText = computed(() => session.state.user.roles?.join(' / ') || '普通用户')
+const priorityOrders = computed(() => {
+  const source = session.state.dashboard?.recent_orders ?? orders.value
+  const unique = new Map(source.map((order) => [order.order_no, order]))
+  return [...unique.values()]
+    .sort((left, right) => {
+      if (left.is_urgent !== right.is_urgent) return left.is_urgent ? -1 : 1
+      return String(left.expected_delivery_date || '').localeCompare(String(right.expected_delivery_date || ''))
+    })
+    .slice(0, 5)
+})
+
+function priorityReason(order: (typeof priorityOrders.value)[number]) {
+  if (order.is_urgent) return '加急订单，需要优先推进'
+  if (order.expected_delivery_date) return `交付日期 ${order.expected_delivery_date}`
+  return '等待当前流程节点处理'
+}
 </script>
 
 <template>
@@ -37,6 +53,32 @@ const roleText = computed(() => session.state.user.roles?.join(' / ') || '普通
       </el-card>
     </div>
 
-    <OrderTable :orders="orders" :title="`${selectedLabel}明细`" subtitle="点击订单行查看客户、报价、交付、试验需求和当前流程状态。" />
+    <div class="workbench-grid">
+      <OrderTable :orders="orders" :title="`${selectedLabel}明细`" subtitle="点击订单行查看客户、报价、交付、试验需求和当前流程状态。" />
+
+      <aside class="priority-panel" aria-labelledby="priority-title">
+        <div class="priority-panel-heading">
+          <div>
+            <p class="priority-label">优先关注</p>
+            <h3 id="priority-title">先处理这些订单</h3>
+          </div>
+          <span>{{ priorityOrders.length }} 条</span>
+        </div>
+        <div v-if="priorityOrders.length" class="priority-list">
+          <article v-for="order in priorityOrders" :key="order.order_no" class="priority-item">
+            <div class="priority-item-topline">
+              <strong>{{ order.order_no }}</strong>
+              <span v-if="order.is_urgent" class="priority-urgent">加急</span>
+            </div>
+            <p>{{ order.customer }} · {{ order.status }}</p>
+            <small>{{ priorityReason(order) }}</small>
+          </article>
+        </div>
+        <div v-else class="priority-empty">
+          <strong>暂无优先订单</strong>
+          <span>当前岗位没有需要额外关注的订单。</span>
+        </div>
+      </aside>
+    </div>
   </div>
 </template>
