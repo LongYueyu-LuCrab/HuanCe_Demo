@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import { login } from '../services/api'
 import { useSession } from '../stores/session'
 import companyLogo from '../assets/suzhou-huance-logo.png'
-import backgroundImage from '../assets/lims-background.png'
+import backgroundImage from '../assets/lims-background.webp'
 
 const router = useRouter()
 const session = useSession()
