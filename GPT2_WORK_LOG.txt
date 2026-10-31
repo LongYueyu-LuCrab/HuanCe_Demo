@@ -38,6 +38,11 @@ Git 提交号：88765c05a276695760e7b54b11d0a1768280da54
 1. 已确认目标图片与用户附件的 SHA-256 完全一致。
 2. 已完成 TypeScript 检查和 Vite 前端构建，构建成功。
 3. 构建过程中存在依赖包既有的 Rolldown 注释提示和大文件体积提示，但没有构建失败。
-部署状态：未部署生产环境；代码已推送到 GitHub main。
+部署状态：已部署生产环境；代码已推送到 GitHub main。
+部署补充：
+1. 部署基线：Git main 提交 36e8635d3c5ecfb01523ecbd1aa84578ef9d8e77。
+2. 发布前已备份服务器应用目录：/opt/huance/backups/app_before_gpt2_20261101_004834.tar.gz。
+3. 已保留服务器生产 .env、PostgreSQL 数据库、用户上传媒体和 Nginx 配置未改动。
+4. 发布后已验证 Django 配置检查、生产数据库迁移无待执行项、Nginx 配置、huance/nginx/postgresql 服务状态、HTTPS 首页和静态资源均正常。
 署名：GPT二号
 
