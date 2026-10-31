@@ -157,7 +157,7 @@ function actionsFor(order: OrderItem) {
 </script>
 
 <template>
-  <el-card shadow="never" class="hc-card">
+  <el-card shadow="never" class="hc-card order-table-card">
     <template #header>
       <div class="card-heading">
         <div>

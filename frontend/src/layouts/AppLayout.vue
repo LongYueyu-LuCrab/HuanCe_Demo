@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowDown,
@@ -24,6 +24,7 @@ import companyLogo from '../assets/suzhou-huance-logo.png'
 const route = useRoute()
 const router = useRouter()
 const session = useSession()
+const mobileNavVisible = ref(false)
 
 const menuGroups = computed(() => getMenuGroups(session.state.user))
 const activePath = computed(() => route.path)
@@ -95,6 +96,12 @@ async function logout() {
 
     <el-container>
       <el-header class="shell-header">
+        <div class="mobile-shell-bar">
+          <el-button class="mobile-menu-button" text aria-label="打开导航" @click="mobileNavVisible = true">
+            <el-icon><Menu /></el-icon>
+          </el-button>
+          <strong>{{ currentTitle }}</strong>
+        </div>
         <div>
           <el-breadcrumb separator="/">
             <el-breadcrumb-item>苏州环测检测技术有限公司</el-breadcrumb-item>
@@ -128,4 +135,20 @@ async function logout() {
       </el-main>
     </el-container>
   </el-container>
+
+  <el-drawer v-model="mobileNavVisible" title="环测 LIMS" direction="ltr" size="min(320px, 88vw)" class="mobile-nav-drawer">
+    <div class="mobile-nav-role">
+      <span>当前岗位</span>
+      <strong>{{ roleText }}</strong>
+    </div>
+    <div v-for="group in menuGroups" :key="`mobile-${group.title}`" class="menu-group mobile-menu-group">
+      <p>{{ group.title }}</p>
+      <el-menu :default-active="activePath" router class="side-menu" @select="mobileNavVisible = false">
+        <el-menu-item v-for="item in group.items" :key="item.key" :index="item.path">
+          <el-icon><component :is="iconFor(item.icon)" /></el-icon>
+          <span>{{ item.label }}</span>
+        </el-menu-item>
+      </el-menu>
+    </div>
+  </el-drawer>
 </template>
