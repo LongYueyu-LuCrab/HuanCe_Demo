@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-01
-Git 提交号：待本地 Main_V2 提交完成后补录
+Git 提交号：16135f3（Dashboard 优先任务工作台）
 提交说明：优化 Dashboard 任务工作台，增加优先订单与风险侧栏
 变更范围：前端 Dashboard、订单工作台布局、全局视觉样式
 具体改动：
@@ -29,7 +29,12 @@ Git 提交号：待本地 Main_V2 提交完成后补录
 4. 保持现有订单点击详情、指标筛选和工作流操作不变。
 影响范围：Dashboard 用户可见布局与任务优先级提示；不修改后端接口、权限判断、订单状态、数据库结构或业务流程。
 验证结果：已完成 pnpm run build、TypeScript 检查和 git diff --check；构建仍仅有既有 Rolldown 注释与大 chunk 提示。
-部署状态：本地 Main_V2 已完成，待提交并部署生产环境。
+部署状态：已部署到生产环境；未推送 GitHub。
+部署补充：
+1. 发布前备份：/opt/huance/backups/app_before_dashboard_priority_20261101_013205.tar.gz。
+2. 已上传正确目录下的 Dashboard 源码、全局样式和新的 static/frontend 构建产物。
+3. 生产 PostgreSQL 无待执行迁移；huance、nginx、postgresql 均 active。
+4. 发布后已执行 Django check、collectstatic，并重启 huance。
 署名：GPT二号
 
 日期：2026-11-01
