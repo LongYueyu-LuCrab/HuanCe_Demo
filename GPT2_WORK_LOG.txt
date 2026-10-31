@@ -34,7 +34,13 @@ Git 提交号：2175b7f（Main_V2 首个视觉升级提交）
 1. 已完成 pnpm run build，TypeScript 检查和 Vite 构建成功。
 2. 构建仍存在依赖包既有的 Rolldown 注释提示和大 chunk 提示，不影响构建产物。
 3. taste-skill lint 已执行；现有历史组件仍有渐变、细线、阴影等待后续分批治理，本次目标区域已完成 Accent Ladder 第一轮改造。
-部署状态：代码已在本地 Main_V2 完成，待推送远程分支和生产部署。
+部署状态：已部署到生产环境；远程 Main_V2 推送因 GitHub 网络连接超时仍待重试。
+部署补充：
+1. 本地 Main_V2 已提交 2175b7f（视觉升级）和 f5e52be（补录提交号）。
+2. 发布前已备份服务器应用目录：/opt/huance/backups/app_before_main_v2_20261101_012411.tar.gz。
+3. 已上传变更源码和新的 static/frontend 构建产物；生产 .env、PostgreSQL 数据库、用户上传媒体和 Nginx 配置未覆盖。
+4. 首次命令因未导出 .env 环境变量短暂生成了临时 SQLite；已核实 PostgreSQL 实际连接、删除误生成的 /opt/huance/app/db.sqlite3，并重新执行正确的检查和迁移命令。
+5. 正确生产迁移结果为 No migrations to apply；huance、nginx、postgresql 均 active；生产首页和静态入口均 HTTP 200；本地/服务器 CSS SHA-256 一致。
 署名：GPT二号
 
 日期：2026-11-01
