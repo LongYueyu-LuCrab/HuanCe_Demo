@@ -2300,6 +2300,8 @@ select {
   gap: 18px;
   align-items: stretch;
   padding: 16px 18px;
+  width: min(100%, 1180px);
+  justify-self: start;
   border: 1px solid #efd9ad;
   border-radius: 8px;
   background: #fffaf0;
@@ -2320,6 +2322,9 @@ select {
 .risk-list article strong { color: #513b17; font-size: 12px; }
 .risk-list article span { min-width: 0; overflow: hidden; color: #765a2b; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .risk-list article small { display: block; }
+.risk-list-wrap { min-width: 0; }
+.risk-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 10px; color: #8a5a12; font-size: 11px; }
+.risk-pagination span { margin-right: auto; }
 .risk-order-link { justify-self: start; color: #0f6f8f; font-size: 12px; font-weight: 700; text-decoration: none; }
 .risk-order-link:hover { color: #084c66; text-decoration: underline; }
 .priority-order-link { display: inline-block; margin-top: 5px; color: #0f6f8f; font-size: 12px; font-weight: 700; text-decoration: none; }
