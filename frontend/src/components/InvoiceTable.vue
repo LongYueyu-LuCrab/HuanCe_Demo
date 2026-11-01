@@ -55,6 +55,12 @@ const pagedInvoices = computed(() => {
   const start = (page.value - 1) * pageSize.value
   return filteredInvoices.value.slice(start, start + pageSize.value)
 })
+
+const invoiceQueue = computed(() => ({
+  total: props.invoices.length,
+  pending: props.invoices.filter((invoice) => invoice.record_status !== 'voided' && !invoice.pay_status.includes('已')).length,
+  overdue: props.invoices.filter((invoice) => invoice.record_status === 'voided' || invoice.finish_status.includes('待')).length,
+}))
 </script>
 
 <template>
@@ -66,6 +72,11 @@ const pagedInvoices = computed(() => {
           <p>{{ subtitle }}</p>
         </div>
         <el-input v-model="keyword" clearable class="table-search" placeholder="发票号、订单号、客户、项目" @input="page = 1" />
+      </div>
+      <div class="finance-queue-strip" aria-label="财务队列摘要">
+        <div><strong>{{ invoiceQueue.total }}</strong><span>{{ mode === 'history' ? '历史记录' : '当前队列' }}</span></div>
+        <div><strong>{{ invoiceQueue.pending }}</strong><span>{{ mode === 'history' ? '待回款' : '待处理' }}</span></div>
+        <div class="is-warning"><strong>{{ invoiceQueue.overdue }}</strong><span>{{ mode === 'history' ? '作废 / 待办' : '需要关注' }}</span></div>
       </div>
     </template>
     <el-table :data="pagedInvoices" height="360" empty-text="暂无匹配记录">

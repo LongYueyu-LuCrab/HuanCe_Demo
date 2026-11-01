@@ -30,6 +30,13 @@ const pagedReports = computed(() => {
   return filteredReports.value.slice(start, start + pageSize.value)
 })
 
+const reportQueue = computed(() => ({
+  sales: props.reports.filter((report) => report.status_key === 2).length,
+  gm: props.reports.filter((report) => report.status_key === 3).length,
+  rejected: props.reports.filter((report) => report.status_key === 4).length,
+  ready: props.reports.filter((report) => report.status_key === 5).length,
+}))
+
 const roleSet = computed(() => new Set(props.user?.roles || []))
 const isChairman = computed(() => Boolean(props.user?.is_chairman))
 
@@ -64,6 +71,12 @@ function downloadReport(report: ReportItem) {
           <p>显示当前角色可查看的待办与历史报告，PDF 文件可按权限下载。</p>
         </div>
         <el-input v-model="keyword" clearable class="table-search" placeholder="报告号、订单号、客户、状态" @input="page = 1" />
+      </div>
+      <div class="review-queue-strip" aria-label="报告队列摘要">
+        <div><strong>{{ reportQueue.sales }}</strong><span>待销售初审</span></div>
+        <div><strong>{{ reportQueue.gm }}</strong><span>待总经理终审</span></div>
+        <div class="is-warning"><strong>{{ reportQueue.rejected }}</strong><span>驳回重制</span></div>
+        <div><strong>{{ reportQueue.ready }}</strong><span>通过待开票</span></div>
       </div>
     </template>
     <el-table :data="pagedReports" height="520" empty-text="当前没有可查看的报告">

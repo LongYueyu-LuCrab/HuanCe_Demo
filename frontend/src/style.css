@@ -546,6 +546,48 @@ select {
   font-weight: 700;
 }
 
+.review-queue-strip,
+.finance-queue-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  margin-top: 14px;
+  border: 1px solid var(--hc-border);
+  background: var(--hc-border);
+}
+
+.review-queue-strip > div,
+.finance-queue-strip > div {
+  display: grid;
+  gap: 3px;
+  min-width: 120px;
+  padding: 8px 14px;
+  background: #fff;
+}
+
+.review-queue-strip strong,
+.finance-queue-strip strong {
+  color: var(--hc-ink);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.review-queue-strip span,
+.finance-queue-strip span {
+  color: var(--hc-muted);
+  font-size: 11px;
+}
+
+.review-queue-strip .is-warning,
+.finance-queue-strip .is-warning {
+  background: #fff8ed;
+}
+
+.review-queue-strip .is-warning strong,
+.finance-queue-strip .is-warning strong {
+  color: #b45309;
+}
+
 .el-table {
   --el-table-header-bg-color: #f8fafc;
   --el-table-header-text-color: #475569;

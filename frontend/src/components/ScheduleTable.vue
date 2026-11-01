@@ -89,8 +89,8 @@ function taskState(row: ScheduleItem) {
   }
   if (row.experiment_status.includes('待提交')) return { key: 'result', label: '待提交结果' }
   if (row.experiment_status.includes('试验中')) return { key: 'running', label: '实验进行中' }
-  if (!row.sample_arrived) return { key: 'sample', label: '等待样品' }
   if (!row.is_scheduled) return { key: 'schedule', label: '等待排期' }
+  if (!row.sample_arrived) return { key: 'sample', label: '等待样品' }
   return { key: 'ready', label: '已准备' }
 }
 
