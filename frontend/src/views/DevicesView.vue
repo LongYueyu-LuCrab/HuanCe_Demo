@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createLabDevice, deleteLabDevice, fetchLabDevices, updateLabDevice } from '../services/api'
 import { useSession } from '../stores/session'
@@ -7,8 +8,10 @@ import type { LabDevice } from '../types'
 import OutsourceBadge from '../components/OutsourceBadge.vue'
 
 const session = useSession()
+const router = useRouter()
 const devices = ref<LabDevice[]>([])
 const loading = ref(false)
+const loadError = ref('')
 const saving = ref(false)
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
@@ -31,8 +34,10 @@ async function loadDevices() {
   loading.value = true
   try {
     devices.value = await fetchLabDevices()
+    loadError.value = ''
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '设备读取失败')
+    loadError.value = error instanceof Error ? error.message : '设备读取失败'
+    ElMessage.error(loadError.value)
   } finally {
     loading.value = false
   }
@@ -109,6 +114,7 @@ onMounted(loadDevices)
       </div>
       <div class="row-actions">
         <el-segmented v-if="canSwitchLab" v-model="labFilter" :options="[{ label: '苏州实验室', value: 1 }, { label: '江阴实验室', value: 2 }]" />
+        <el-button v-if="loadError" type="warning" plain @click="loadDevices">重新加载</el-button>
         <el-button type="primary" @click="openCreate">新增设备</el-button>
       </div>
     </div>
@@ -130,7 +136,7 @@ onMounted(loadDevices)
           <template #default="{ row }">
             <template v-if="row.order_no">
               <div class="order-reference cell-main">
-                <span>{{ row.order_no }}</span>
+                <router-link :to="{ name: 'orders', query: { order: row.order_no } }" class="order-link" @click.stop>{{ row.order_no }}</router-link>
                 <OutsourceBadge :visible="row.is_outsource" />
               </div>
               <div class="cell-sub">预计结束 {{ row.end_time || '待定' }}</div>
@@ -139,7 +145,10 @@ onMounted(loadDevices)
           </template>
         </el-table-column>
         <el-table-column label="未来排期" width="100">
-          <template #default="{ row }">{{ row.future_orders.length }} 笔</template>
+          <template #default="{ row }">
+            <router-link v-if="row.future_orders.length" :to="{ name: 'schedule', query: { device: row.device_id } }" class="order-link" @click.stop>{{ row.future_orders.length }} 笔</router-link>
+            <span v-else class="muted">0 笔</span>
+          </template>
         </el-table-column>
         <el-table-column label="操作" width="170" fixed="right">
           <template #default="{ row }">

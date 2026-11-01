@@ -123,6 +123,7 @@ function riskAge(order: (typeof riskOrders.value)[number]) {
             </div>
             <p>{{ order.customer }} · {{ order.status }}</p>
             <small>{{ priorityReason(order) }}</small>
+            <router-link :to="{ name: 'orders', query: { order: order.order_no } }" class="priority-order-link">查看订单</router-link>
           </article>
         </div>
         <div v-else class="priority-empty">

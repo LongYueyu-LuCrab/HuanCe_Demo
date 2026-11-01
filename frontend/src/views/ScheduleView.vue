@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { UploadUserFile } from 'element-plus'
 import ScheduleTable from '../components/ScheduleTable.vue'
@@ -9,8 +10,10 @@ import { useSession } from '../stores/session'
 import type { LabDevice, OrderItem, ScheduleItem } from '../types'
 
 const session = useSession()
+const route = useRoute()
 const isBusinessDept = computed(() => (session.state.user.roles || []).includes('商务部'))
 const props = defineProps<{ outsourcedOnly?: boolean }>()
+const initialDeviceId = computed(() => Number(route.query.device || 0) || undefined)
 const schedules = ref<ScheduleItem[]>([])
 const scheduleTotal = ref(0)
 const schedulesLoading = ref(false)
@@ -215,7 +218,7 @@ async function submitWorkflow() {
 <template>
   <div class="page-stack">
     <div class="page-toolbar"><div><h2>{{ outsourcedOnly ? '委外排期与执行' : '排期与任务' }}</h2><p>实验室负责人在这里维护本人负责的内部及委外任务、样品、变更和报告。</p></div></div>
-    <ScheduleTable :orders="schedules" :user="session.state.user" remote :total="scheduleTotal" :loading="schedulesLoading" @query="loadSchedules" @detail="openOrderDetail" @workflow="openWorkflow" />
+    <ScheduleTable :orders="schedules" :user="session.state.user" :initial-device-id="initialDeviceId" remote :total="scheduleTotal" :loading="schedulesLoading" @query="loadSchedules" @detail="openOrderDetail" @workflow="openWorkflow" />
 
     <el-dialog v-model="dialogVisible" class="action-dialog" :title="actionMeta.title" width="min(960px, 94vw)">
       <div class="action-dialog-context">

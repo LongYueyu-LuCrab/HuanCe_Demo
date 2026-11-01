@@ -1696,7 +1696,6 @@ select {
   margin: 8px 0 14px;
   padding: 18px;
   border: 1px solid #fecaca;
-  border-left: 4px solid #c62828;
   border-radius: 8px;
   background: #fffafa;
 }
@@ -2012,7 +2011,6 @@ select {
 
 .command-panel {
   border: 1px solid var(--hc-border);
-  border-left: 4px solid var(--hc-primary);
   border-radius: 8px;
   padding: 22px 24px;
   background: #fff;
@@ -2282,6 +2280,10 @@ select {
 .risk-list article small { display: block; }
 .risk-order-link { justify-self: start; color: #0f6f8f; font-size: 12px; font-weight: 700; text-decoration: none; }
 .risk-order-link:hover { color: #084c66; text-decoration: underline; }
+.priority-order-link { display: inline-block; margin-top: 5px; color: #0f6f8f; font-size: 12px; font-weight: 700; text-decoration: none; }
+.priority-order-link:hover { color: #084c66; text-decoration: underline; }
+.order-link { color: #0f6f8f; font-weight: 700; text-decoration: none; }
+.order-link:hover { color: #084c66; text-decoration: underline; }
 .risk-empty { display: grid; align-content: center; color: #765a2b; font-size: 12px; }
 
 /* Tech atmosphere: cool surfaces and signal colours, without neon gradients. */
@@ -2374,7 +2376,7 @@ select {
 
 .metric-card.active,
 .metric-card.active:hover {
-  border-bottom: 3px solid #0b6685;
+  border-bottom: 1px solid #0b6685;
   background: #cfe8ee;
 }
 

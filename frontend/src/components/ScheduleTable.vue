@@ -14,6 +14,7 @@ const props = defineProps<{
   remote?: boolean
   total?: number
   loading?: boolean
+  initialDeviceId?: number
 }>()
 const emit = defineEmits<{
   workflow: [action: string, schedule: ScheduleItem]
@@ -26,7 +27,7 @@ const page = ref(1)
 const pageSize = ref(10)
 const orderStatus = ref<number | ''>('')
 const scheduleStatus = ref<number | ''>('')
-const deviceId = ref<number | ''>('')
+const deviceId = ref<number | ''>(props.initialDeviceId || '')
 const dateRange = ref<[string, string] | []>([])
 const selectedRows = ref<ScheduleItem[]>([])
 const exporting = ref(false)
