@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-01
-Git 提交号：待本地 Main_V2 提交完成后补录
+Git 提交号：a94b666（LIMS 登录页背景与动效）
 提交说明：重做 LIMS 登录页背景并增加克制科技动效
 变更范围：登录页背景资源、登录页动效、登录框视觉适配
 具体改动：
@@ -30,7 +30,12 @@ Git 提交号：待本地 Main_V2 提交完成后补录
 5. 登录框改为深青半透明面板，加入青色顶部信号线、浅青输入框和统一青蓝登录按钮。
 影响范围：仅登录页视觉、背景资源和动效；不修改登录接口、表单字段、认证逻辑、权限和业务流程。
 验证结果：已完成 pnpm run build、TypeScript 检查和 git diff --check；新 PNG 构建资源约 1.71MB；构建仍仅有依赖包既有 Rolldown 注释与大 chunk 提示。
-部署状态：本地 Main_V2 已完成，待提交并部署生产环境。
+部署状态：已部署到生产环境；已推送到 GitHub Main_V2。
+部署补充：
+1. 发布前备份：/opt/huance/backups/app_before_login_v2_20261101_123851.tar.gz。
+2. 已上传新的登录背景、登录页源码、全局样式和新的 static/frontend 构建产物。
+3. 生产 PostgreSQL 无待执行迁移；huance、nginx、postgresql 均 active。
+4. 发布后已执行 Django check、collectstatic，并重启 huance。
 署名：GPT二号
 
 日期：2026-11-01
