@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-01
-Git 提交号：待提交
+Git 提交号：209442f
 提交说明：按 impeccable 审计结果完成 UI 与交互质量改进
 变更范围：前端表格可访问性、数据加载错误状态、响应式表格高度、登录背景资源、设计 Token
 具体改动：
@@ -33,7 +33,11 @@ Git 提交号：待提交
 1. pnpm run build 成功，TypeScript 检查和 Vite 构建成功。
 2. impeccable detector 对 frontend/src 扫描结果为 []。
 3. git diff --check 通过；构建仍存在依赖包既有的 Rolldown 注释提示和 Element Plus vendor 大 chunk 提示，不影响构建。
-部署状态：待提交后部署生产环境。
+部署状态：已部署到生产环境。
+部署补充：
+1. 发布前已创建生产备份：/opt/huance/backups/huance_db_20261101_212027.dump 和 /opt/huance/backups/huance_app_20261101_212027.tar.gz。
+2. 已上传新的 static/frontend 构建产物并重启 huance；生产 health 接口 HTTP 200，huance、nginx、postgresql 均 active。
+3. 生产登录背景资源已验证可访问，WebP 文件约 75 KB。
 署名：GPT二号
 
 日期：2026-11-01
