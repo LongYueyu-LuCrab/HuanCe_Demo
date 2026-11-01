@@ -31,7 +31,11 @@ Git 提交号：58568b443bb6ee6b2953fa5e923d0c57c65f13b0
 6. 新增 scripts/backup_production.sh 与 scripts/verify_production_backup.sh，支持生成 PostgreSQL custom dump、应用归档和非破坏性校验。
 影响范围：管理员权限核对、审计检索、文件追溯、数据库查询性能、生产安全和备份运维；不改变普通角色现有工作流。
 验证结果：Django check 通过；迁移检查无待生成变更；core 全量测试 81 项通过；Vite 构建成功；impeccable detector 对 frontend/src 返回空结果。
-部署状态：代码提交完成，待推送并部署生产环境。
+部署状态：已推送 GitHub Main_V2，并部署生产环境。
+部署补充：
+1. 生产发布前已备份服务器应用目录：/opt/huance/backups/app_before_hardening_20261101_210530.tar.gz。
+2. 已执行 core.0020、core.0021 数据库迁移；Django 配置检查和静态文件收集均通过。
+3. 发布后 huance、nginx、postgresql 均为 active；/api/health/ 返回 service=ok、database=ok、db_ms=13.72，HTTPS 首页返回 HTTP 200。
 署名：GPT二号
 
 日期：2026-11-01
