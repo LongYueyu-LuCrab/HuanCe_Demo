@@ -189,6 +189,7 @@ function actionsFor(order: OrderItem) {
     </template>
 
     <InlineErrorState v-if="error" :message="error" @retry="emit('retry')" />
+    <el-skeleton v-else-if="loading && !pagedOrders.length" :rows="6" animated class="table-skeleton" />
     <el-table v-else v-loading="loading" :data="pagedOrders" max-height="min(540px, calc(100vh - 300px))" empty-text="暂无匹配订单" @row-click="openOrder">
       <el-table-column prop="order_no" label="订单号" min-width="150">
         <template #default="{ row }">

@@ -95,7 +95,7 @@ function formatAmount(value: string) {
           <li
             v-for="step in phase.steps"
             :key="step.key"
-            class="workflow-node"
+              class="workflow-node"
             :class="`is-${step.state}`"
             :aria-current="step.state === 'current' ? 'step' : undefined"
           >
@@ -108,7 +108,7 @@ function formatAmount(value: string) {
             </span>
             <div class="workflow-node-content">
               <div class="workflow-node-title">
-                <strong>{{ step.sequence }}. {{ step.title }}</strong>
+              <strong>{{ step.sequence }}. {{ step.title }}</strong>
                 <span class="workflow-state-label">{{ step.state_label }}</span>
               </div>
               <p>{{ step.detail }}</p>

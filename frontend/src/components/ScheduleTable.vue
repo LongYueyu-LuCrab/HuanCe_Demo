@@ -206,6 +206,7 @@ async function exportOrders(selectedOnly: boolean) {
       />
     </div>
     <InlineErrorState v-if="error" :message="error" @retry="emit('retry')" />
+    <el-skeleton v-else-if="loading && !pagedOrders.length" :rows="6" animated class="table-skeleton" />
     <el-table v-else v-loading="loading" :data="pagedOrders" max-height="min(420px, calc(100vh - 340px))" empty-text="暂无匹配任务" @selection-change="handleSelection">
       <el-table-column v-if="exportable" type="selection" width="48" />
       <el-table-column prop="order_no" label="订单号" min-width="165">

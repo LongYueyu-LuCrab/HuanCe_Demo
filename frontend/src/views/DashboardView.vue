@@ -80,7 +80,7 @@ function riskAge(order: (typeof riskOrders.value)[number]) {
         @keydown.space.prevent="activeMetric = card.key"
       >
         <span>{{ card.label }}</span>
-        <strong>{{ card.value }}</strong>
+          <strong :key="`${card.key}-${card.value}`" class="metric-value">{{ card.value }}</strong>
       </el-card>
     </div>
 
