@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import OrderSnapshot from './OrderSnapshot.vue'
 import OutsourceBadge from './OutsourceBadge.vue'
+import StatusBadge from './StatusBadge.vue'
 import { fetchOrderDetail } from '../services/api'
 import { useSession } from '../stores/session'
 import type { OrderItem, User } from '../types'
@@ -202,7 +203,7 @@ function actionsFor(order: OrderItem) {
       <el-table-column prop="execution_mode" label="路径" min-width="150" />
       <el-table-column prop="status" label="状态" min-width="130">
         <template #default="{ row }">
-          <el-tag effect="plain">{{ row.status }}</el-tag>
+          <StatusBadge :label="row.status" />
         </template>
       </el-table-column>
       <el-table-column prop="expected_delivery_date" label="交付" min-width="120" />

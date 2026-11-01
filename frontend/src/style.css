@@ -1817,6 +1817,14 @@ select {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .risk-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .risk-list {
+    grid-template-columns: 1fr;
+  }
+
   .action-dialog-context {
     grid-template-columns: 1fr;
   }
@@ -2245,6 +2253,33 @@ select {
   color: var(--hc-ink);
   font-size: 14px;
 }
+
+.risk-workbench {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(260px, 0.8fr) minmax(0, 1.8fr);
+  gap: 18px;
+  align-items: stretch;
+  padding: 16px 18px;
+  border: 1px solid #efd9ad;
+  border-radius: 8px;
+  background: #fffaf0;
+}
+
+.risk-workbench-heading { display: grid; align-content: center; }
+.risk-workbench-heading span,
+.risk-workbench-heading strong,
+.risk-counts span,
+.risk-list small { color: #8a5a12; font-size: 12px; }
+.risk-workbench-heading h3 { margin: 5px 0 0; color: #513b17; font-size: 16px; }
+.risk-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: #efd9ad; }
+.risk-counts > div { display: grid; align-content: center; gap: 4px; padding: 8px; background: #fffdf8; }
+.risk-counts strong { color: #a16207; font-size: 22px; }
+.risk-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px 16px; }
+.risk-list article { display: grid; gap: 3px; align-content: center; min-width: 0; padding: 6px 0; border-bottom: 1px solid #f4e8cf; }
+.risk-list article > div { display: flex; gap: 8px; min-width: 0; }
+.risk-list article strong { color: #513b17; font-size: 12px; }
+.risk-list article span { min-width: 0; overflow: hidden; color: #765a2b; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.risk-empty { display: grid; align-content: center; color: #765a2b; font-size: 12px; }
 
 /* Tech atmosphere: cool surfaces and signal colours, without neon gradients. */
 :root {

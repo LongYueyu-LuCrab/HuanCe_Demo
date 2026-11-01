@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import type { ReportItem, User } from '../types'
 import OutsourceBadge from './OutsourceBadge.vue'
+import StatusBadge from './StatusBadge.vue'
 
 const props = defineProps<{ reports: ReportItem[]; user?: User }>()
 const emit = defineEmits<{
@@ -96,7 +97,7 @@ function downloadReport(report: ReportItem) {
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" min-width="150">
-        <template #default="{ row }"><el-tag effect="plain">{{ row.status }}</el-tag></template>
+        <template #default="{ row }"><StatusBadge :label="row.status" /></template>
       </el-table-column>
       <el-table-column prop="report_type_label" label="版本" width="100">
         <template #default="{ row }">

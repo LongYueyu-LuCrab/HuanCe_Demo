@@ -23,10 +23,33 @@ const priorityOrders = computed(() => {
     .slice(0, 5)
 })
 
+const visibleOrders = computed(() => {
+  const groups = session.state.dashboard?.order_groups || {}
+  const source = Object.values(groups).flat()
+  return [...new Map(source.map((order) => [order.order_no, order])).values()]
+})
+
+const riskOrders = computed(() => visibleOrders.value.filter((order) => {
+  const overdue = Boolean(order.expected_delivery_date && order.expected_delivery_date < new Date().toISOString().slice(0, 10) && !['已开票办结', '退单'].includes(order.status))
+  return order.is_urgent || overdue || order.status === '评审驳回'
+}).slice(0, 6))
+
+const riskCounts = computed(() => ({
+  urgent: visibleOrders.value.filter((order) => order.is_urgent).length,
+  overdue: visibleOrders.value.filter((order) => Boolean(order.expected_delivery_date && order.expected_delivery_date < new Date().toISOString().slice(0, 10) && !['已开票办结', '退单'].includes(order.status))).length,
+  rejected: visibleOrders.value.filter((order) => order.status === '评审驳回').length,
+}))
+
 function priorityReason(order: (typeof priorityOrders.value)[number]) {
   if (order.is_urgent) return '加急订单，需要优先推进'
   if (order.expected_delivery_date) return `交付日期 ${order.expected_delivery_date}`
   return '等待当前流程节点处理'
+}
+
+function riskReason(order: (typeof riskOrders.value)[number]) {
+  if (order.is_urgent) return '加急订单'
+  if (order.status === '评审驳回') return '评审驳回，等待修改或退单'
+  return `已超过预计交付 ${order.expected_delivery_date}`
 }
 </script>
 
@@ -57,6 +80,25 @@ function priorityReason(order: (typeof priorityOrders.value)[number]) {
         <strong>{{ card.value }}</strong>
       </el-card>
     </div>
+
+    <section class="risk-workbench" aria-labelledby="risk-title">
+      <div class="risk-workbench-heading">
+        <div><span>交付风险</span><h3 id="risk-title">先处理可能影响交付的订单</h3></div>
+        <strong>{{ riskOrders.length }} 条需要关注</strong>
+      </div>
+      <div class="risk-counts">
+        <div><strong>{{ riskCounts.urgent }}</strong><span>加急订单</span></div>
+        <div><strong>{{ riskCounts.overdue }}</strong><span>超过预计交付</span></div>
+        <div><strong>{{ riskCounts.rejected }}</strong><span>评审驳回</span></div>
+      </div>
+      <div v-if="riskOrders.length" class="risk-list">
+        <article v-for="order in riskOrders" :key="order.order_no">
+          <div><strong>{{ order.order_no }}</strong><span>{{ order.customer }} · {{ order.status }}</span></div>
+          <small>{{ riskReason(order) }}</small>
+        </article>
+      </div>
+      <div v-else class="risk-empty">当前没有识别到加急、逾期或评审驳回订单。</div>
+    </section>
 
     <div class="workbench-grid">
       <OrderTable :orders="orders" :title="`${selectedLabel}明细`" subtitle="点击订单行查看客户、报价、交付、试验需求和当前流程状态。" />

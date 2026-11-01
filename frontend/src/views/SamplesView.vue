@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
 import OutsourceBadge from '../components/OutsourceBadge.vue'
+import StatusBadge from '../components/StatusBadge.vue'
 import { fetchOrderDetail } from '../services/api'
 import { useSession } from '../stores/session'
 import type { OrderItem, SampleItem } from '../types'
@@ -127,7 +128,7 @@ async function openOrderDetail(sample: SampleItem) {
         <el-table-column label="状态" min-width="140">
           <template #default="{ row }">
             <div class="sample-stage-line" :class="`is-${sampleStage(row).key}`"><span class="task-state-dot"></span><strong>{{ sampleStage(row).label }}</strong></div>
-            <el-tag effect="plain">{{ row.sample_status }}</el-tag>
+            <StatusBadge :label="row.sample_status" />
           </template>
         </el-table-column>
         <el-table-column label="流转轨迹" min-width="300">

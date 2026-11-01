@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import type { InvoiceItem } from '../types'
 import OutsourceBadge from './OutsourceBadge.vue'
+import StatusBadge from './StatusBadge.vue'
 
 const props = defineProps<{
   invoices: InvoiceItem[]
@@ -110,8 +111,8 @@ const invoiceQueue = computed(() => ({
       </el-table-column>
       <el-table-column label="状态" min-width="190">
         <template #default="{ row }">
-          <el-tag v-if="row.record_status === 'voided'" type="danger" effect="plain">已作废</el-tag>
-          <el-tag v-else :type="row.pay_status.includes('已') ? 'success' : 'warning'" effect="plain">{{ row.pay_status }}</el-tag>
+          <StatusBadge v-if="row.record_status === 'voided'" label="已作废" />
+          <StatusBadge v-else :label="row.pay_status" />
           <div class="cell-sub">{{ row.finish_status }}</div>
           <div v-if="row.record_status === 'voided'" class="cell-sub">{{ row.voided_at }} · {{ row.void_reason }}</div>
         </template>

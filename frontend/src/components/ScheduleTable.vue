@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { exportLaboratoryOrders, type LabOrderQuery } from '../services/api'
 import type { ScheduleItem, User } from '../types'
 import OutsourceBadge from './OutsourceBadge.vue'
+import StatusBadge from './StatusBadge.vue'
 
 const props = defineProps<{
   orders: ScheduleItem[]
@@ -242,7 +243,7 @@ async function exportOrders(selectedOnly: boolean) {
             <span class="task-state-dot" aria-hidden="true"></span>
             <strong>{{ taskState(row).label }}</strong>
           </div>
-          <el-tag effect="plain">{{ row.status }}</el-tag>
+          <StatusBadge :label="row.status" />
           <span class="cell-sub block">{{ row.schedule_status }}</span>
           <el-tag v-if="!row.is_scheduled" class="mt-8" size="small" type="warning" effect="plain">
             待确认排期
@@ -250,16 +251,14 @@ async function exportOrders(selectedOnly: boolean) {
           <div v-else class="cell-sub mt-8">
             {{ row.scheduled_by || '实验室' }} · {{ row.scheduled_at }}
           </div>
-          <el-tag class="mt-8" size="small" :type="row.sample_arrived ? 'success' : 'warning'" effect="plain">
-            {{ row.sample_arrival_status }}
-          </el-tag>
+          <StatusBadge class="mt-8" size="small" :label="row.sample_arrival_status" />
         </template>
       </el-table-column>
       <el-table-column label="实验结果" min-width="220">
         <template #default="{ row }">
           <template v-if="row.experiment_status">
             <div class="row-actions">
-              <el-tag size="small" effect="plain">{{ row.experiment_status }}</el-tag>
+              <StatusBadge size="small" :label="row.experiment_status" />
               <el-tag v-if="row.experiment_result" size="small" :type="resultTagType(row.experiment_result_key)">
                 {{ row.experiment_result }}
               </el-tag>
