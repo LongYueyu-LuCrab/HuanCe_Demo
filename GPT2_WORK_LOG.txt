@@ -19,6 +19,25 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-01
+Git 提交号：e3ba4d3a38aead40edde219d4cca1a3667fa52c0
+提交说明：修复订单详情缺少实验后续操作入口
+变更范围：前端订单详情操作面板、实验室流程路由
+具体改动：
+1. 在订单详情中补充“实验结束”和“提交结果”入口，并跳转到实验室操作弹窗。
+2. 允许“实验已结束待提交结果”状态继续展示“提交结果”。
+3. 在结果待提交状态隐藏无效的重新排期和样品入库按钮，避免错误操作。
+4. 扩展实验室操作路由参数白名单，支持 end_test 与 submit_test。
+影响范围：所有可从订单详情打开的实验室任务；修复后不必返回实验室订单列表即可继续实验流程。后端接口、数据库结构和既有实验室任务列表操作未改动。
+验证结果：Django 全部 82 项测试通过；pnpm build 成功；Impeccable detector 为 []；git diff --check 通过。
+部署状态：已部署到生产环境，待完成 GitHub 推送。
+部署补充：
+1. 发布前已备份生产应用目录：/opt/huance/backups/app_before_order_detail_actions_20261101_230854.tar.gz。
+2. 已按提交 e3ba4d3 同步应用源码，并同步前端构建产物到 Django 入口目录和 Nginx 静态目录。
+3. 已写入服务器部署标记 /opt/huance/app/.deployed_commit，并重启 huance、重新加载 nginx。
+4. 发布后 Django system check 通过；huance、nginx、postgresql 均为 active；/api/health/ 正常。
+署名：GPT二号
+
+日期：2026-11-01
 Git 提交号：5df0994ec63c14bc9d077bba20fde74c35d79a75
 提交说明：按角色限制订单合同与委外合同的查看和下载权限
 变更范围：订单详情、订单列表/看板接口、合同下载接口、前端订单详情资料区及权限回归测试
