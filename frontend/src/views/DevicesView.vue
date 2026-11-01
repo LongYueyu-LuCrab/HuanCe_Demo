@@ -114,7 +114,7 @@ onMounted(loadDevices)
     </div>
 
     <el-card shadow="never" class="hc-card">
-      <el-table v-loading="loading" :data="filteredDevices" stripe empty-text="当前实验室暂无设备">
+      <el-table v-loading="loading" :data="filteredDevices" empty-text="当前实验室暂无设备">
         <el-table-column prop="device_code" label="设备编号" min-width="130" />
         <el-table-column label="设备" min-width="220">
           <template #default="{ row }">

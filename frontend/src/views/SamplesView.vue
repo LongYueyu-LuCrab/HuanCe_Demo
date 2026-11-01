@@ -82,7 +82,7 @@ async function openOrderDetail(sample: SampleItem) {
         </div>
       </template>
 
-      <el-table :data="pagedSamples" stripe height="540" empty-text="暂无样品记录">
+      <el-table :data="pagedSamples" height="540" empty-text="暂无样品记录">
         <el-table-column prop="sample_no" label="样品编号" min-width="150" />
         <el-table-column label="订单 / 客户" min-width="280">
           <template #default="{ row }">

@@ -66,7 +66,7 @@ function downloadReport(report: ReportItem) {
         <el-input v-model="keyword" clearable class="table-search" placeholder="报告号、订单号、客户、状态" @input="page = 1" />
       </div>
     </template>
-    <el-table :data="pagedReports" stripe height="520" empty-text="当前没有可查看的报告">
+    <el-table :data="pagedReports" height="520" empty-text="当前没有可查看的报告">
       <el-table-column prop="report_no" label="报告号" min-width="170" />
       <el-table-column prop="order_no" label="订单号" min-width="165">
         <template #default="{ row }">

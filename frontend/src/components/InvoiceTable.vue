@@ -68,7 +68,7 @@ const pagedInvoices = computed(() => {
         <el-input v-model="keyword" clearable class="table-search" placeholder="发票号、订单号、客户、项目" @input="page = 1" />
       </div>
     </template>
-    <el-table :data="pagedInvoices" stripe height="360" empty-text="暂无匹配记录">
+    <el-table :data="pagedInvoices" height="360" empty-text="暂无匹配记录">
       <el-table-column :label="mode === 'history' ? '发票 / 订单' : '订单 / 报告'" min-width="210">
         <template #default="{ row }">
           <div v-if="mode === 'history'" class="cell-main">{{ row.invoice_no }}</div>

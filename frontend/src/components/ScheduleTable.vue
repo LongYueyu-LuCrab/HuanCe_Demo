@@ -158,7 +158,7 @@ async function exportOrders(selectedOnly: boolean) {
         @change="resetPage"
       />
     </div>
-    <el-table v-loading="loading" :data="pagedOrders" stripe height="420" empty-text="暂无匹配任务" @selection-change="handleSelection">
+    <el-table v-loading="loading" :data="pagedOrders" height="420" empty-text="暂无匹配任务" @selection-change="handleSelection">
       <el-table-column v-if="exportable" type="selection" width="48" />
       <el-table-column prop="order_no" label="订单号" min-width="165">
         <template #default="{ row }">
