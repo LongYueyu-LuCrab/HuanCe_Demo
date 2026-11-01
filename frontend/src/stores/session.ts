@@ -1,5 +1,5 @@
 import { computed, reactive } from 'vue'
-import { fetchCurrentUser, fetchDashboard, logout as logoutApi } from '../services/api'
+import { fetchCurrentUser, fetchDashboard, fetchHealth, logout as logoutApi } from '../services/api'
 import type { Dashboard, User } from '../types'
 
 const state = reactive<{
@@ -8,12 +8,14 @@ const state = reactive<{
   bootstrapped: boolean
   loading: boolean
   connectionError: string
+  health: { status: 'checking' | 'healthy' | 'error'; message: string }
 }>({
   user: { authenticated: false },
   dashboard: null,
   bootstrapped: false,
   loading: false,
   connectionError: '',
+  health: { status: 'checking', message: '连接中' },
 })
 
 export function useSession() {
@@ -32,6 +34,7 @@ export function useSession() {
     if (state.bootstrapped) return
     state.loading = true
     try {
+      await checkHealth()
       state.user = await fetchCurrentUser()
       if (state.user.authenticated) {
         state.dashboard = await fetchDashboard()
@@ -56,6 +59,18 @@ export function useSession() {
     }
   }
 
+  async function checkHealth() {
+    state.health = { status: 'checking', message: '连接中' }
+    try {
+      const health = await fetchHealth()
+      state.health = health.ok && health.database === 'ok'
+        ? { status: 'healthy', message: '运行正常' }
+        : { status: 'error', message: '数据库连接异常' }
+    } catch {
+      state.health = { status: 'error', message: '服务连接异常' }
+    }
+  }
+
   async function setUser(user: User) {
     state.user = user
     await refreshDashboard()
@@ -66,6 +81,7 @@ export function useSession() {
     state.user = { authenticated: false }
     state.dashboard = null
     state.connectionError = ''
+    state.health = { status: 'checking', message: '连接中' }
   }
 
   return {
@@ -79,6 +95,7 @@ export function useSession() {
     hasRole,
     bootstrap,
     refreshDashboard,
+    checkHealth,
     setUser,
     logout,
   }

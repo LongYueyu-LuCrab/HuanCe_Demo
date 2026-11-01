@@ -1,5 +1,12 @@
 import type { Dashboard, LabDevice, OrderItem, ReportItem, User } from '../types'
 
+export type HealthStatus = { ok: boolean; service: string; database: 'ok' | 'error'; checked_at: string }
+
+export async function fetchHealth(): Promise<HealthStatus> {
+  const response = await fetch('/api/health/', { credentials: 'include', cache: 'no-store' })
+  return parseJson<HealthStatus>(response)
+}
+
 async function parseJson<T>(response: Response): Promise<T> {
   const data = await response.json()
   if (!response.ok) {

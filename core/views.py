@@ -11,7 +11,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.models import Group
 from django.core.files.base import ContentFile
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Case, Count, F, IntegerField, Prefetch, Q, Sum, Value, When
 from django.http import FileResponse, HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -62,6 +62,18 @@ def frontend(request):
             'Vue frontend has not been built. Run: cd frontend && pnpm build'
         )
     return HttpResponse(index_path.read_text(encoding='utf-8'))
+
+
+def health_check(request):
+    """Expose a minimal production health signal without exposing business data."""
+    checked_at = timezone.now().isoformat()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+            cursor.fetchone()
+        return JsonResponse({'ok': True, 'service': 'ok', 'database': 'ok', 'checked_at': checked_at})
+    except Exception:
+        return JsonResponse({'ok': False, 'service': 'ok', 'database': 'error', 'checked_at': checked_at}, status=503)
 
 
 def _is_chairman(user):
@@ -830,15 +842,19 @@ def _invoice_amounts(order):
 
 def _current_reviews(order):
     reviews = order.reviews.all()
-    if order.review_reset_at:
-        reviews = reviews.filter(create_time__gte=order.review_reset_at)
+    latest_rejection_id = order.reviews.filter(review_result=False).order_by('-id').values_list('id', flat=True).first()
+    if latest_rejection_id:
+        reviews = reviews.filter(id__gt=latest_rejection_id)
+    elif order.review_reset_at:
+        reviews = reviews.filter(create_time__gt=order.review_reset_at)
     return reviews
 
 
 def _has_dual_review_pass(order):
     prefetched_reviews = getattr(order, '_prefetched_objects_cache', {}).get('reviews')
     if prefetched_reviews is not None:
-        approved_reviews = [review for review in prefetched_reviews if review.review_result and (not order.review_reset_at or review.create_time >= order.review_reset_at)]
+        latest_rejection_id = max((review.id for review in prefetched_reviews if not review.review_result), default=0)
+        approved_reviews = [review for review in prefetched_reviews if review.review_result and (review.id > latest_rejection_id if latest_rejection_id else (not order.review_reset_at or review.create_time > order.review_reset_at))]
         return (
             any(review.biz_review_user_id for review in approved_reviews)
             and any(review.tech_review_user_id for review in approved_reviews)
@@ -3907,7 +3923,7 @@ def lims_dashboard(request):
     risk_orders_scope = related_orders.exclude(
         order_status__in=[LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]
     ).filter(
-        Q(is_urgent=True)
+        Q(remark__icontains='加急')
         | Q(expect_delivery_time__lt=timezone.now())
         | Q(order_status=LabOrder.Status.REVIEW_REJECTED)
     ).order_by('expect_delivery_time', '-create_time')
@@ -3925,7 +3941,7 @@ def lims_dashboard(request):
             ).count(),
         },
         'risk_counts': {
-            'urgent': related_orders.filter(is_urgent=True).exclude(
+            'urgent': related_orders.filter(remark__icontains='加急').exclude(
                 order_status__in=[LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]
             ).count(),
             'overdue': related_orders.filter(

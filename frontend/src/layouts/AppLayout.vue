@@ -65,6 +65,7 @@ async function logout() {
 
 async function retryConnection() {
   try {
+    await session.checkHealth()
     await session.refreshDashboard()
   } catch {
     // Keep the connection state visible so the user can retry again.
@@ -125,9 +126,9 @@ async function clearAccessNotice() {
         </div>
         <div class="header-actions">
           <div class="system-health">
-            <span :class="{ 'is-error': session.state.connectionError, 'is-loading': session.state.loading }"></span>
-            {{ session.state.loading ? '连接中' : session.state.connectionError ? '连接异常' : '运行正常' }}
-            <el-button v-if="session.state.connectionError" text size="small" @click="retryConnection">重试</el-button>
+            <span :class="{ 'is-error': session.state.health.status === 'error' || session.state.connectionError, 'is-loading': session.state.loading || session.state.health.status === 'checking' }"></span>
+            {{ session.state.loading ? '连接中' : session.state.health.message }}
+            <el-button v-if="session.state.health.status === 'error' || session.state.connectionError" text size="small" @click="retryConnection">重试</el-button>
           </div>
           <el-button v-if="session.canAccessAdmin.value" tag="a" href="/admin/" type="primary" plain>进入 Django 后台</el-button>
           <el-dropdown>

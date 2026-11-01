@@ -16,11 +16,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, re_path
-from core.views import add_employee, create_order, current_user, download_order_document, download_test_report, frontend, lab_device_availability, lab_device_detail, lab_devices, laboratory_orders, laboratory_orders_export, lims_action, lims_dashboard, lims_login, lims_logout, order_detail, sales_manager_orders, sales_manager_orders_export, view_sample_photo
+from core.views import add_employee, create_order, current_user, download_order_document, download_test_report, frontend, health_check, lab_device_availability, lab_device_detail, lab_devices, laboratory_orders, laboratory_orders_export, lims_action, lims_dashboard, lims_login, lims_logout, order_detail, sales_manager_orders, sales_manager_orders_export, view_sample_photo
 
 urlpatterns = [
     path('', frontend, name='frontend'),
     path('api/auth/me/', current_user, name='current_user'),
+    path('api/health/', health_check, name='health_check'),
     path('api/auth/login/', lims_login, name='lims_login'),
     path('api/auth/logout/', lims_logout, name='lims_logout'),
     path('api/employees/add/', add_employee, name='add_employee'),
