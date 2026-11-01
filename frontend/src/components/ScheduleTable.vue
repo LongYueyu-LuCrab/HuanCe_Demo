@@ -82,6 +82,41 @@ const isBusinessDept = computed(() => roleSet.value.has('商务部'))
 const canLabOperate = computed(() => isChairman.value || roleSet.value.has('苏州实验室') || roleSet.value.has('江阴实验室') || roleSet.value.has('实验操作员'))
 const canIssueReport = computed(() => isChairman.value || roleSet.value.has('苏州实验室') || roleSet.value.has('江阴实验室'))
 
+function taskState(row: ScheduleItem) {
+  if (row.schedule_status.includes('变更')) return { key: 'blocked', label: '变更待处理' }
+  if (row.end_time && row.end_time < new Date().toISOString().slice(0, 10) && !row.experiment_status.includes('结束') && !row.experiment_status.includes('提交')) {
+    return { key: 'overdue', label: '排期已逾期' }
+  }
+  if (row.experiment_status.includes('待提交')) return { key: 'result', label: '待提交结果' }
+  if (row.experiment_status.includes('试验中')) return { key: 'running', label: '实验进行中' }
+  if (!row.sample_arrived) return { key: 'sample', label: '等待样品' }
+  if (!row.is_scheduled) return { key: 'schedule', label: '等待排期' }
+  return { key: 'ready', label: '已准备' }
+}
+
+function nextActionLabel(row: ScheduleItem) {
+  const state = taskState(row).key
+  if (state === 'blocked') return '先处理变更'
+  if (state === 'result') return '先提交结果'
+  if (state === 'running') return '继续实验'
+  if (state === 'sample') return '先确认样品'
+  if (state === 'schedule' || state === 'ready') return '先处理排期'
+  return '查看任务'
+}
+
+const taskStats = computed(() => {
+  const stats = { attention: 0, sample: 0, running: 0, result: 0, ready: 0 }
+  for (const row of props.orders) {
+    const key = taskState(row).key
+    if (key === 'blocked' || key === 'overdue') stats.attention += 1
+    else if (key === 'sample') stats.sample += 1
+    else if (key === 'running') stats.running += 1
+    else if (key === 'result') stats.result += 1
+    else if (key === 'ready' || key === 'schedule') stats.ready += 1
+  }
+  return stats
+})
+
 function resetPage() {
   page.value = 1
 }
@@ -136,6 +171,13 @@ async function exportOrders(selectedOnly: boolean) {
           <el-button :loading="exporting" plain @click="exportOrders(true)">导出已选</el-button>
           <el-button :loading="exporting" type="primary" plain @click="exportOrders(false)">按条件导出 Excel</el-button>
         </div>
+      </div>
+      <div class="task-queue-strip" aria-label="当前任务队列摘要">
+        <div class="task-queue-item is-attention"><strong>{{ taskStats.attention }}</strong><span>异常 / 逾期</span></div>
+        <div class="task-queue-item"><strong>{{ taskStats.sample }}</strong><span>等待样品</span></div>
+        <div class="task-queue-item"><strong>{{ taskStats.running }}</strong><span>实验中</span></div>
+        <div class="task-queue-item"><strong>{{ taskStats.result }}</strong><span>待提交结果</span></div>
+        <div class="task-queue-item"><strong>{{ taskStats.ready }}</strong><span>准备处理</span></div>
       </div>
     </template>
     <div class="schedule-filter-bar">
@@ -196,6 +238,10 @@ async function exportOrders(selectedOnly: boolean) {
       </el-table-column>
       <el-table-column label="状态" min-width="170">
         <template #default="{ row }">
+          <div class="task-state-line" :class="`is-${taskState(row).key}`">
+            <span class="task-state-dot" aria-hidden="true"></span>
+            <strong>{{ taskState(row).label }}</strong>
+          </div>
           <el-tag effect="plain">{{ row.status }}</el-tag>
           <span class="cell-sub block">{{ row.schedule_status }}</span>
           <el-tag v-if="!row.is_scheduled" class="mt-8" size="small" type="warning" effect="plain">
@@ -228,6 +274,7 @@ async function exportOrders(selectedOnly: boolean) {
       <el-table-column label="订单信息 / 试验操作" fixed="right" min-width="300">
         <template #default="{ row }">
           <div class="row-actions">
+            <span class="task-next-action">下一步：{{ nextActionLabel(row) }}</span>
             <el-button size="small" plain @click="emit('detail', row)">订单详情</el-button>
             <el-button v-if="isBusinessDept && row.workflow_version === 2 && [3, 4].includes(row.status_key) && ![2, 4, 5].includes(row.schedule_status_key)" size="small" type="primary" plain @click="emit('workflow', 'schedule_assign', row)">{{ row.is_scheduled ? '重新排期' : '排期 / 排台' }}</el-button>
             <template v-if="canLabOperate">

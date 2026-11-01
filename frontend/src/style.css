@@ -474,6 +474,78 @@ select {
   width: 100% !important;
 }
 
+.task-queue-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  margin: 14px 0 16px;
+  border: 1px solid var(--hc-border);
+  background: var(--hc-border);
+}
+
+.task-queue-item {
+  display: grid;
+  gap: 3px;
+  min-height: 58px;
+  align-content: center;
+  padding: 8px 12px;
+  background: #fff;
+}
+
+.task-queue-item strong {
+  color: var(--hc-ink);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.task-queue-item span {
+  color: var(--hc-muted);
+  font-size: 11px;
+}
+
+.task-queue-item.is-attention {
+  background: #fff8ed;
+}
+
+.task-queue-item.is-attention strong {
+  color: #b45309;
+}
+
+.task-state-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 7px;
+  color: var(--hc-ink);
+  font-size: 12px;
+}
+
+.task-state-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.task-state-line.is-attention,
+.task-state-line.is-overdue,
+.task-state-line.is-blocked { color: #b45309; }
+.task-state-line.is-attention .task-state-dot,
+.task-state-line.is-overdue .task-state-dot,
+.task-state-line.is-blocked .task-state-dot { background: #d97706; }
+.task-state-line.is-running { color: #0369a1; }
+.task-state-line.is-running .task-state-dot { background: #0284c7; }
+.task-state-line.is-result { color: #047857; }
+.task-state-line.is-result .task-state-dot { background: #059669; }
+.task-state-line.is-ready .task-state-dot { background: #64748b; }
+
+.task-next-action {
+  flex: 1 0 100%;
+  color: var(--hc-primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .el-table {
   --el-table-header-bg-color: #f8fafc;
   --el-table-header-text-color: #475569;
@@ -1545,6 +1617,10 @@ select {
 }
 
 @media (max-width: 760px) {
+  .task-queue-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .shell-aside {
     display: none;
   }
