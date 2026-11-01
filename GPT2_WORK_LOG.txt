@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-01
-Git 提交号：待提交
+Git 提交号：21ce7ac
 提交说明：重排 Dashboard 交付风险区并增加分页
 变更范围：前端 Dashboard 交付风险工作区
 具体改动：
@@ -29,7 +29,8 @@ Git 提交号：待提交
 4. 保留完整风险数据，分页只影响当前展示，不改变风险识别和后端数据。
 影响范围：Dashboard 风险区位置、宽度和订单列表展示；不修改后端接口、风险规则、权限和业务流程。
 验证结果：pnpm run build 成功；Impeccable detector 结果为 []；git diff --check 通过。
-部署状态：待提交后部署生产环境。
+部署状态：已部署到生产环境。
+部署补充：已同步 Django 入口目录和 Nginx 静态目录；首页静态资源 HTTP 200，nginx 与 huance 均 active。
 署名：GPT二号
 
 日期：2026-11-01
