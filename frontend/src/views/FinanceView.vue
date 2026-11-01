@@ -30,6 +30,16 @@ const form = reactive({
   void_reason: '',
 })
 
+const actionMeta = computed(() => {
+  const map: Record<string, { title: string; stage: string; impact: string; button: string }> = {
+    preinvoice_create: { title: '预开票', stage: '审核通过 → 预开票记录', impact: '预开票不会结束订单，系统会保留后续最终开票余额。', button: '确认预开票' },
+    invoice_create: { title: '最终总开票', stage: '终审通过 → 订单办结', impact: '提交后必须一次性开完剩余金额，订单进入已开票办结。', button: '确认最终开票' },
+    invoice_pay: { title: '更新回款状态', stage: '已开票 → 回款记录', impact: '提交后只更新回款状态，不改变发票金额和审核结果。', button: '保存回款状态' },
+    invoice_void: { title: '作废发票', stage: '已开票 → 退回待开票余额', impact: '作废会影响可开票余额，必须填写清晰的作废原因。', button: '确认作废发票' },
+  }
+  return map[activeAction.value] || { title: '财务操作', stage: '订单财务节点', impact: '请确认金额和操作影响后提交。', button: '确认提交' }
+})
+
 function openWorkflow(action: string, invoice: InvoiceItem) {
   activeAction.value = action
   activeInvoice.value = invoice
@@ -150,10 +160,15 @@ async function submitWorkflow() {
 
     <el-dialog
       v-model="dialogVisible"
-      :title="activeAction === 'preinvoice_create' ? '预开票' : activeAction === 'invoice_create' ? '最终总开票' : activeAction === 'invoice_void' ? '作废发票' : '更新回款状态'"
+      class="action-dialog"
+      :title="actionMeta.title"
       width="min(960px, 94vw)"
     >
       <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="开票关联订单信息" />
+      <div v-if="activeInvoice" class="action-dialog-context mt-16">
+        <div><strong>{{ activeInvoice.order_no }}</strong><span>{{ activeInvoice.customer }} · {{ activeInvoice.project_name }}</span></div>
+        <div class="action-dialog-step"><span>流程影响</span><strong>{{ actionMeta.stage }}</strong><small>{{ actionMeta.impact }}</small></div>
+      </div>
       <el-alert
         v-if="activeInvoice"
         class="mt-16"
@@ -163,6 +178,7 @@ async function submitWorkflow() {
         :closable="false"
         show-icon
       />
+      <el-divider content-position="left">本次财务操作</el-divider>
       <el-form label-position="top" class="form-grid mt-16">
         <template v-if="activeAction === 'preinvoice_create' || activeAction === 'invoice_create'">
           <el-form-item label="发票号"><el-input v-model="form.invoice_no" placeholder="留空自动生成" /></el-form-item>
@@ -191,7 +207,7 @@ async function submitWorkflow() {
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitWorkflow">确认提交</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitWorkflow">{{ actionMeta.button }}</el-button>
       </template>
     </el-dialog>
 
