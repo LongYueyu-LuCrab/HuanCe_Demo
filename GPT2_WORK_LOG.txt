@@ -19,6 +19,21 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-01
+Git 提交号：待本地 Main_V2 提交完成后补录
+提交说明：重做 LIMS 登录页背景并增加克制科技动效
+变更范围：登录页背景资源、登录页动效、登录框视觉适配
+具体改动：
+1. 使用 ImageGen 生成新的实验室数据中枢背景图 frontend/src/assets/lims-login-background-v2.png。
+2. 保留左上角公司 Logo、公司名称和 Laboratory Information Management System 副标题位置与内容。
+3. 登录页改用新背景，左侧保留品牌负空间，中右侧展示深蓝青色实验室、样品容器和数据监测元素。
+4. 增加低频扫描线和信号点呼吸动效，使用 prefers-reduced-motion 兼容方向的轻量 CSS 动画思路，不影响登录操作。
+5. 登录框改为深青半透明面板，加入青色顶部信号线、浅青输入框和统一青蓝登录按钮。
+影响范围：仅登录页视觉、背景资源和动效；不修改登录接口、表单字段、认证逻辑、权限和业务流程。
+验证结果：已完成 pnpm run build、TypeScript 检查和 git diff --check；新 PNG 构建资源约 1.71MB；构建仍仅有依赖包既有 Rolldown 注释与大 chunk 提示。
+部署状态：本地 Main_V2 已完成，待提交并部署生产环境。
+署名：GPT二号
+
+日期：2026-11-01
 Git 提交号：578f68d（指标卡键盘聚焦态）
 提交说明：补强 Dashboard 指标卡键盘聚焦态
 变更范围：Dashboard 指标卡交互状态与可访问性

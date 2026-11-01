@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import { login } from '../services/api'
 import { useSession } from '../stores/session'
 import companyLogo from '../assets/suzhou-huance-logo.png'
-import backgroundImage from '../assets/lims-background.webp'
+import backgroundImage from '../assets/lims-login-background-v2.png'
 
 const router = useRouter()
 const session = useSession()
@@ -27,7 +27,10 @@ async function submit() {
 </script>
 
 <template>
-  <main class="login-page" :style="{ backgroundImage: `linear-gradient(90deg, rgba(5, 14, 28, 0.56), rgba(5, 14, 28, 0.24)), url(${backgroundImage})` }">
+  <main class="login-page" :style="{ backgroundImage: `linear-gradient(90deg, rgba(3, 14, 27, 0.62), rgba(3, 14, 27, 0.20)), url(${backgroundImage})` }">
+    <span class="login-signal login-signal-one" aria-hidden="true"></span>
+    <span class="login-signal login-signal-two" aria-hidden="true"></span>
+    <span class="login-scanline" aria-hidden="true"></span>
     <div class="login-brand">
       <img :src="companyLogo" alt="苏州环测检测技术有限公司 logo">
       <div>
