@@ -1742,6 +1742,11 @@ select {
   font-weight: 700;
 }
 
+.metric-card:focus-visible {
+  outline: 3px solid #63aebe;
+  outline-offset: -3px;
+}
+
 /* Long workflow dialogs stay legible while their action remains available. */
 .el-dialog {
   overflow: hidden;

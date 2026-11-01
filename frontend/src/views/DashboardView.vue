@@ -46,7 +46,12 @@ function priorityReason(order: (typeof priorityOrders.value)[number]) {
         :key="`${card.key}-${card.label}`"
         shadow="never"
         :class="['metric-card', { active: selectedKey === card.key }]"
+        role="button"
+        tabindex="0"
+        :aria-pressed="selectedKey === card.key"
         @click="activeMetric = card.key"
+        @keydown.enter.prevent="activeMetric = card.key"
+        @keydown.space.prevent="activeMetric = card.key"
       >
         <span>{{ card.label }}</span>
         <strong>{{ card.value }}</strong>
