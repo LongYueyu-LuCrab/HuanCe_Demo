@@ -1998,6 +1998,10 @@ select {
 .system-health span {
   box-shadow: none;
 }
+.system-health span.is-error { background: #dc2626; }
+.system-health span.is-loading { background: #d97706; animation: health-pulse 1.2s ease-in-out infinite; }
+.access-notice { margin-bottom: 18px; }
+@keyframes health-pulse { 50% { opacity: 0.35; } }
 
 .shell-main {
   min-height: calc(100vh - 76px);

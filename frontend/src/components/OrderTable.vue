@@ -97,6 +97,11 @@ async function openOrder(order: OrderItem) {
   }
 }
 
+async function navigateOrder(orderNo: string) {
+  const order = props.orders.find((item) => item.order_no === orderNo)
+  if (order) await openOrder(order)
+}
+
 const session = useSession()
 const effectiveUser = computed(() => props.user || session.state.user)
 const roleSet = computed(() => new Set(effectiveUser.value.roles || []))
@@ -248,6 +253,6 @@ function actionsFor(order: OrderItem) {
   </el-card>
 
   <el-drawer v-model="drawerVisible" title="订单详情" size="min(960px, 94vw)">
-    <OrderSnapshot :order="selectedOrder" :loading="orderLoading" title="完整订单信息" />
+    <OrderSnapshot :order="selectedOrder" :order-sequence="pagedOrders.map((order) => order.order_no)" :loading="orderLoading" title="完整订单信息" @navigate-order="navigateOrder" />
   </el-drawer>
 </template>

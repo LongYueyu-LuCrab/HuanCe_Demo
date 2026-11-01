@@ -62,6 +62,20 @@ async function logout() {
   await session.logout()
   router.push('/login')
 }
+
+async function retryConnection() {
+  try {
+    await session.refreshDashboard()
+  } catch {
+    // Keep the connection state visible so the user can retry again.
+  }
+}
+
+async function clearAccessNotice() {
+  const query = { ...route.query }
+  delete query.denied
+  await router.replace({ query })
+}
 </script>
 
 <template>
@@ -111,8 +125,9 @@ async function logout() {
         </div>
         <div class="header-actions">
           <div class="system-health">
-            <span></span>
-            运行正常
+            <span :class="{ 'is-error': session.state.connectionError, 'is-loading': session.state.loading }"></span>
+            {{ session.state.loading ? '连接中' : session.state.connectionError ? '连接异常' : '运行正常' }}
+            <el-button v-if="session.state.connectionError" text size="small" @click="retryConnection">重试</el-button>
           </div>
           <el-button v-if="session.canAccessAdmin.value" tag="a" href="/admin/" type="primary" plain>进入 Django 后台</el-button>
           <el-dropdown>
@@ -131,6 +146,15 @@ async function logout() {
       </el-header>
 
       <el-main class="shell-main">
+        <el-alert
+          v-if="route.query.denied"
+          title="当前岗位没有访问该功能的权限，已返回可用工作区。"
+          type="warning"
+          show-icon
+          closable
+          class="access-notice"
+          @close="clearAccessNotice"
+        />
         <router-view />
       </el-main>
     </el-container>

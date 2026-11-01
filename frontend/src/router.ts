@@ -39,14 +39,14 @@ router.beforeEach(async (to) => {
   const menuKey = to.meta.menuKey as string | undefined
   if (menuKey && !visibleKeys.has(menuKey)) {
     const firstPath = getMenuGroups(session.state.user)[0]?.items[0]?.path || '/dashboard'
-    return firstPath
+    return { path: firstPath, query: { denied: '1' } }
   }
   if (to.name === 'lab') {
     const lab = to.params.lab
     const key = lab === 'jiangyin' ? 'jiangyin' : 'suzhou'
     if (!visibleKeys.has(key)) {
       const firstPath = getMenuGroups(session.state.user)[0]?.items[0]?.path || '/dashboard'
-      return firstPath
+      return { path: firstPath, query: { denied: '1' } }
     }
   }
   return true

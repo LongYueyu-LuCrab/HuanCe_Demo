@@ -11,7 +11,10 @@ const props = withDefaults(defineProps<{
   loading?: boolean
   showActions?: boolean
   title?: string
+  orderSequence?: string[]
 }>(), { showActions: true })
+
+const emit = defineEmits<{ navigateOrder: [orderNo: string] }>()
 
 const router = useRouter()
 const session = useSession()
@@ -44,6 +47,15 @@ const routeGroups = computed(() => {
   }
   return [...groups.values()]
 })
+const orderPosition = computed(() => props.order && props.orderSequence?.length ? props.orderSequence.indexOf(props.order.order_no) : -1)
+const canNavigatePrevious = computed(() => orderPosition.value > 0)
+const canNavigateNext = computed(() => orderPosition.value >= 0 && orderPosition.value < (props.orderSequence?.length || 0) - 1)
+
+function navigateOrder(offset: number) {
+  const index = orderPosition.value + offset
+  const orderNo = props.orderSequence?.[index]
+  if (orderNo) emit('navigateOrder', orderNo)
+}
 
 function isSection(...sections: string[]) {
   return sections.includes(activeSection.value)
@@ -86,6 +98,8 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
         </p>
       </div>
       <el-space v-if="order" wrap>
+        <el-button v-if="orderSequence?.length" size="small" plain :disabled="!canNavigatePrevious" @click="navigateOrder(-1)">上一订单</el-button>
+        <el-button v-if="orderSequence?.length" size="small" plain :disabled="!canNavigateNext" @click="navigateOrder(1)">下一订单</el-button>
         <el-tag v-if="order.is_urgent" type="warning">加急</el-tag>
         <el-tag effect="plain">{{ order.status }}</el-tag>
       </el-space>

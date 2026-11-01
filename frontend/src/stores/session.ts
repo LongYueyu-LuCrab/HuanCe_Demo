@@ -7,11 +7,13 @@ const state = reactive<{
   dashboard: Dashboard | null
   bootstrapped: boolean
   loading: boolean
+  connectionError: string
 }>({
   user: { authenticated: false },
   dashboard: null,
   bootstrapped: false,
   loading: false,
+  connectionError: '',
 })
 
 export function useSession() {
@@ -34,6 +36,9 @@ export function useSession() {
       if (state.user.authenticated) {
         state.dashboard = await fetchDashboard()
       }
+      state.connectionError = ''
+    } catch (error) {
+      state.connectionError = error instanceof Error ? error.message : '系统连接失败'
     } finally {
       state.bootstrapped = true
       state.loading = false
@@ -42,7 +47,13 @@ export function useSession() {
 
   async function refreshDashboard() {
     if (!state.user.authenticated) return
-    state.dashboard = await fetchDashboard()
+    try {
+      state.dashboard = await fetchDashboard()
+      state.connectionError = ''
+    } catch (error) {
+      state.connectionError = error instanceof Error ? error.message : '系统连接失败'
+      throw error
+    }
   }
 
   async function setUser(user: User) {
@@ -54,6 +65,7 @@ export function useSession() {
     await logoutApi()
     state.user = { authenticated: false }
     state.dashboard = null
+    state.connectionError = ''
   }
 
   return {
