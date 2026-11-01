@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-01
-Git 提交号：待本地 Main_V2 提交完成后补录
+Git 提交号：d5958d5（LIMS 导航图标语义优化）
 提交说明：taste-skill 导航图标优化：按 LIMS 业务语义重新映射左侧任务栏图标
 变更范围：左侧桌面/移动端导航、权限菜单图标映射
 具体改动：
@@ -30,7 +30,12 @@ Git 提交号：待本地 Main_V2 提交完成后补录
 5. 仅替换图标映射，不修改菜单权限、路由、文字和业务流程；桌面端与移动端共用同一映射。
 影响范围：左侧导航和移动端抽屉导航的图标可识别性；不修改后端接口、权限、数据库和业务数据。
 验证结果：已完成 pnpm run build、TypeScript 检查和 git diff --check；构建仅保留依赖包既有 Rolldown 注释与大 chunk 提示。
-部署状态：本地 Main_V2 已完成，待提交并部署生产环境。
+部署状态：已部署到生产环境；已推送到 GitHub Main_V2。
+部署补充：
+1. 发布前备份：/opt/huance/backups/app_before_nav_icons_20261101_122222.tar.gz。
+2. 已上传桌面/移动端导航组件、权限菜单图标映射和新的 static/frontend 构建产物。
+3. 生产 PostgreSQL 无待执行迁移；huance、nginx、postgresql 均 active。
+4. 发布后已执行 Django check、collectstatic，并重启 huance。
 署名：GPT二号
 
 日期：2026-11-01
