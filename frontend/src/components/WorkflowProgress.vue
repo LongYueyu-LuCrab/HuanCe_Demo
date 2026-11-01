@@ -24,7 +24,7 @@ const completionPercent = computed(() => {
 })
 
 function phaseNumber(index: number) {
-  return String(index + 1).padStart(2, '0')
+  return String(index + 1)
 }
 
 function formatAmount(value: string) {
@@ -39,7 +39,6 @@ function formatAmount(value: string) {
   <section class="workflow-progress" aria-label="订单流程节点示意图">
     <header class="workflow-progress-head">
       <div>
-        <span class="snapshot-eyebrow">WORKFLOW TRACE</span>
         <h4>订单流程轨迹</h4>
         <p>{{ progress.summary }}</p>
       </div>

@@ -63,7 +63,6 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
   <section class="order-snapshot" aria-label="订单信息快照">
     <div class="snapshot-heading">
       <div>
-        <span class="snapshot-eyebrow">ORDER CONTEXT</span>
         <h3>{{ title || '订单信息快照' }}</h3>
       </div>
       <el-space v-if="order" wrap>
