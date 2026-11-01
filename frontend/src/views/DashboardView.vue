@@ -46,6 +46,14 @@ function riskReason(order: (typeof riskOrders.value)[number]) {
   if (order.status === '评审驳回') return '评审驳回，等待修改或退单'
   return `已超过预计交付 ${order.expected_delivery_date}`
 }
+
+function riskAge(order: (typeof riskOrders.value)[number]) {
+  if (order.status === '评审驳回') return '等待业务修改或退单'
+  if (!order.expected_delivery_date) return '需要优先推进'
+  const due = new Date(`${order.expected_delivery_date}T00:00:00`).getTime()
+  const days = Math.max(1, Math.ceil((Date.now() - due) / 86400000))
+  return due < Date.now() ? `已逾期 ${days} 天` : '交付节点临近'
+}
 </script>
 
 <template>
@@ -89,7 +97,8 @@ function riskReason(order: (typeof riskOrders.value)[number]) {
       <div v-if="riskOrders.length" class="risk-list">
         <article v-for="order in riskOrders" :key="order.order_no">
           <div><strong>{{ order.order_no }}</strong><span>{{ order.customer }} · {{ order.status }}</span></div>
-          <small>{{ riskReason(order) }}</small>
+          <small>{{ riskReason(order) }} · {{ riskAge(order) }}</small>
+          <router-link :to="{ name: 'orders', query: { order: order.order_no } }" class="risk-order-link">查看并处理</router-link>
         </article>
       </div>
       <div v-else class="risk-empty">当前没有识别到加急、逾期或评审驳回订单。</div>

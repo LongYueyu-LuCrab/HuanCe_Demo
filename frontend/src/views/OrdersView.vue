@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Download, UploadFilled } from '@element-plus/icons-vue'
 import type { UploadFile, UploadFiles, UploadRawFile, UploadUserFile } from 'element-plus'
@@ -11,6 +11,7 @@ import { useSession } from '../stores/session'
 import type { OrderItem, ReportItem } from '../types'
 
 const session = useSession()
+const route = useRoute()
 const router = useRouter()
 const dialogVisible = ref(false)
 const submitting = ref(false)
@@ -87,6 +88,7 @@ const isSales = computed(() => ['销售', '商务部'].some(role => (session.sta
 const managerOrders = ref<OrderItem[]>([])
 const managerOrderTotal = ref(0)
 const managerOrdersLoading = ref(false)
+const managerOrdersError = ref('')
 const managerOrderQuery = reactive({ keyword: '', page: 1, page_size: 10 })
 const orders = computed(() => managerOrders.value)
 const isTechnicalReviewer = computed(() => !session.state.user.is_chairman && (session.state.user.roles || []).includes('总经理'))
@@ -111,8 +113,10 @@ async function loadManagerOrders(query = managerOrderQuery) {
     const result = await fetchSalesManagerOrders(managerOrderQuery)
     managerOrders.value = result.items
     managerOrderTotal.value = result.total
+    managerOrdersError.value = ''
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '销售订单加载失败')
+    managerOrdersError.value = error instanceof Error ? error.message : '销售订单加载失败'
+    ElMessage.error(managerOrdersError.value)
   } finally {
     managerOrdersLoading.value = false
   }
@@ -128,7 +132,8 @@ async function exportSalesOrders() {
 }
 
 onMounted(() => {
-  void loadManagerOrders()
+  const order = String(route.query.order || '')
+  void loadManagerOrders(order ? { ...managerOrderQuery, keyword: order, page: 1 } : managerOrderQuery)
 })
 
 function hasExecutionRoute(route: string) {
@@ -341,6 +346,7 @@ async function submit() {
         <p>按当前角色显示可查看订单；销售可从这里发起新订单。</p>
       </div>
       <div class="toolbar-actions">
+        <el-button v-if="managerOrdersError" type="warning" plain @click="loadManagerOrders()">重新加载</el-button>
         <el-button v-if="isSalesManager || isSales" type="primary" plain :icon="Download" @click="exportSalesOrders">
           {{ isSalesManager ? '导出全部销售订单' : '导出我的全部订单' }}
         </el-button>

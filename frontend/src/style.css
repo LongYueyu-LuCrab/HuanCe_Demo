@@ -2279,6 +2279,9 @@ select {
 .risk-list article > div { display: flex; gap: 8px; min-width: 0; }
 .risk-list article strong { color: #513b17; font-size: 12px; }
 .risk-list article span { min-width: 0; overflow: hidden; color: #765a2b; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.risk-list article small { display: block; }
+.risk-order-link { justify-self: start; color: #0f6f8f; font-size: 12px; font-weight: 700; text-decoration: none; }
+.risk-order-link:hover { color: #084c66; text-decoration: underline; }
 .risk-empty { display: grid; align-content: center; color: #765a2b; font-size: 12px; }
 
 /* Tech atmosphere: cool surfaces and signal colours, without neon gradients. */

@@ -97,10 +97,15 @@ async function openOrder(order: OrderItem) {
   }
 }
 
-const roleSet = computed(() => new Set(props.user?.roles || []))
-const isChairman = computed(() => Boolean(props.user?.is_chairman))
 const session = useSession()
-const isLabAccount = computed(() => ['苏州实验室', '江阴实验室', '实验操作员', '商务部'].some((role) => (props.user || session.state.user).roles?.includes(role)))
+const effectiveUser = computed(() => props.user || session.state.user)
+const roleSet = computed(() => new Set(effectiveUser.value.roles || []))
+const isChairman = computed(() => Boolean(effectiveUser.value.is_chairman))
+const effectiveRoles = computed(() => new Set(effectiveUser.value.roles || []))
+const isLabAccount = computed(() => ['苏州实验室', '江阴实验室', '实验操作员', '商务部'].some((role) => effectiveRoles.value.has(role)))
+const isSalesRole = computed(() => ['销售', '销售经理', '商务部'].some((role) => effectiveRoles.value.has(role)))
+const isFinanceRole = computed(() => effectiveRoles.value.has('会计'))
+const isManagementRole = computed(() => Boolean(effectiveUser.value.is_chairman || effectiveRoles.value.has('总经理')))
 
 function hasRole(role: string) {
   return isChairman.value || roleSet.value.has(role) || (role === '销售' && roleSet.value.has('商务部'))
@@ -108,7 +113,7 @@ function hasRole(role: string) {
 
 function actionsFor(order: OrderItem) {
   const actions: Array<{ key: string; label: string; type?: 'primary' | 'danger' | 'warning' | 'success' }> = []
-  const canSalesOperate = hasRole('销售') && (!roleSet.value.has('商务部') || isChairman.value || order.sales_owner_username === props.user?.username)
+  const canSalesOperate = hasRole('销售') && (!roleSet.value.has('商务部') || isChairman.value || order.sales_owner_username === effectiveUser.value.username)
   if (order.status_key === 1 && (isChairman.value || roleSet.value.has('总经理'))) {
     actions.push({ key: 'review_pass', label: '评审通过', type: 'success' })
     actions.push({ key: 'review_reject', label: '评审驳回', type: 'danger' })
@@ -149,7 +154,7 @@ function actionsFor(order: OrderItem) {
   if (
     order.workflow_version === 2
     && [5, 8].includes(order.status_key)
-    && order.lead_lab_manager_username === props.user?.username
+    && order.lead_lab_manager_username === effectiveUser.value.username
   ) {
     actions.push({ key: 'issue_report', label: '汇总出报告', type: 'primary' })
   }
@@ -191,7 +196,7 @@ function actionsFor(order: OrderItem) {
           <div class="cell-sub">{{ row.project_name }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="订单属性" min-width="150">
+      <el-table-column v-if="isSalesRole || isManagementRole" label="订单属性" min-width="150">
         <template #default="{ row }">
           <el-space wrap :size="6">
             <el-tag v-for="attribute in row.execution_attributes" :key="attribute" size="small" effect="plain">
@@ -200,14 +205,14 @@ function actionsFor(order: OrderItem) {
           </el-space>
         </template>
       </el-table-column>
-      <el-table-column prop="execution_mode" label="路径" min-width="150" />
+      <el-table-column v-if="!isFinanceRole" prop="execution_mode" label="路径" min-width="150" />
       <el-table-column prop="status" label="状态" min-width="130">
         <template #default="{ row }">
           <StatusBadge :label="row.status" />
         </template>
       </el-table-column>
-      <el-table-column prop="expected_delivery_date" label="交付" min-width="120" />
-      <el-table-column prop="sales_owner" label="销售" min-width="120" />
+      <el-table-column v-if="isSalesRole || isManagementRole" prop="expected_delivery_date" label="交付" min-width="120" />
+      <el-table-column v-if="isSalesRole || isManagementRole" prop="sales_owner" label="销售" min-width="120" />
       <el-table-column label="流程操作" fixed="right" min-width="220">
         <template #default="{ row }">
           <div class="row-actions">
