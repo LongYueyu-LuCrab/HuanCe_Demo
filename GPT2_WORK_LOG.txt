@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-01
-Git 提交号：待本地 Main_V2 提交完成后补录
+Git 提交号：d5b243c（业务表格低噪声优化）
 提交说明：taste-skill 第三轮 UI 优化：统一业务表格为低噪声任务列表
 变更范围：设备、排期、样品、报告、财务、审计等前端表格
 具体改动：
@@ -28,7 +28,12 @@ Git 提交号：待本地 Main_V2 提交完成后补录
 3. 统一数据密集页面与 Dashboard/订单列表的平面化视觉方向。
 影响范围：设备、排期、样品、报告、财务和审计页面的表格可读性；不修改后端接口、权限、数据库和业务流程。
 验证结果：已完成 pnpm run build 和 git diff --check；构建仅保留依赖包既有 Rolldown 注释与大 chunk 提示。
-部署状态：本地 Main_V2 已完成，待提交并部署生产环境。
+部署状态：已部署到生产环境；已推送到 GitHub Main_V2。
+部署补充：
+1. 发布前备份：/opt/huance/backups/app_before_table_quiet_20261101_121352.tar.gz。
+2. 已上传设备、排期、样品、报告、财务、审计源码和新的 static/frontend 构建产物。
+3. 生产 PostgreSQL 无待执行迁移；huance、nginx、postgresql 均 active。
+4. 发布后已执行 Django check、collectstatic，并重启 huance。
 署名：GPT二号
 
 日期：2026-11-01
