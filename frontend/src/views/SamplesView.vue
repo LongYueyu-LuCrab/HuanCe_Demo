@@ -49,6 +49,20 @@ const pagedSamples = computed(() => {
   return filteredSamples.value.slice(start, start + pageSize.value)
 })
 
+function sampleStage(sample: SampleItem) {
+  if (sample.outbound_time) return { key: 'outbound', label: '已出库' }
+  if (sample.actual_arrive_time) return { key: 'inbound', label: '已入库' }
+  return { key: 'expected', label: '等待到样' }
+}
+
+const sampleQueue = computed(() => ({
+  total: filteredSamples.value.length,
+  waiting: filteredSamples.value.filter((sample) => !sample.actual_arrive_time).length,
+  stored: filteredSamples.value.filter((sample) => Boolean(sample.actual_arrive_time && !sample.outbound_time)).length,
+  outbound: filteredSamples.value.filter((sample) => Boolean(sample.outbound_time)).length,
+  missingPhoto: filteredSamples.value.filter((sample) => Boolean(sample.actual_arrive_time && !sample.photos.length)).length,
+}))
+
 async function openOrderDetail(sample: SampleItem) {
   drawerVisible.value = true
   selectedOrder.value = null
@@ -82,6 +96,14 @@ async function openOrderDetail(sample: SampleItem) {
         </div>
       </template>
 
+      <div class="sample-queue-strip" aria-label="样品流转摘要">
+        <div><strong>{{ sampleQueue.total }}</strong><span>全部样品</span></div>
+        <div><strong>{{ sampleQueue.waiting }}</strong><span>等待到样</span></div>
+        <div><strong>{{ sampleQueue.stored }}</strong><span>已入库</span></div>
+        <div><strong>{{ sampleQueue.outbound }}</strong><span>已出库</span></div>
+        <div class="is-warning"><strong>{{ sampleQueue.missingPhoto }}</strong><span>缺少入库照片</span></div>
+      </div>
+
       <el-table :data="pagedSamples" height="540" empty-text="暂无样品记录">
         <el-table-column prop="sample_no" label="样品编号" min-width="150" />
         <el-table-column label="订单 / 客户" min-width="280">
@@ -103,7 +125,21 @@ async function openOrderDetail(sample: SampleItem) {
         <el-table-column prop="storage_condition" label="存储条件" min-width="130" />
         <el-table-column prop="test_type" label="路径" min-width="150" />
         <el-table-column label="状态" min-width="140">
-          <template #default="{ row }"><el-tag effect="plain">{{ row.sample_status }}</el-tag></template>
+          <template #default="{ row }">
+            <div class="sample-stage-line" :class="`is-${sampleStage(row).key}`"><span class="task-state-dot"></span><strong>{{ sampleStage(row).label }}</strong></div>
+            <el-tag effect="plain">{{ row.sample_status }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="流转轨迹" min-width="300">
+          <template #default="{ row }">
+            <div class="sample-lifecycle-rail">
+              <span :class="{ 'is-done': row.expected_arrive_time }">预计到样</span>
+              <span :class="{ 'is-done': row.actual_arrive_time }">入库</span>
+              <span :class="{ 'is-done': row.actual_arrive_time }">实验使用</span>
+              <span :class="{ 'is-done': row.outbound_time }">出库</span>
+            </div>
+            <div class="cell-sub">{{ row.actual_arrive_time || row.expected_arrive_time || '时间待确认' }}</div>
+          </template>
         </el-table-column>
         <el-table-column prop="expected_arrive_time" label="预入库时间" min-width="150" />
         <el-table-column prop="actual_arrive_time" label="实际入库时间" min-width="150" />

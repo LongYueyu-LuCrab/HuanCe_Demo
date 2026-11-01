@@ -36,9 +36,20 @@ const filteredEvents = computed(() => {
   )
 })
 
-const pagedEvents = computed(() => {
+const auditGroups = computed(() => {
+  const groups = new Map<string, { order_no: string; customer: string; project_name: string; is_outsource: boolean; events: typeof filteredEvents.value }>()
+  for (const event of filteredEvents.value) {
+    if (!groups.has(event.order_no)) {
+      groups.set(event.order_no, { order_no: event.order_no, customer: event.customer, project_name: event.project_name, is_outsource: event.is_outsource, events: [] })
+    }
+    groups.get(event.order_no)?.events.push(event)
+  }
+  return [...groups.values()]
+})
+
+const pagedAuditGroups = computed(() => {
   const start = (page.value - 1) * pageSize.value
-  return filteredEvents.value.slice(start, start + pageSize.value)
+  return auditGroups.value.slice(start, start + pageSize.value)
 })
 </script>
 
@@ -76,40 +87,30 @@ const pagedEvents = computed(() => {
         </div>
       </template>
 
-      <el-table :data="pagedEvents" height="460" empty-text="暂无流程日志">
-        <el-table-column prop="create_time" label="时间" min-width="150" />
-        <el-table-column prop="order_no" label="订单号" min-width="165">
-          <template #default="{ row }">
-            <span class="order-reference">
-              <span>{{ row.order_no }}</span>
-              <OutsourceBadge :visible="row.is_outsource" />
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="客户 / 项目" min-width="300">
-          <template #default="{ row }">
-            <div class="cell-main">{{ row.customer }}</div>
-            <div class="cell-sub">{{ row.project_name }}</div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="actor" label="操作人" min-width="120" />
-        <el-table-column prop="event_type" label="类型" min-width="110" />
-        <el-table-column prop="note" label="节点说明" min-width="240" />
-        <el-table-column label="操作变更项" min-width="360">
-          <template #default="{ row }">
-            <span v-if="row.change_summary">{{ row.change_summary }}</span>
-            <span v-else class="muted">无结构化变更</span>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div v-if="pagedAuditGroups.length" class="audit-timeline-grid">
+        <article v-for="group in pagedAuditGroups" :key="group.order_no" class="audit-timeline-card">
+          <header>
+            <div><span class="order-reference"><strong>{{ group.order_no }}</strong><OutsourceBadge :visible="group.is_outsource" /></span><p>{{ group.customer }} · {{ group.project_name }}</p></div>
+            <span>{{ group.events.length }} 条记录</span>
+          </header>
+          <ol class="audit-timeline">
+            <li v-for="event in group.events.slice(0, 6)" :key="`${event.order_no}-${event.create_time}-${event.action_code}`">
+              <span class="audit-timeline-dot"></span>
+              <div><div class="audit-event-head"><strong>{{ event.to_status || event.event_type }}</strong><time>{{ event.create_time }}</time></div><p>{{ event.note }}</p><small>{{ event.actor }}<template v-if="event.change_summary"> · {{ event.change_summary }}</template></small></div>
+            </li>
+          </ol>
+          <span v-if="group.events.length > 6" class="cell-sub">还有 {{ group.events.length - 6 }} 条历史记录</span>
+        </article>
+      </div>
+      <el-empty v-else description="暂无流程日志" :image-size="64" />
 
       <div class="table-footer">
-        <span>共 {{ filteredEvents.length }} 条</span>
+        <span>共 {{ auditGroups.length }} 个订单</span>
         <el-pagination
           v-model:current-page="page"
           v-model:page-size="pageSize"
           :page-sizes="[10, 15, 20]"
-          :total="filteredEvents.length"
+          :total="auditGroups.length"
           layout="sizes, prev, pager, next"
           @size-change="page = 1"
         />
