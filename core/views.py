@@ -3904,6 +3904,14 @@ def lims_dashboard(request):
             order__in=related_orders,
         ).order_by('-invoice_date', '-create_time')
 
+    risk_orders_scope = related_orders.exclude(
+        order_status__in=[LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]
+    ).filter(
+        Q(is_urgent=True)
+        | Q(expect_delivery_time__lt=timezone.now())
+        | Q(order_status=LabOrder.Status.REVIEW_REJECTED)
+    ).order_by('expect_delivery_time', '-create_time')
+
     data = {
         'company': '苏州环测检测技术有限公司',
         'system': '实验室管理（LIMS）系统',
@@ -3915,6 +3923,17 @@ def lims_dashboard(request):
             'change_requests': ChangeRequest.objects.filter(order__in=related_orders).exclude(
                 change_status=ChangeRequest.Status.APPLIED
             ).count(),
+        },
+        'risk_counts': {
+            'urgent': related_orders.filter(is_urgent=True).exclude(
+                order_status__in=[LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]
+            ).count(),
+            'overdue': related_orders.filter(
+                expect_delivery_time__lt=timezone.now()
+            ).exclude(
+                order_status__in=[LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]
+            ).count(),
+            'rejected': related_orders.filter(order_status=LabOrder.Status.REVIEW_REJECTED).count(),
         },
         'payload_limits': {
             'list_limit': list_limit,
@@ -3930,6 +3949,7 @@ def lims_dashboard(request):
             for item in related_orders.values('execution_mode').annotate(count=Count('id'))
         },
         'recent_orders': recent_orders,
+        'risk_orders': [_order_payload(order) for order in risk_orders_scope[:10]],
         'order_groups': {
             'orders': all_orders[:list_limit],
             'active_orders': active_orders[:list_limit],

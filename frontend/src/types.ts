@@ -327,6 +327,12 @@ export type Dashboard = {
     note: string
   }
   roles: string[]
+  risk_counts?: {
+    urgent: number
+    overdue: number
+    rejected: number
+  }
+  risk_orders?: OrderItem[]
   recent_orders: OrderItem[]
   order_groups: Record<string, OrderItem[]>
   labs: {

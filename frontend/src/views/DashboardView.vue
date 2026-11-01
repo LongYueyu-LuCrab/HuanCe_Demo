@@ -23,22 +23,17 @@ const priorityOrders = computed(() => {
     .slice(0, 5)
 })
 
-const visibleOrders = computed(() => {
-  const groups = session.state.dashboard?.order_groups || {}
-  const source = Object.values(groups).flat()
-  return [...new Map(source.map((order) => [order.order_no, order])).values()]
+const riskOrders = computed(() => session.state.dashboard?.risk_orders ?? [])
+const riskCounts = computed(() => session.state.dashboard?.risk_counts ?? { urgent: 0, overdue: 0, rejected: 0 })
+const roleFocus = computed(() => {
+  const roles = session.state.user.roles || []
+  if (roles.includes('会计')) return { title: '财务工作台', subtitle: '先核对待开票、回款和异常金额，减少结算滞留。' }
+  if (roles.includes('苏州实验室') || roles.includes('江阴实验室') || roles.includes('实验操作员')) return { title: '实验执行工作台', subtitle: '先处理排期、样品和待提交结果，保持实验路径连续。' }
+  if (roles.includes('总经理') || session.state.user.is_chairman) return { title: '经营风险工作台', subtitle: '先关注交付风险、审核瓶颈和跨实验室未完成路径。' }
+  if (roles.includes('报告审核') || roles.includes('质量部')) return { title: '质量交付工作台', subtitle: '先处理报告、变更和可能影响交付的订单。' }
+  if (roles.includes('商务部')) return { title: '商务协同工作台', subtitle: '先处理评审、路径分配、排期和即将交付订单。' }
+  return { title: '业务协同工作台', subtitle: '从待处理订单到报告交付，先处理当前岗位最紧急的任务。' }
 })
-
-const riskOrders = computed(() => visibleOrders.value.filter((order) => {
-  const overdue = Boolean(order.expected_delivery_date && order.expected_delivery_date < new Date().toISOString().slice(0, 10) && !['已开票办结', '退单'].includes(order.status))
-  return order.is_urgent || overdue || order.status === '评审驳回'
-}).slice(0, 6))
-
-const riskCounts = computed(() => ({
-  urgent: visibleOrders.value.filter((order) => order.is_urgent).length,
-  overdue: visibleOrders.value.filter((order) => Boolean(order.expected_delivery_date && order.expected_delivery_date < new Date().toISOString().slice(0, 10) && !['已开票办结', '退单'].includes(order.status))).length,
-  rejected: visibleOrders.value.filter((order) => order.status === '评审驳回').length,
-}))
 
 function priorityReason(order: (typeof priorityOrders.value)[number]) {
   if (order.is_urgent) return '加急订单，需要优先推进'
@@ -58,8 +53,8 @@ function riskReason(order: (typeof riskOrders.value)[number]) {
     <section class="command-panel">
       <div>
         <p class="dashboard-context">{{ roleText }} · 今日工作台</p>
-        <h2>今天要推进哪些工作？</h2>
-        <p>从待处理订单到报告交付，先处理当前岗位最紧急的任务。</p>
+        <h2>{{ roleFocus.title }}</h2>
+        <p>{{ roleFocus.subtitle }}</p>
       </div>
     </section>
 
