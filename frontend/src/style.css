@@ -82,57 +82,72 @@ select {
   pointer-events: none;
 }
 
-.login-scanline {
+.login-network {
   position: absolute;
   z-index: 1;
-  top: -12%;
-  left: 0;
-  width: 100%;
-  height: 1px;
-  background: rgba(102, 224, 231, 0.52);
-  opacity: 0.28;
-  animation: login-scan 12s linear infinite;
+  width: min(760px, 94vw);
+  height: 540px;
   pointer-events: none;
 }
 
-.login-signal {
+.network-line,
+.network-node {
   position: absolute;
-  z-index: 1;
+  display: block;
+}
+
+.network-line {
+  width: 150px;
+  height: 1px;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, transparent, rgba(99, 219, 226, 0.68), transparent);
+  opacity: 0.38;
+  animation: network-line-shift 10s ease-in-out infinite;
+}
+
+.network-node {
   width: 6px;
   height: 6px;
+  border: 1px solid rgba(149, 239, 237, 0.82);
   border-radius: 50%;
   background: #63dbe2;
-  opacity: 0;
-  animation: login-signal-pulse 5s ease-in-out infinite;
-  pointer-events: none;
+  box-shadow: 0 0 14px rgba(99, 219, 226, 0.72);
+  animation: network-node-drift 10s ease-in-out infinite;
 }
 
-.login-signal-one {
-  top: 38%;
-  right: 34%;
+.network-line-one { --network-angle: 22deg; top: 145px; left: 86px; animation-delay: -1.5s; }
+.network-line-two { --network-angle: 158deg; top: 210px; right: 56px; animation-delay: -4.1s; }
+.network-line-three { --network-angle: -24deg; bottom: 135px; left: 118px; animation-delay: -6.4s; }
+.network-line-four { --network-angle: -154deg; right: 74px; bottom: 172px; animation-delay: -8.2s; }
+.network-line-five { --network-angle: 76deg; top: 90px; left: 300px; width: 110px; animation-delay: -3.3s; }
+
+.network-node-one { top: 138px; left: 78px; animation-delay: -1.5s; }
+.network-node-two { top: 200px; right: 48px; animation-delay: -3.1s; }
+.network-node-three { top: 270px; left: 28px; animation-delay: -5.2s; }
+.network-node-four { right: 110px; bottom: 125px; animation-delay: -6.7s; }
+.network-node-five { bottom: 160px; left: 110px; animation-delay: -8.1s; }
+.network-node-six { top: 84px; left: 294px; animation-delay: -2.7s; }
+.network-node-seven { right: 238px; bottom: 74px; animation-delay: -4.8s; }
+
+@keyframes network-line-shift {
+  0%, 100% { opacity: 0.2; transform: rotate(var(--network-angle, 0deg)) scaleX(0.72); }
+  28% { opacity: 0.62; transform: rotate(calc(var(--network-angle, 0deg) + 10deg)) scaleX(1.08); }
+  56% { opacity: 0.3; transform: rotate(calc(var(--network-angle, 0deg) - 8deg)) scaleX(0.84); }
+  78% { opacity: 0.58; transform: rotate(calc(var(--network-angle, 0deg) + 4deg)) scaleX(1); }
 }
 
-.login-signal-two {
-  right: 12%;
-  bottom: 22%;
-  animation-delay: 2.2s;
-}
-
-@keyframes login-scan {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(125vh); }
-}
-
-@keyframes login-signal-pulse {
-  0%, 100% { opacity: 0; transform: scale(0.8); }
-  35%, 65% { opacity: 0.75; transform: scale(1); }
+@keyframes network-node-drift {
+  0%, 100% { opacity: 0.34; transform: translate3d(0, 0, 0) scale(0.8); }
+  28% { opacity: 0.92; transform: translate3d(18px, -12px, 0) scale(1.12); }
+  58% { opacity: 0.46; transform: translate3d(-12px, 15px, 0) scale(0.86); }
+  82% { opacity: 0.82; transform: translate3d(8px, 6px, 0) scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .login-scanline,
-  .login-signal {
+  .network-line,
+  .network-node {
     animation: none;
-    opacity: 0;
+    opacity: 0.36;
   }
 }
 

@@ -19,6 +19,24 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-01
+Git 提交号：待提交
+提交说明：重做登录页点线网络动效
+变更范围：前端登录页动效与生产静态资源发布
+具体改动：
+1. 移除从顶部向下刷新的登录扫描线。
+2. 在登录框周围增加点线网络，节点和连线以 10 秒循环缓慢漂移、淡入淡出并形成不同组合。
+3. 增加 prefers-reduced-motion 降级，减少动效偏好用户看到的动态效果。
+4. 修复生产发布目录不一致问题：同步更新 Django 入口目录 /opt/huance/app/static/frontend 与 Nginx 静态目录 /opt/huance/app/staticfiles/frontend，并统一目录和文件权限。
+影响范围：登录页视觉动效和前端静态资源发布；不修改登录接口、业务流程、权限和数据库。
+验证结果：
+1. pnpm run build 成功。
+2. 首页入口引用的 JS/CSS、Element Plus vendor、Vue vendor、favicon 均 HTTP 200。
+3. 登录 WebP 背景 HTTP 200；/api/health/ HTTP 200。
+4. huance、nginx、postgresql 均 active。
+部署状态：已部署到生产环境。
+署名：GPT二号
+
+日期：2026-11-01
 Git 提交号：209442f
 提交说明：按 impeccable 审计结果完成 UI 与交互质量改进
 变更范围：前端表格可访问性、数据加载错误状态、响应式表格高度、登录背景资源、设计 Token
