@@ -36,7 +36,13 @@ Git 提交号：本次提交（最终哈希以 Git 历史为准）
 2. 构建仍存在依赖包既有的 Rolldown pure annotation 提示和大 chunk 提示，不影响构建产物。
 3. taste-skill lint 已执行；仍有全局历史样式的细线、阴影和渐变提示，本轮新增的流程指挥条未使用厚色侧边条。
 4. 已执行 Impeccable detector；新增流程 UI 未引入新的高风险装饰模式。
-部署状态：待推送并部署生产环境。
+部署状态：已部署生产环境；待推送 GitHub Main_V2。
+部署补充：
+1. 发布前已备份服务器应用目录：/opt/huance/backups/app_before_workflow_workspace_20261101_130432.tar.gz。
+2. 已上传三个前端源码文件、更新日志和最新 static/frontend 构建产物；生产 .env、PostgreSQL 数据库、用户上传媒体和 Nginx 配置未覆盖。
+3. 正确导出 .env 后执行 Django check、migrate、collectstatic；结果为配置无问题、No migrations to apply。
+4. huance、nginx、postgresql 均 active；生产首页 HTTPS 返回 HTTP 200。
+5. 本地与服务器的 OrderSnapshot.vue、WorkflowProgress.vue、style.css、GPT2_WORK_LOG.txt SHA-256 均一致。
 署名：GPT二号
 
 日期：2026-11-01
