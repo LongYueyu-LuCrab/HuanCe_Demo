@@ -105,7 +105,7 @@ async function openOrderDetail(sample: SampleItem) {
         <div class="is-warning"><strong>{{ sampleQueue.missingPhoto }}</strong><span>缺少入库照片</span></div>
       </div>
 
-      <el-table :data="pagedSamples" height="540" empty-text="暂无样品记录">
+      <el-table :data="pagedSamples" max-height="min(540px, calc(100vh - 300px))" empty-text="暂无样品记录">
         <el-table-column prop="sample_no" label="样品编号" min-width="150" />
         <el-table-column label="订单 / 客户" min-width="280">
           <template #default="{ row }">

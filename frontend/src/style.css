@@ -17,6 +17,12 @@
   --hc-border: #dce5f0;
   --hc-muted: #64748b;
   --hc-surface: #ffffff;
+  --hc-text: #172033;
+  --hc-text-muted: #64748b;
+  --hc-state-warning: #d97706;
+  --hc-state-danger: #dc2626;
+  --hc-state-success: #059669;
+  --hc-focus: #2563eb;
 }
 
 * {
@@ -26,6 +32,26 @@
 body {
   margin: 0;
   min-width: 320px;
+}
+
+.inline-error-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px;
+  border: 1px solid color-mix(in srgb, var(--hc-state-warning) 34%, var(--hc-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--hc-state-warning) 7%, var(--hc-surface));
+  color: var(--hc-text);
+}
+
+.inline-error-state strong { display: block; color: var(--hc-state-warning); }
+.inline-error-state p { margin: 6px 0 0; color: var(--hc-text-muted); }
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--hc-focus) 42%, transparent);
+  outline-offset: 2px;
 }
 
 button,

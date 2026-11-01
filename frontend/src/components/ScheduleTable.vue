@@ -5,6 +5,7 @@ import { exportLaboratoryOrders, type LabOrderQuery } from '../services/api'
 import type { ScheduleItem, User } from '../types'
 import OutsourceBadge from './OutsourceBadge.vue'
 import StatusBadge from './StatusBadge.vue'
+import InlineErrorState from './InlineErrorState.vue'
 
 const props = defineProps<{
   orders: ScheduleItem[]
@@ -15,11 +16,13 @@ const props = defineProps<{
   total?: number
   loading?: boolean
   initialDeviceId?: number
+  error?: string
 }>()
 const emit = defineEmits<{
   workflow: [action: string, schedule: ScheduleItem]
   detail: [schedule: ScheduleItem]
   query: [query: LabOrderQuery]
+  retry: []
 }>()
 
 const keyword = ref('')
@@ -202,7 +205,8 @@ async function exportOrders(selectedOnly: boolean) {
         @change="resetPage"
       />
     </div>
-    <el-table v-loading="loading" :data="pagedOrders" height="420" empty-text="暂无匹配任务" @selection-change="handleSelection">
+    <InlineErrorState v-if="error" :message="error" @retry="emit('retry')" />
+    <el-table v-else v-loading="loading" :data="pagedOrders" max-height="min(420px, calc(100vh - 340px))" empty-text="暂无匹配任务" @selection-change="handleSelection">
       <el-table-column v-if="exportable" type="selection" width="48" />
       <el-table-column prop="order_no" label="订单号" min-width="165">
         <template #default="{ row }">

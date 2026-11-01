@@ -361,8 +361,10 @@ async function submit() {
       remote
       :total="managerOrderTotal"
       :loading="managerOrdersLoading"
+      :error="managerOrdersError"
       @query="loadManagerOrders"
       @workflow="openWorkflow"
+      @retry="loadManagerOrders()"
     />
 
     <el-dialog v-model="dialogVisible" title="销售下单" width="min(960px, 94vw)">

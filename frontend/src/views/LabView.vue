@@ -18,6 +18,7 @@ const labKey = computed(() => (route.params.lab === 'jiangyin' ? 'jiangyin' : 's
 const lab = computed(() => session.state.dashboard?.labs?.[labKey.value])
 const labType = computed(() => labKey.value === 'jiangyin' ? 2 : 1)
 const labOrders = ref<ScheduleItem[]>([])
+const labOrdersError = ref('')
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const activeAction = ref('')
@@ -75,9 +76,10 @@ async function loadLaboratoryOrders() {
   try {
     const data = await fetchLaboratoryOrders({ lab_type: labType.value, page: 1, page_size: 500 })
     labOrders.value = data.items
+    labOrdersError.value = ''
     openRequestedAction()
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '实验室订单读取失败')
+    labOrdersError.value = error instanceof Error ? error.message : '实验室订单读取失败'
   }
 }
 
@@ -320,8 +322,10 @@ async function submitWorkflow() {
       :user="session.state.user"
       :lab-type="labType"
       exportable
+      :error="labOrdersError"
       @workflow="openWorkflow"
       @detail="openOrderDetail"
+      @retry="loadLaboratoryOrders"
     />
 
     <el-dialog v-model="dialogVisible" class="action-dialog" :title="actionMeta.title" width="min(960px, 94vw)">

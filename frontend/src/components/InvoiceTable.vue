@@ -80,7 +80,7 @@ const invoiceQueue = computed(() => ({
         <div class="is-warning"><strong>{{ invoiceQueue.overdue }}</strong><span>{{ mode === 'history' ? '作废 / 待办' : '需要关注' }}</span></div>
       </div>
     </template>
-    <el-table :data="pagedInvoices" height="360" empty-text="暂无匹配记录">
+    <el-table :data="pagedInvoices" max-height="min(360px, calc(100vh - 360px))" empty-text="暂无匹配记录">
       <el-table-column :label="mode === 'history' ? '发票 / 订单' : '订单 / 报告'" min-width="210">
         <template #default="{ row }">
           <div v-if="mode === 'history'" class="cell-main">{{ row.invoice_no }}</div>

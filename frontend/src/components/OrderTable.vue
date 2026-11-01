@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import OrderSnapshot from './OrderSnapshot.vue'
+import InlineErrorState from './InlineErrorState.vue'
 import OutsourceBadge from './OutsourceBadge.vue'
 import StatusBadge from './StatusBadge.vue'
 import { fetchOrderDetail } from '../services/api'
@@ -16,11 +17,13 @@ const props = defineProps<{
   remote?: boolean
   total?: number
   loading?: boolean
+  error?: string
 }>()
 
 const emit = defineEmits<{
   workflow: [action: string, order: OrderItem]
   query: [query: { keyword: string; page: number; page_size: number }]
+  retry: []
 }>()
 
 const keyword = ref('')
@@ -185,7 +188,8 @@ function actionsFor(order: OrderItem) {
       </div>
     </template>
 
-    <el-table v-loading="loading" :data="pagedOrders" height="540" empty-text="暂无匹配订单" @row-click="openOrder">
+    <InlineErrorState v-if="error" :message="error" @retry="emit('retry')" />
+    <el-table v-else v-loading="loading" :data="pagedOrders" max-height="min(540px, calc(100vh - 300px))" empty-text="暂无匹配订单" @row-click="openOrder">
       <el-table-column prop="order_no" label="订单号" min-width="150">
         <template #default="{ row }">
           <span class="order-reference">
@@ -221,6 +225,7 @@ function actionsFor(order: OrderItem) {
       <el-table-column label="流程操作" fixed="right" min-width="220">
         <template #default="{ row }">
           <div class="row-actions">
+            <el-button size="small" plain @click.stop="openOrder(row)">订单详情</el-button>
             <el-button v-if="isLabAccount && row.workflow_version === 2 && [3, 4].includes(row.status_key)" size="small" type="primary" plain @click.stop="openOrder(row)">排期 / 查看任务</el-button>
             <el-button
               v-for="action in actionsFor(row)"

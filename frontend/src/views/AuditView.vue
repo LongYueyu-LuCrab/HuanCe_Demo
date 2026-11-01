@@ -142,7 +142,7 @@ const pagedAuditGroups = computed(() => {
     <div class="split-grid">
       <el-card shadow="never" class="hc-card">
         <template #header><h2>变更回流记录</h2></template>
-        <el-table :data="changes" height="320" empty-text="暂无变更单">
+        <el-table :data="changes" max-height="min(320px, calc(100vh - 380px))" empty-text="暂无变更单">
           <el-table-column prop="order_no" label="订单号" min-width="155">
             <template #default="{ row }">
               <span class="order-reference">
@@ -160,7 +160,7 @@ const pagedAuditGroups = computed(() => {
 
       <el-card shadow="never" class="hc-card">
         <template #header><h2>商务技术评审</h2></template>
-        <el-table :data="reviews" height="320" empty-text="暂无评审记录">
+        <el-table :data="reviews" max-height="min(320px, calc(100vh - 380px))" empty-text="暂无评审记录">
           <el-table-column prop="order_no" label="订单号" min-width="155">
             <template #default="{ row }">
               <span class="order-reference">

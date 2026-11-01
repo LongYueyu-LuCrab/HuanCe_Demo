@@ -58,6 +58,7 @@ declare module 'vue' {
     ElTag: typeof import('element-plus/es')['ElTag']
     ElText: typeof import('element-plus/es')['ElText']
     ElUpload: typeof import('element-plus/es')['ElUpload']
+    InlineErrorState: typeof import('./src/components/InlineErrorState.vue')['default']
     InvoiceTable: typeof import('./src/components/InvoiceTable.vue')['default']
     OrderSnapshot: typeof import('./src/components/OrderSnapshot.vue')['default']
     OrderTable: typeof import('./src/components/OrderTable.vue')['default']

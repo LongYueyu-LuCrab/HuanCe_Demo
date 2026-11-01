@@ -80,7 +80,7 @@ function downloadReport(report: ReportItem) {
         <div><strong>{{ reportQueue.ready }}</strong><span>通过待开票</span></div>
       </div>
     </template>
-    <el-table :data="pagedReports" height="520" empty-text="当前没有可查看的报告">
+    <el-table :data="pagedReports" max-height="min(520px, calc(100vh - 320px))" empty-text="当前没有可查看的报告">
       <el-table-column prop="report_no" label="报告号" min-width="170" />
       <el-table-column prop="order_no" label="订单号" min-width="165">
         <template #default="{ row }">
