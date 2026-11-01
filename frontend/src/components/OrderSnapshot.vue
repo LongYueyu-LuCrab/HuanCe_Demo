@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { OrderItem } from '../types'
 import WorkflowProgress from './WorkflowProgress.vue'
@@ -15,6 +15,7 @@ const props = withDefaults(defineProps<{
 
 const router = useRouter()
 const session = useSession()
+const activeSection = ref('overview')
 const labRoles = computed(() => new Set(session.state.user.roles || []))
 const isLabAccount = computed(() => (
   labRoles.value.has('苏州实验室')
@@ -31,6 +32,22 @@ const actionableSchedules = computed(() => {
     return schedule.lab_manager_username === session.state.user.username
   })
 })
+const currentSteps = computed(() => props.order?.workflow_progress?.steps.filter((step) => step.state === 'current') || [])
+const routeGroups = computed(() => {
+  const records = props.order?.schedule_records || []
+  const groups = new Map<string, { key: string; label: string; records: typeof records }>()
+  for (const record of records) {
+    const key = record.lab_type === 2 ? 'jiangyin' : record.is_outsource ? 'outsource' : 'suzhou'
+    const label = key === 'jiangyin' ? '江阴实验室' : key === 'outsource' ? '外部委外' : '苏州实验室'
+    if (!groups.has(key)) groups.set(key, { key, label, records: [] })
+    groups.get(key)?.records.push(record)
+  }
+  return [...groups.values()]
+})
+
+function isSection(...sections: string[]) {
+  return sections.includes(activeSection.value)
+}
 
 function openLabAction(scheduleId: number, labType: number | null, action: 'schedule_assign' | 'sample_arrival' | 'process_change' | 'start_test') {
   const lab = labType === 2 ? 'jiangyin' : 'suzhou'
@@ -64,6 +81,9 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
     <div class="snapshot-heading">
       <div>
         <h3>{{ title || '订单信息快照' }}</h3>
+        <p v-if="order" class="snapshot-context-line">
+          {{ order.order_no }} · {{ order.customer }} · {{ order.project_name || '未填写项目名称' }}
+        </p>
       </div>
       <el-space v-if="order" wrap>
         <el-tag v-if="order.is_urgent" type="warning">加急</el-tag>
@@ -74,8 +94,31 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
     <el-skeleton v-if="loading" :rows="5" animated />
     <el-empty v-else-if="!order" description="订单详情暂时无法读取" :image-size="64" />
     <template v-else>
-      <WorkflowProgress v-if="order.workflow_progress" :progress="order.workflow_progress" />
-      <section v-if="showActions !== false && actionableSchedules.length" class="snapshot-action-panel" aria-label="当前实验室操作">
+      <nav class="snapshot-tabs" aria-label="订单详情分区">
+        <button :class="{ 'is-active': activeSection === 'overview' }" type="button" @click="activeSection = 'overview'">流程总览</button>
+        <button :class="{ 'is-active': activeSection === 'execution' }" type="button" @click="activeSection = 'execution'">执行任务 <span>{{ order.schedule_records?.length || 0 }}</span></button>
+        <button :class="{ 'is-active': activeSection === 'report' }" type="button" @click="activeSection = 'report'">报告与财务</button>
+        <button :class="{ 'is-active': activeSection === 'documents' }" type="button" @click="activeSection = 'documents'">资料与备注</button>
+      </nav>
+
+      <WorkflowProgress v-if="order.workflow_progress && isSection('overview')" :progress="order.workflow_progress" />
+      <section v-if="isSection('overview') && order.workflow_progress" class="workflow-route-summary" aria-label="执行路径摘要">
+        <div class="section-heading-row">
+          <div><h4>执行路径</h4><p>并行任务中最晚完成的路径决定整体订单进入报告阶段。</p></div>
+          <strong>{{ routeGroups.length }} 条路径</strong>
+        </div>
+        <div class="workflow-route-grid">
+          <article v-for="group in routeGroups" :key="group.key" class="workflow-route-card">
+            <header><strong>{{ group.label }}</strong><span>{{ group.records.length }} 项任务</span></header>
+            <div v-for="record in group.records" :key="record.id" class="workflow-route-row">
+              <span>{{ record.test_type }}</span>
+              <span class="workflow-route-status">{{ record.experiment_status || record.schedule_status || record.sample_arrival_status || '待处理' }}</span>
+            </div>
+          </article>
+          <div v-if="!routeGroups.length" class="workflow-route-empty">尚未分配执行路径</div>
+        </div>
+      </section>
+      <section v-if="isSection('overview', 'execution') && showActions !== false && actionableSchedules.length" class="snapshot-action-panel" aria-label="当前实验室操作">
         <div>
           <strong>当前节点可操作</strong>
           <p>排期、样品入库和实验执行分别记录操作人员、时间和变更内容。</p>
@@ -97,7 +140,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
           </el-space>
         </div>
       </section>
-      <el-descriptions :column="2" border class="snapshot-descriptions">
+      <el-descriptions v-if="isSection('overview')" :column="2" border class="snapshot-descriptions">
       <el-descriptions-item label="订单号">
         <span class="order-reference">
           <strong>{{ order.order_no }}</strong>
@@ -157,7 +200,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
           show-icon
         />
       </el-descriptions-item>
-      <el-descriptions-item v-if="order.sample_records !== undefined" label="样品流转" :span="2">
+      <el-descriptions-item v-if="order.sample_records !== undefined && isSection('execution')" label="样品流转" :span="2">
         <div v-if="order.sample_records.length" class="sample-lifecycle-list">
           <section v-for="record in order.sample_records" :key="`${record.schedule_id}-${record.sample_no || 'pending'}`" class="sample-lifecycle-record">
             <div class="sample-lifecycle-head">
@@ -192,7 +235,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
         </div>
         <span v-else class="cell-sub">订单尚未分配实验室任务</span>
       </el-descriptions-item>
-      <el-descriptions-item v-if="order.report_records !== undefined" label="检测报告" :span="2">
+      <el-descriptions-item v-if="order.report_records !== undefined && isSection('report')" label="检测报告" :span="2">
         <div v-if="order.report_records.length" class="report-record-list">
           <section v-for="report in order.report_records" :key="report.id" class="report-record-item">
             <div>
@@ -206,7 +249,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
         </div>
         <span v-else class="cell-sub">该订单尚未出具检测报告</span>
       </el-descriptions-item>
-      <el-descriptions-item v-if="order.experiment_records !== undefined" label="实验结果" :span="2">
+      <el-descriptions-item v-if="order.experiment_records !== undefined && isSection('execution')" label="实验结果" :span="2">
         <div v-if="order.experiment_records.length" class="sample-lifecycle-list">
           <section v-for="record in order.experiment_records" :key="`${record.schedule_id}-${record.started_at}`" class="sample-lifecycle-record">
             <div class="sample-lifecycle-head">
@@ -230,19 +273,19 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
         </div>
         <span v-else class="cell-sub">订单尚未开始实验</span>
       </el-descriptions-item>
-      <el-descriptions-item label="试验需求" :span="2">
+      <el-descriptions-item v-if="isSection('documents')" label="试验需求" :span="2">
         <div class="snapshot-long-text">{{ order.test_demand || '未填写' }}</div>
       </el-descriptions-item>
-      <el-descriptions-item label="测试方法" :span="2">
+      <el-descriptions-item v-if="isSection('documents')" label="测试方法" :span="2">
         <div class="snapshot-long-text">{{ order.test_method || '未填写' }}</div>
       </el-descriptions-item>
-      <el-descriptions-item label="测试标准" :span="2">
+      <el-descriptions-item v-if="isSection('documents')" label="测试标准" :span="2">
         <div class="snapshot-long-text">{{ order.test_standard || '未填写' }}</div>
       </el-descriptions-item>
-      <el-descriptions-item label="订单备注" :span="2">
+      <el-descriptions-item v-if="isSection('documents')" label="订单备注" :span="2">
         <div class="snapshot-long-text">{{ order.remark || '无' }}</div>
       </el-descriptions-item>
-      <el-descriptions-item label="合同与附件" :span="2">
+      <el-descriptions-item v-if="isSection('documents')" label="合同与附件" :span="2">
         <div v-if="order.documents?.length" class="document-list">
           <a
             v-for="document in order.documents"
@@ -258,6 +301,39 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
         <span v-else class="cell-sub">销售未上传合同或附件</span>
       </el-descriptions-item>
       </el-descriptions>
+      <section v-if="isSection('execution')" class="snapshot-tab-section">
+        <div class="section-heading-row"><div><h4>执行任务</h4><p>按实验室路径查看排期、样品、设备和实验状态。</p></div><strong>{{ order.schedule_records?.length || 0 }} 项</strong></div>
+        <div v-if="order.schedule_records?.length" class="execution-task-list">
+          <article v-for="record in order.schedule_records" :key="record.id" class="execution-task-row">
+            <div class="execution-task-main"><strong>{{ record.test_type }}</strong><span>{{ record.lab_type === 2 ? '江阴实验室' : record.is_outsource ? '外部委外' : '苏州实验室' }} · {{ record.lab_manager || '待分配负责人' }}</span></div>
+            <div class="execution-task-state"><strong>{{ record.experiment_status || record.schedule_status || '待处理' }}</strong><span>{{ record.device_name || '设备待分配' }}</span></div>
+            <el-tag size="small" effect="plain" :type="record.sample_arrived ? 'success' : 'warning'">{{ record.sample_arrived ? '样品已到' : '等待样品' }}</el-tag>
+          </article>
+        </div>
+        <el-empty v-else description="尚未分配执行任务" :image-size="64" />
+      </section>
+      <section v-if="isSection('report')" class="snapshot-tab-section">
+        <div class="section-heading-row"><div><h4>报告与财务</h4><p>报告状态、审核进度和开票信息集中在这里。</p></div></div>
+        <div v-if="order.report_records?.length" class="report-record-list">
+          <section v-for="report in order.report_records" :key="report.id" class="report-record-item">
+            <div><strong>{{ report.report_no }}</strong><span>{{ report.report_type_label }} · {{ report.status }}</span><small>{{ report.generated_at || '生成时间未记录' }}</small></div>
+            <a v-if="report.has_file" :href="report.download_url" class="report-download-link">下载 PDF</a><el-tag v-else type="warning" effect="plain">文件待生成</el-tag>
+          </section>
+        </div>
+        <div v-else class="snapshot-empty-note">检测报告尚未生成，当前节点：{{ currentSteps.map((step) => step.title).join('、') || order.status }}</div>
+        <div class="finance-context-grid"><div><span>订单报价</span><strong>{{ formatQuote(order.total_quote) }}</strong></div><div><span>预计交付</span><strong>{{ order.expected_delivery_date || '待确认' }}</strong></div><div><span>工作流</span><strong>{{ order.workflow_label }}</strong></div></div>
+      </section>
+      <section v-if="isSection('documents')" class="snapshot-tab-section">
+        <div class="section-heading-row"><div><h4>资料与备注</h4><p>需求、标准、合同和补充说明统一归档。</p></div></div>
+        <div class="document-context-grid">
+          <div><span>试验需求</span><p class="snapshot-long-text">{{ order.test_demand || '未填写' }}</p></div>
+          <div><span>测试方法</span><p class="snapshot-long-text">{{ order.test_method || '未填写' }}</p></div>
+          <div><span>测试标准</span><p class="snapshot-long-text">{{ order.test_standard || '未填写' }}</p></div>
+          <div><span>订单备注</span><p class="snapshot-long-text">{{ order.remark || '无' }}</p></div>
+        </div>
+        <div class="document-list document-context-list" v-if="order.documents?.length"><a v-for="document in order.documents" :key="document.id" :href="document.download_url" class="document-link"><el-tag size="small" effect="plain">{{ document.type_label }}</el-tag><span>{{ document.name }}</span><small>{{ formatFileSize(document.size) }}</small></a></div>
+        <div v-else class="snapshot-empty-note">销售未上传合同或附件</div>
+      </section>
     </template>
   </section>
 </template>

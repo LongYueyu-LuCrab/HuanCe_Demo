@@ -23,6 +23,10 @@ const completionPercent = computed(() => {
   return Math.round((props.progress.completed_steps / props.progress.total_steps) * 100)
 })
 
+const currentSteps = computed(() => props.progress.steps.filter((step) => step.state === 'current'))
+const currentOwners = computed(() => [...new Set(currentSteps.value.map((step) => step.owner).filter(Boolean))].join(' / '))
+const currentDetails = computed(() => currentSteps.value.map((step) => step.detail).filter(Boolean).join('；'))
+
 function phaseNumber(index: number) {
   return String(index + 1)
 }
@@ -37,6 +41,23 @@ function formatAmount(value: string) {
 
 <template>
   <section class="workflow-progress" aria-label="订单流程节点示意图">
+    <div class="workflow-command-strip">
+      <div class="workflow-command-main">
+        <span class="workflow-command-label">现在处理</span>
+        <strong>{{ progress.current_step }}</strong>
+        <p>{{ currentDetails || progress.summary }}</p>
+      </div>
+      <dl class="workflow-command-meta">
+        <div>
+          <dt>当前负责人</dt>
+          <dd>{{ currentOwners || '流程已完成' }}</dd>
+        </div>
+        <div>
+          <dt>流程进度</dt>
+          <dd>{{ progress.completed_steps }} / {{ progress.total_steps }} 节点</dd>
+        </div>
+      </dl>
+    </div>
     <header class="workflow-progress-head">
       <div>
         <h4>订单流程轨迹</h4>
