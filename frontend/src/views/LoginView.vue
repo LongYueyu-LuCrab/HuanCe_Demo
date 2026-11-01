@@ -28,20 +28,6 @@ async function submit() {
 
 <template>
   <main class="login-page" :style="{ backgroundImage: `linear-gradient(90deg, rgba(3, 14, 27, 0.62), rgba(3, 14, 27, 0.20)), url(${backgroundImage})` }">
-    <div class="login-network" aria-hidden="true">
-      <div class="network-shape network-triangle">
-        <i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i>
-        <i class="shape-node"></i><i class="shape-node"></i><i class="shape-node"></i>
-      </div>
-      <div class="network-shape network-square">
-        <i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i>
-        <i class="shape-node"></i><i class="shape-node"></i><i class="shape-node"></i><i class="shape-node"></i>
-      </div>
-      <div class="network-shape network-chaos">
-        <i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i>
-        <i class="shape-node"></i><i class="shape-node"></i><i class="shape-node"></i><i class="shape-node"></i><i class="shape-node"></i>
-      </div>
-    </div>
     <div class="login-brand">
       <img :src="companyLogo" alt="苏州环测检测技术有限公司 logo">
       <div>
