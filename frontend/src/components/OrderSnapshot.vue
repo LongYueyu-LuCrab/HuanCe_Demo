@@ -26,6 +26,7 @@ const isLabAccount = computed(() => (
   || labRoles.value.has('实验操作员')
   || labRoles.value.has('商务部')
 ))
+const canViewContracts = computed(() => Boolean(props.order?.can_view_contracts))
 const actionableSchedules = computed(() => {
   if (!isLabAccount.value || !props.order) return []
   return (props.order.schedule_records || []).filter((schedule) => {
@@ -192,7 +193,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
             <div><dt>实验开始</dt><dd>{{ order.outsource_info.experiment_start_time }}</dd></div>
             <div><dt>实验结束</dt><dd>{{ order.outsource_info.experiment_end_time }}</dd></div>
           </dl>
-          <div class="outsource-contract-links">
+          <div v-if="canViewContracts" class="outsource-contract-links">
             <strong>委外合同</strong>
             <a
               v-for="document in order.documents.filter((item) => item.type === 'outsource_contract')"

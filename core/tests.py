@@ -121,6 +121,51 @@ class LimsDashboardTests(TestCase):
             'current',
         )
 
+    def test_contract_documents_are_limited_to_order_sales_business_and_accounting(self):
+        document = OrderDocument.objects.create(
+            order=self.order,
+            document_type=OrderDocument.DocumentType.CONTRACT,
+            file=SimpleUploadedFile('保密合同.pdf', b'%PDF-1.4 private contract'),
+            original_name='保密合同.pdf',
+            file_size=24,
+            uploaded_by=self.user,
+        )
+
+        for role in ('董事长', '销售经理'):
+            with self.subTest(role=role):
+                viewer = get_user_model().objects.create_user(username=f'contract-{role}', password='password123')
+                viewer.groups.add(Group.objects.get_or_create(name=role)[0])
+                self.client.force_login(viewer)
+                response = self.client.get(reverse('order_detail', kwargs={'order_no': self.order.order_no}))
+                self.assertEqual(response.status_code, 200)
+                self.assertFalse(response.json()['order']['can_view_contracts'])
+                self.assertEqual(response.json()['order']['documents'], [])
+                self.assertEqual(
+                    self.client.get(reverse('download_order_document', kwargs={'document_id': document.id})).status_code,
+                    403,
+                )
+
+        BusinessReview.objects.create(
+            order=self.order,
+            biz_review_user=self.user,
+            tech_review_user=self.user,
+            review_result=True,
+            review_time=timezone.now(),
+        )
+        for role in ('商务部', '会计'):
+            with self.subTest(role=role):
+                viewer = get_user_model().objects.create_user(username=f'contract-{role}', password='password123')
+                viewer.groups.add(Group.objects.get_or_create(name=role)[0])
+                self.client.force_login(viewer)
+                response = self.client.get(reverse('order_detail', kwargs={'order_no': self.order.order_no}))
+                self.assertTrue(response.json()['order']['can_view_contracts'])
+                self.assertEqual(response.json()['order']['documents'][0]['name'], '保密合同.pdf')
+
+        self.client.force_login(self.user)
+        own_detail = self.client.get(reverse('order_detail', kwargs={'order_no': self.order.order_no})).json()['order']
+        self.assertTrue(own_detail['can_view_contracts'])
+        self.assertEqual(own_detail['documents'][0]['name'], '保密合同.pdf')
+
     def test_order_detail_respects_sales_row_permission(self):
         other_user = get_user_model().objects.create_user(
             username='other-sales',
@@ -158,7 +203,7 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(states['technical_review'], 'rejected')
         self.assertIn('评审驳回', progress['summary'])
 
-    def test_technical_reviewer_sees_methods_standards_documents_and_execution_attributes(self):
+    def test_technical_reviewer_sees_methods_but_not_contract_documents(self):
         technical_user = get_user_model().objects.create_user(
             username='technical-reviewer',
             password='password123',
@@ -208,10 +253,8 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(order['execution_attributes'], ['自主', '委外'])
         self.assertEqual(order['outsource_info']['outsource_company'], '上海委外检测有限公司')
         self.assertEqual(order['outsource_info']['entrust_order_no'], 'WW-TECH-001')
-        self.assertEqual(
-            {document['name'] for document in order['documents']},
-            {'技术要求.pdf', '委外合同.pdf'},
-        )
+        self.assertFalse(order['can_view_contracts'])
+        self.assertEqual({document['name'] for document in order['documents']}, {'技术要求.pdf'})
 
     def test_mark_status_writes_workflow_event(self):
         self.order.mark_status(LabOrder.Status.REPORT_REVIEW, note='测试流转')

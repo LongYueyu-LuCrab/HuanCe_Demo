@@ -44,6 +44,7 @@ export type OrderItem = {
   created_at?: string
   updated_at?: string
   remark?: string
+  can_view_contracts: boolean
   documents: OrderDocumentItem[]
   sample_records?: SampleLifecycleItem[]
   experiment_records?: ExperimentLifecycleItem[]

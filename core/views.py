@@ -183,6 +183,18 @@ def _can_view_finance(user):
     return bool(_is_chairman(user) or ROLE_GENERAL_MANAGER in roles or ROLE_ACCOUNTING in roles)
 
 
+def _can_view_order_contracts(user, order):
+    """订单合同仅对创建销售、商务部和会计开放。"""
+    if not user or not user.is_authenticated:
+        return False
+    roles = set(_roles(user))
+    return bool(
+        ROLE_ACCOUNTING in roles
+        or ROLE_BUSINESS_DEPT in roles
+        or order.sale_user_id == user.id
+    )
+
+
 def _user_payload(user):
     if not user.is_authenticated:
         return {'authenticated': False}
@@ -660,7 +672,7 @@ def _execution_mode_label(order, schedules):
     return order.get_execution_mode_display()
 
 
-def _order_payload(order, include_sample_records=False):
+def _order_payload(order, include_sample_records=False, viewer=None):
     sample_arrival = order.expect_sample_arrive
     sample_arrival_value = _display_date(sample_arrival)
     delivery = order.expect_delivery_time
@@ -680,6 +692,7 @@ def _order_payload(order, include_sample_records=False):
         else list(order.schedules.all())
     )
 
+    can_view_contracts = _can_view_order_contracts(viewer, order)
     payload = {
         'order_no': order.order_no,
         'is_outsource': order.outsourced_execution,
@@ -719,6 +732,7 @@ def _order_payload(order, include_sample_records=False):
         'created_at': _display_datetime(order.create_time),
         'updated_at': order.update_time.isoformat() if order.update_time else '',
         'remark': order.remark,
+        'can_view_contracts': can_view_contracts,
         'documents': [
             {
                 'id': document.id,
@@ -730,6 +744,10 @@ def _order_payload(order, include_sample_records=False):
                 'download_url': f'/api/orders/documents/{document.id}/download/',
             }
             for document in order.documents.all()
+            if can_view_contracts or document.document_type not in {
+                OrderDocument.DocumentType.CONTRACT,
+                OrderDocument.DocumentType.OUTSOURCE_CONTRACT,
+            }
         ],
     }
     if include_sample_records:
@@ -799,7 +817,7 @@ def order_detail(request, order_no):
             json_dumps_params={'ensure_ascii': False},
         )
     payload = _redact_order_experiment_data(
-        _order_payload(order, include_sample_records=True), _roles(request.user)
+        _order_payload(order, include_sample_records=True, viewer=request.user), _roles(request.user)
     )
     return JsonResponse({'ok': True, 'order': payload}, json_dumps_params={'ensure_ascii': False})
 
@@ -2081,7 +2099,7 @@ def sales_manager_orders(request):
             'total': total,
             'page': page,
             'page_size': page_size,
-            'items': [_order_payload(order) for order in orders[start:start + page_size]],
+            'items': [_order_payload(order, viewer=request.user) for order in orders[start:start + page_size]],
         },
         json_dumps_params={'ensure_ascii': False},
     )
@@ -2396,7 +2414,7 @@ def create_order(request):
         to_status=str(order.order_status),
         note='销售下单，进入商务技术评审。',
     )
-    return JsonResponse({'ok': True, 'order': _order_payload(order)}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'ok': True, 'order': _order_payload(order, viewer=request.user)}, json_dumps_params={'ensure_ascii': False})
 
 
 def download_order_document(request, document_id):
@@ -2406,6 +2424,14 @@ def download_order_document(request, document_id):
     document = get_object_or_404(OrderDocument.objects.select_related('order'), pk=document_id)
     if not _orders_for_user(request.user).filter(pk=document.order_id).exists():
         return JsonResponse({'ok': False, 'error': '无权下载该订单文件'}, status=403, json_dumps_params={'ensure_ascii': False})
+    if (
+        document.document_type in {
+            OrderDocument.DocumentType.CONTRACT,
+            OrderDocument.DocumentType.OUTSOURCE_CONTRACT,
+        }
+        and not _can_view_order_contracts(request.user, document.order)
+    ):
+        return JsonResponse({'ok': False, 'error': '当前岗位无权查看订单合同'}, status=403, json_dumps_params={'ensure_ascii': False})
     if not document.file or not document.file.storage.exists(document.file.name):
         return JsonResponse({'ok': False, 'error': '文件不存在或已被移除'}, status=404, json_dumps_params={'ensure_ascii': False})
 
@@ -3500,7 +3526,7 @@ def _action_issue_report(request, payload):
         {
             'ok': True,
             'message': '报告已生成并提交销售初审',
-            'order': _order_payload(order),
+            'order': _order_payload(order, viewer=request.user),
             'report': _report_payload(report),
         },
         json_dumps_params={'ensure_ascii': False},
@@ -3832,16 +3858,16 @@ def lims_dashboard(request):
         list_limit = 50
     list_limit = max(10, min(list_limit, 100))
     recent_orders = [
-        _order_payload(order)
+        _order_payload(order, viewer=request.user)
         for order in related_orders.order_by('-create_time')[:10]
     ]
-    all_orders = [_order_payload(order) for order in related_orders.order_by('-create_time')]
+    all_orders = [_order_payload(order, viewer=request.user) for order in related_orders.order_by('-create_time')]
     active_orders = [
-        _order_payload(order)
+        _order_payload(order, viewer=request.user)
         for order in active_related_orders.order_by('-create_time')
     ]
     report_orders = [
-        _order_payload(order)
+        _order_payload(order, viewer=request.user)
         for order in related_orders.filter(order_status=LabOrder.Status.REPORT_REVIEW).order_by('-create_time')
     ]
     running_order_ids = Experiment.objects.filter(
@@ -3849,14 +3875,14 @@ def lims_dashboard(request):
         test_status=Experiment.Status.RUNNING,
     ).values_list('order_id', flat=True)
     running_orders = [
-        _order_payload(order)
+        _order_payload(order, viewer=request.user)
         for order in related_orders.filter(id__in=running_order_ids).order_by('-create_time')
     ]
     change_order_ids = ChangeRequest.objects.filter(
         order__in=related_orders,
     ).exclude(change_status=ChangeRequest.Status.APPLIED).values_list('order_id', flat=True)
     change_orders = [
-        _order_payload(order)
+        _order_payload(order, viewer=request.user)
         for order in related_orders.filter(id__in=change_order_ids).order_by('-create_time')
     ]
     can_view_finance = _can_view_finance(request.user)
@@ -3887,12 +3913,12 @@ def lims_dashboard(request):
             Invoice.objects.filter(order__in=related_orders).values_list('order_id', flat=True)
         ) + [order.id for order in preinvoice_candidate_orders]
     finance_orders = [
-        _order_payload(order)
+        _order_payload(order, viewer=request.user)
         for order in related_orders.filter(id__in=finance_order_ids).distinct().order_by('-create_time')
     ]
     pending_reports = _pending_reports_for_user(request.user, related_orders)
     outsource_orders = [
-        _order_payload(order)
+        _order_payload(order, viewer=request.user)
         for order in related_orders.filter(
             Q(execution_mode=LabOrder.ExecutionMode.OUTSOURCE)
             | Q(schedules__test_type=SchedulePlan.TestType.OUTSOURCE)
@@ -4002,7 +4028,7 @@ def lims_dashboard(request):
             for item in related_orders.values('execution_mode').annotate(count=Count('id'))
         },
         'recent_orders': recent_orders,
-        'risk_orders': [_order_payload(order) for order in risk_orders_scope[:list_limit]],
+        'risk_orders': [_order_payload(order, viewer=request.user) for order in risk_orders_scope[:list_limit]],
         'order_groups': {
             'orders': all_orders[:list_limit],
             'active_orders': active_orders[:list_limit],
