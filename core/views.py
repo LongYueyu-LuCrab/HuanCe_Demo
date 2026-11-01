@@ -1,4 +1,5 @@
 import json
+import hashlib
 import mimetypes
 import re
 import time as time_module
@@ -725,6 +726,7 @@ def _order_payload(order, include_sample_records=False):
                 'type_label': document.get_document_type_display(),
                 'name': document.original_name,
                 'size': document.file_size,
+                'sha256': document.sha256,
                 'download_url': f'/api/orders/documents/{document.id}/download/',
             }
             for document in order.documents.all()
@@ -2375,12 +2377,16 @@ def create_order(request):
         (OrderDocument.DocumentType.ATTACHMENT, attachment_files),
     ):
         for uploaded_file in files:
+            uploaded_file.seek(0)
+            file_sha256 = hashlib.sha256(uploaded_file.read()).hexdigest()
+            uploaded_file.seek(0)
             OrderDocument.objects.create(
                 order=order,
                 document_type=document_type,
                 file=uploaded_file,
                 original_name=uploaded_file.name,
                 file_size=uploaded_file.size,
+                sha256=file_sha256,
                 uploaded_by=request.user,
             )
     WorkflowEvent.objects.create(

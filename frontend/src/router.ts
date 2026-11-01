@@ -22,6 +22,7 @@ export const router = createRouter({
         { path: 'finance', name: 'finance', component: () => import('./views/FinanceView.vue'), meta: { menuKey: 'invoice' } },
         { path: 'audit', name: 'audit', component: () => import('./views/AuditView.vue'), meta: { menuKey: 'audit' } },
         { path: 'employees', name: 'employees', component: () => import('./views/EmployeesView.vue'), meta: { menuKey: 'employees' } },
+        { path: 'permissions', name: 'permissions', component: () => import('./views/PermissionsView.vue'), meta: { menuKey: 'permissions' } },
       ],
     },
   ],

@@ -102,6 +102,11 @@ class LabOrder(TimeStampedModel):
         verbose_name = 'LIMS 销售订单'
         verbose_name_plural = 'LIMS 销售订单'
         ordering = ['-create_time']
+        indexes = [
+            models.Index(fields=['order_status', '-update_time'], name='idx_order_status_update'),
+            models.Index(fields=['expect_delivery_time'], name='idx_order_delivery'),
+            models.Index(fields=['-update_time'], name='idx_order_updated'),
+        ]
 
     @property
     def status(self):
@@ -155,6 +160,7 @@ class OrderDocument(models.Model):
     file = models.FileField('文件', upload_to=order_document_upload_to, max_length=500)
     original_name = models.CharField('原始文件名', max_length=255)
     file_size = models.PositiveBigIntegerField('文件大小（字节）', default=0)
+    sha256 = models.CharField('文件 SHA-256', max_length=64, blank=True)
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         verbose_name='上传人',
@@ -588,6 +594,9 @@ class TestReport(TimeStampedModel):
         verbose_name = '检测报告'
         verbose_name_plural = '检测报告'
         ordering = ['-create_time']
+        indexes = [
+            models.Index(fields=['report_status', '-update_time'], name='idx_report_status_update'),
+        ]
 
     def __str__(self):
         return self.report_no
@@ -663,6 +672,10 @@ class Invoice(TimeStampedModel):
         db_table = 'lims_finance_invoice'
         verbose_name = '财务开票结算'
         verbose_name_plural = '财务开票结算'
+        indexes = [
+            models.Index(fields=['invoice_stage', 'record_status'], name='idx_invoice_stage_record'),
+            models.Index(fields=['pay_status', 'record_status'], name='idx_invoice_pay_record'),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['report'],
@@ -723,6 +736,10 @@ class WorkflowEvent(TimeStampedModel):
         verbose_name = '流程操作日志'
         verbose_name_plural = '流程操作日志'
         ordering = ['-create_time']
+        indexes = [
+            models.Index(fields=['order', '-create_time'], name='idx_event_order_time'),
+            models.Index(fields=['actor', '-create_time'], name='idx_event_actor_time'),
+        ]
 
     def __str__(self):
         return f'{self.order.order_no} {self.get_event_type_display()}'

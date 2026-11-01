@@ -94,6 +94,7 @@ export type OrderDocumentItem = {
   type_label: string
   name: string
   size: number
+  sha256?: string
   download_url: string
 }
 

@@ -36,6 +36,7 @@ export function getMenuGroups(user: User): MenuGroup[] {
         { key: 'invoice', label: '财务开票', path: '/finance', icon: 'Wallet' },
         { key: 'audit', label: '流程日志', path: '/audit', icon: 'Memo' },
         { key: 'employees', label: '添加员工', path: '/employees', icon: 'UserFilled' },
+        { key: 'permissions', label: '权限矩阵', path: '/permissions', icon: 'SetUp' },
       ]),
     ].filter(Boolean) as MenuGroup[]
   }

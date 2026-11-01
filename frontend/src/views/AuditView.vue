@@ -7,6 +7,8 @@ const session = useSession()
 const keyword = ref('')
 const page = ref(1)
 const pageSize = ref(10)
+const actorFilter = ref('')
+const dateFilter = ref('')
 
 const events = computed(() => session.state.dashboard?.workflow_events ?? [])
 const changes = computed(() => session.state.dashboard?.changes ?? [])
@@ -14,9 +16,8 @@ const reviews = computed(() => session.state.dashboard?.reviews ?? [])
 
 const filteredEvents = computed(() => {
   const value = keyword.value.trim().toLowerCase()
-  if (!value) return events.value
-  return events.value.filter((event) =>
-    [
+  return events.value.filter((event) => {
+    const matchesKeyword = !value || [
       event.order_no,
       event.customer,
       event.project_name,
@@ -32,9 +33,25 @@ const filteredEvents = computed(() => {
       .filter(Boolean)
       .join(' ')
       .toLowerCase()
-      .includes(value),
-  )
+      .includes(value)
+    return matchesKeyword && (!actorFilter.value || event.actor === actorFilter.value) && (!dateFilter.value || event.create_time.startsWith(dateFilter.value))
+  })
 })
+
+const actors = computed(() => [...new Set(events.value.map((event) => event.actor).filter(Boolean))])
+
+function exportAudit() {
+  const header = '订单号,操作人,事件类型,原状态,新状态,说明,时间'
+  const rows = filteredEvents.value.map((event) => [event.order_no, event.actor, event.event_type, event.from_status, event.to_status, event.note, event.create_time]
+    .map((value) => `"${String(value || '').replaceAll('"', '""')}"`).join(','))
+  const blob = new Blob([`\ufeff${[header, ...rows].join('\n')}`], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `LIMS流程日志-${new Date().toISOString().slice(0, 10)}.csv`
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
 
 const auditGroups = computed(() => {
   const groups = new Map<string, { order_no: string; customer: string; project_name: string; is_outsource: boolean; events: typeof filteredEvents.value }>()
@@ -84,6 +101,11 @@ const pagedAuditGroups = computed(() => {
             placeholder="搜索订单、客户、操作人、节点说明"
             @input="page = 1"
           />
+          <el-select v-model="actorFilter" clearable placeholder="操作人" class="table-search" @change="page = 1">
+            <el-option v-for="actor in actors" :key="actor" :label="actor" :value="actor" />
+          </el-select>
+          <el-input v-model="dateFilter" clearable placeholder="日期 YYYY-MM-DD" class="table-search" @input="page = 1" />
+          <el-button plain @click="exportAudit">导出当前结果</el-button>
         </div>
       </template>
 
