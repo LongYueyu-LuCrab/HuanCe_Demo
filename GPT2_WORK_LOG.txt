@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-01
-Git 提交号：待本地 Main_V2 提交完成后补录
+Git 提交号：5dae1f8（冷色技术工作台视觉层级）
 提交说明：taste-skill 科技感优化：建立冷色技术工作台视觉层级
 变更范围：后台全局主题、侧栏、顶部栏、Dashboard/详情/表格面板
 具体改动：
@@ -30,7 +30,12 @@ Git 提交号：待本地 Main_V2 提交完成后补录
 5. 不使用霓虹渐变、玻璃效果或大面积深色，保持长时间办公可读性。
 影响范围：后台全局视觉氛围和颜色层级；不修改业务逻辑、权限、接口、数据库和页面结构。
 验证结果：已完成 pnpm run build、TypeScript 检查和 git diff --check；构建仅保留依赖包既有 Rolldown 注释与大 chunk 提示。
-部署状态：本地 Main_V2 已完成，待提交并部署生产环境。
+部署状态：已部署到生产环境；已推送到 GitHub Main_V2。
+部署补充：
+1. 发布前备份：/opt/huance/backups/app_before_tech_palette_20261101_122445.tar.gz。
+2. 已上传全局视觉样式和新的 static/frontend 构建产物。
+3. 生产 PostgreSQL 无待执行迁移；huance、nginx、postgresql 均 active。
+4. 发布后已执行 Django check、collectstatic，并重启 huance。
 署名：GPT二号
 
 日期：2026-11-01
