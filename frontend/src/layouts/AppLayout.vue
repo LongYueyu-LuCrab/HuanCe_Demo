@@ -3,19 +3,19 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowDown,
-  Box,
   Calendar,
-  Clock,
-  Cpu,
-  DataBoard,
+  CollectionTag,
+  Connection,
+  DataAnalysis,
   DocumentChecked,
+  List,
   Menu,
-  Money,
-  Operation,
-  Tickets,
-  Tools,
+  Memo,
+  Monitor,
+  OfficeBuilding,
+  SetUp,
   UserFilled,
-  Van,
+  Wallet,
 } from '@element-plus/icons-vue'
 import { getMenuGroups } from '../permissions'
 import { useSession } from '../stores/session'
@@ -38,19 +38,19 @@ const currentTitle = computed(() => {
 })
 
 const iconMap = {
-  Box,
   Calendar,
-  Clock,
-  Cpu,
-  DataBoard,
+  CollectionTag,
+  Connection,
+  DataAnalysis,
   DocumentChecked,
+  List,
   Menu,
-  Money,
-  Operation,
-  Tickets,
-  Tools,
+  Memo,
+  Monitor,
+  OfficeBuilding,
+  SetUp,
   UserFilled,
-  Van,
+  Wallet,
 }
 
 function iconFor(name?: string) {

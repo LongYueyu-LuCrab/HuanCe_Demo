@@ -20,21 +20,21 @@ export function getMenuGroups(user: User): MenuGroup[] {
   if (user.is_chairman) {
     return [
       group('工作台', [
-        { key: 'dashboard', label: '业务总览', path: '/dashboard', icon: 'DataBoard' },
-        { key: 'orders', label: '订单管理', path: '/orders', icon: 'Tickets' },
+        { key: 'dashboard', label: '业务总览', path: '/dashboard', icon: 'DataAnalysis' },
+        { key: 'orders', label: '订单管理', path: '/orders', icon: 'List' },
         { key: 'schedule', label: '排期管理', path: '/schedule', icon: 'Calendar' },
       ]),
       group('实验室', [
-        { key: 'suzhou', label: '苏州实验室', path: '/labs/suzhou', icon: 'Cpu' },
-        { key: 'jiangyin', label: '江阴实验室', path: '/labs/jiangyin', icon: 'Operation' },
-        { key: 'devices', label: '设备管理', path: '/devices', icon: 'Tools' },
-        { key: 'samples', label: '样品台账', path: '/samples', icon: 'Box' },
-        { key: 'outsource', label: '委外试验', path: '/outsource', icon: 'Van' },
+        { key: 'suzhou', label: '苏州实验室', path: '/labs/suzhou', icon: 'Monitor' },
+        { key: 'jiangyin', label: '江阴实验室', path: '/labs/jiangyin', icon: 'OfficeBuilding' },
+        { key: 'devices', label: '设备管理', path: '/devices', icon: 'SetUp' },
+        { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
+        { key: 'outsource', label: '委外试验', path: '/outsource', icon: 'Connection' },
         { key: 'reports', label: '报告审核', path: '/reports', icon: 'DocumentChecked' },
       ]),
       group('财务与系统', [
-        { key: 'invoice', label: '财务开票', path: '/finance', icon: 'Money' },
-        { key: 'audit', label: '流程日志', path: '/audit', icon: 'Clock' },
+        { key: 'invoice', label: '财务开票', path: '/finance', icon: 'Wallet' },
+        { key: 'audit', label: '流程日志', path: '/audit', icon: 'Memo' },
         { key: 'employees', label: '添加员工', path: '/employees', icon: 'UserFilled' },
       ]),
     ].filter(Boolean) as MenuGroup[]
@@ -43,73 +43,73 @@ export function getMenuGroups(user: User): MenuGroup[] {
   if (hasRole(user, '销售经理')) {
     return [
       group('销售管理工作台', [
-        { key: 'dashboard', label: '销售总览', path: '/dashboard', icon: 'DataBoard' },
-        { key: 'orders', label: '全部销售订单', path: '/orders', icon: 'Tickets' },
+        { key: 'dashboard', label: '销售总览', path: '/dashboard', icon: 'DataAnalysis' },
+        { key: 'orders', label: '全部销售订单', path: '/orders', icon: 'List' },
       ]),
-      group('追溯', [{ key: 'audit', label: '销售订单档案', path: '/audit', icon: 'Clock' }]),
+      group('追溯', [{ key: 'audit', label: '销售订单档案', path: '/audit', icon: 'Memo' }]),
     ].filter(Boolean) as MenuGroup[]
   }
 
   if (hasRole(user, '销售')) {
     return [
       group('销售工作台', [
-        { key: 'dashboard', label: '我的看板', path: '/dashboard', icon: 'DataBoard' },
-        { key: 'orders', label: '我的订单', path: '/orders', icon: 'Tickets' },
+        { key: 'dashboard', label: '我的看板', path: '/dashboard', icon: 'DataAnalysis' },
+        { key: 'orders', label: '我的订单', path: '/orders', icon: 'List' },
         { key: 'reports', label: '报告初审', path: '/reports', icon: 'DocumentChecked' },
       ]),
-      group('追溯', [{ key: 'audit', label: '订单档案', path: '/audit', icon: 'Clock' }]),
+      group('追溯', [{ key: 'audit', label: '订单档案', path: '/audit', icon: 'Memo' }]),
     ].filter(Boolean) as MenuGroup[]
   }
 
   if (hasRole(user, '商务部')) {
     return [group('商务部', [
-      { key: 'dashboard', label: '商务工作台', path: '/dashboard', icon: 'DataBoard' },
-      { key: 'orders', label: '全部订单与下单', path: '/orders', icon: 'Tickets' },
+      { key: 'dashboard', label: '商务工作台', path: '/dashboard', icon: 'DataAnalysis' },
+      { key: 'orders', label: '全部订单与下单', path: '/orders', icon: 'List' },
       { key: 'schedule', label: '排期管理', path: '/schedule', icon: 'Calendar' },
-      { key: 'suzhou', label: '苏州排期', path: '/labs/suzhou', icon: 'Cpu' },
-      { key: 'jiangyin', label: '江阴排期', path: '/labs/jiangyin', icon: 'Operation' },
+      { key: 'suzhou', label: '苏州排期', path: '/labs/suzhou', icon: 'Monitor' },
+      { key: 'jiangyin', label: '江阴排期', path: '/labs/jiangyin', icon: 'OfficeBuilding' },
       { key: 'reports', label: '报告初审', path: '/reports', icon: 'DocumentChecked' },
-      { key: 'audit', label: '订单档案', path: '/audit', icon: 'Clock' },
+      { key: 'audit', label: '订单档案', path: '/audit', icon: 'Memo' },
     ])].filter(Boolean) as MenuGroup[]
   }
 
   if (hasRole(user, '质量部')) {
     return [
       group('历史质量流程', [
-        { key: 'dashboard', label: 'V1 在途订单', path: '/dashboard', icon: 'DataBoard' },
-        { key: 'orders', label: '历史订单处理', path: '/orders', icon: 'Tickets' },
+        { key: 'dashboard', label: 'V1 在途订单', path: '/dashboard', icon: 'DataAnalysis' },
+        { key: 'orders', label: '历史订单处理', path: '/orders', icon: 'List' },
         { key: 'schedule', label: '历史排期', path: '/schedule', icon: 'Calendar' },
         { key: 'reports', label: '历史报告', path: '/reports', icon: 'DocumentChecked' },
-        { key: 'audit', label: '流程日志', path: '/audit', icon: 'Clock' },
+        { key: 'audit', label: '流程日志', path: '/audit', icon: 'Memo' },
       ]),
     ].filter(Boolean) as MenuGroup[]
   }
 
   if (hasRole(user, '苏州实验室')) {
     return [group('苏州实验室', [
-      { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataBoard' },
-      { key: 'orders', label: '我的订单', path: '/orders', icon: 'Tickets' },
-      { key: 'suzhou', label: '实验室任务', path: '/labs/suzhou', icon: 'Cpu' },
-      { key: 'devices', label: '设备管理', path: '/devices', icon: 'Tools' },
+      { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataAnalysis' },
+      { key: 'orders', label: '我的订单', path: '/orders', icon: 'List' },
+      { key: 'suzhou', label: '实验室任务', path: '/labs/suzhou', icon: 'Monitor' },
+      { key: 'devices', label: '设备管理', path: '/devices', icon: 'SetUp' },
       { key: 'schedule', label: '我的排期', path: '/schedule', icon: 'Calendar' },
-      { key: 'samples', label: '样品台账', path: '/samples', icon: 'Box' },
-      { key: 'outsource', label: '我负责的委外', path: '/outsource', icon: 'Van' },
+      { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
+      { key: 'outsource', label: '我负责的委外', path: '/outsource', icon: 'Connection' },
       { key: 'reports', label: '报告任务', path: '/reports', icon: 'DocumentChecked' },
-      { key: 'audit', label: '相关变更记录', path: '/audit', icon: 'Clock' },
+      { key: 'audit', label: '相关变更记录', path: '/audit', icon: 'Memo' },
     ])].filter(Boolean) as MenuGroup[]
   }
 
   if (hasRole(user, '江阴实验室')) {
     return [group('江阴实验室', [
-      { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataBoard' },
-      { key: 'orders', label: '我的订单', path: '/orders', icon: 'Tickets' },
-      { key: 'jiangyin', label: '实验室任务', path: '/labs/jiangyin', icon: 'Operation' },
-      { key: 'devices', label: '设备管理', path: '/devices', icon: 'Tools' },
+      { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataAnalysis' },
+      { key: 'orders', label: '我的订单', path: '/orders', icon: 'List' },
+      { key: 'jiangyin', label: '实验室任务', path: '/labs/jiangyin', icon: 'OfficeBuilding' },
+      { key: 'devices', label: '设备管理', path: '/devices', icon: 'SetUp' },
       { key: 'schedule', label: '我的排期', path: '/schedule', icon: 'Calendar' },
-      { key: 'samples', label: '样品台账', path: '/samples', icon: 'Box' },
-      { key: 'outsource', label: '我负责的委外', path: '/outsource', icon: 'Van' },
+      { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
+      { key: 'outsource', label: '我负责的委外', path: '/outsource', icon: 'Connection' },
       { key: 'reports', label: '报告任务', path: '/reports', icon: 'DocumentChecked' },
-      { key: 'audit', label: '相关变更记录', path: '/audit', icon: 'Clock' },
+      { key: 'audit', label: '相关变更记录', path: '/audit', icon: 'Memo' },
     ])].filter(Boolean) as MenuGroup[]
   }
 
@@ -118,45 +118,45 @@ export function getMenuGroups(user: User): MenuGroup[] {
     const labKey = isJiangyin ? 'jiangyin' : 'suzhou'
     const labName = isJiangyin ? '江阴实验室' : '苏州实验室'
     return [group(`${labName}操作台`, [
-      { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataBoard' },
-      { key: 'orders', label: '实验室订单', path: '/orders', icon: 'Tickets' },
+      { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataAnalysis' },
+      { key: 'orders', label: '实验室订单', path: '/orders', icon: 'List' },
       { key: labKey, label: '试验任务', path: `/labs/${labKey}`, icon: isJiangyin ? 'Operation' : 'Cpu' },
       { key: 'schedule', label: '排期与操作', path: '/schedule', icon: 'Calendar' },
-      { key: 'samples', label: '样品台账', path: '/samples', icon: 'Box' },
-      { key: 'outsource', label: '委外任务', path: '/outsource', icon: 'Van' },
+      { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
+      { key: 'outsource', label: '委外任务', path: '/outsource', icon: 'Connection' },
       { key: 'reports', label: '报告任务', path: '/reports', icon: 'DocumentChecked' },
-      { key: 'audit', label: '操作历史', path: '/audit', icon: 'Clock' },
+      { key: 'audit', label: '操作历史', path: '/audit', icon: 'Memo' },
     ])].filter(Boolean) as MenuGroup[]
   }
 
   if (hasRole(user, '总经理')) {
     return [
       group('经营总览', [
-        { key: 'dashboard', label: '全局看板', path: '/dashboard', icon: 'DataBoard' },
-        { key: 'orders', label: '全局订单查询', path: '/orders', icon: 'Tickets' },
-        { key: 'suzhou', label: '苏州负荷', path: '/labs/suzhou', icon: 'Cpu' },
-        { key: 'jiangyin', label: '江阴负荷', path: '/labs/jiangyin', icon: 'Operation' },
-        { key: 'samples', label: '样品台账', path: '/samples', icon: 'Box' },
-        { key: 'outsource', label: '委外占比', path: '/outsource', icon: 'Van' },
+        { key: 'dashboard', label: '全局看板', path: '/dashboard', icon: 'DataAnalysis' },
+        { key: 'orders', label: '全局订单查询', path: '/orders', icon: 'List' },
+        { key: 'suzhou', label: '苏州负荷', path: '/labs/suzhou', icon: 'Monitor' },
+        { key: 'jiangyin', label: '江阴负荷', path: '/labs/jiangyin', icon: 'OfficeBuilding' },
+        { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
+        { key: 'outsource', label: '委外占比', path: '/outsource', icon: 'Connection' },
       ]),
       group('审批与财务', [
         { key: 'reports', label: '报告终审', path: '/reports', icon: 'DocumentChecked' },
-        { key: 'invoice', label: '财务台账', path: '/finance', icon: 'Money' },
-        { key: 'audit', label: '全链路档案', path: '/audit', icon: 'Clock' },
+        { key: 'invoice', label: '财务台账', path: '/finance', icon: 'Wallet' },
+        { key: 'audit', label: '全链路档案', path: '/audit', icon: 'Memo' },
       ]),
     ].filter(Boolean) as MenuGroup[]
   }
 
   if (hasRole(user, '会计')) {
     return [group('财务工作台', [
-      { key: 'dashboard', label: '财务看板', path: '/dashboard', icon: 'DataBoard' },
-      { key: 'invoice', label: '财务开票', path: '/finance', icon: 'Money' },
-      { key: 'orders', label: '订单核对', path: '/orders', icon: 'Tickets' },
+      { key: 'dashboard', label: '财务看板', path: '/dashboard', icon: 'DataAnalysis' },
+      { key: 'invoice', label: '财务开票', path: '/finance', icon: 'Wallet' },
+      { key: 'orders', label: '订单核对', path: '/orders', icon: 'List' },
       { key: 'reports', label: '报告核对', path: '/reports', icon: 'DocumentChecked' },
     ])].filter(Boolean) as MenuGroup[]
   }
 
-  return [group('工作台', [{ key: 'dashboard', label: '业务总览', path: '/dashboard', icon: 'DataBoard' }])].filter(Boolean) as MenuGroup[]
+  return [group('工作台', [{ key: 'dashboard', label: '业务总览', path: '/dashboard', icon: 'DataAnalysis' }])].filter(Boolean) as MenuGroup[]
 }
 
 export function getMetricCards(user: User, dashboard: Dashboard | null) {

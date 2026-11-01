@@ -19,6 +19,21 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-01
+Git 提交号：待本地 Main_V2 提交完成后补录
+提交说明：taste-skill 导航图标优化：按 LIMS 业务语义重新映射左侧任务栏图标
+变更范围：左侧桌面/移动端导航、权限菜单图标映射
+具体改动：
+1. 工作台由通用 DataBoard 调整为 DataAnalysis，强调业务分析与任务总览。
+2. 订单由 Tickets 调整为 List，实验室/地区使用 Monitor 与 OfficeBuilding 区分。
+3. 设备、样品、委外、财务、审计分别使用 SetUp、CollectionTag、Connection、Wallet、Memo。
+4. 保留 Calendar、DocumentChecked、UserFilled 等语义明确的现有图标。
+5. 仅替换图标映射，不修改菜单权限、路由、文字和业务流程；桌面端与移动端共用同一映射。
+影响范围：左侧导航和移动端抽屉导航的图标可识别性；不修改后端接口、权限、数据库和业务数据。
+验证结果：已完成 pnpm run build、TypeScript 检查和 git diff --check；构建仅保留依赖包既有 Rolldown 注释与大 chunk 提示。
+部署状态：本地 Main_V2 已完成，待提交并部署生产环境。
+署名：GPT二号
+
+日期：2026-11-01
 Git 提交号：7903948（长表单弹窗层级优化）
 提交说明：taste-skill 深层优化：统一长表单弹窗的标题、滚动内容和固定操作区
 变更范围：订单下单、流程操作、排期、实验、报告、财务等长表单 Dialog
