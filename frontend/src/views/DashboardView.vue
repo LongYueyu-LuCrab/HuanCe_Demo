@@ -25,12 +25,22 @@ const priorityOrders = computed(() => {
 
 const riskOrders = computed(() => session.state.dashboard?.risk_orders ?? [])
 const riskCounts = computed(() => session.state.dashboard?.risk_counts ?? { urgent: 0, overdue: 0, rejected: 0 })
+type RiskFilter = 'all' | 'urgent' | 'overdue' | 'rejected'
+const riskFilter = ref<RiskFilter>('all')
 const riskPage = ref(1)
 const riskPageSize = 6
-const riskPageCount = computed(() => Math.max(1, Math.ceil(riskOrders.value.length / riskPageSize)))
+const filteredRiskOrders = computed(() => {
+  if (riskFilter.value === 'all') return riskOrders.value
+  return riskOrders.value.filter((order) => {
+    if (riskFilter.value === 'urgent') return order.is_urgent
+    if (riskFilter.value === 'overdue') return Boolean(order.expected_delivery_date && new Date(`${order.expected_delivery_date}T23:59:59`).getTime() < Date.now())
+    return order.status === '评审驳回'
+  })
+})
+const riskPageCount = computed(() => Math.max(1, Math.ceil(filteredRiskOrders.value.length / riskPageSize)))
 const pagedRiskOrders = computed(() => {
   const start = (riskPage.value - 1) * riskPageSize
-  return riskOrders.value.slice(start, start + riskPageSize)
+  return filteredRiskOrders.value.slice(start, start + riskPageSize)
 })
 const roleFocus = computed(() => {
   const roles = session.state.user.roles || []
@@ -66,6 +76,11 @@ function changeRiskPage(offset: number) {
   riskPage.value = Math.min(riskPageCount.value, Math.max(1, riskPage.value + offset))
 }
 
+function setRiskFilter(filter: RiskFilter) {
+  riskFilter.value = filter
+  riskPage.value = 1
+}
+
 watch(riskOrders, () => {
   if (riskPage.value > riskPageCount.value) riskPage.value = riskPageCount.value
 })
@@ -84,14 +99,17 @@ watch(riskOrders, () => {
     <section class="risk-workbench" aria-labelledby="risk-title">
       <div class="risk-workbench-heading">
         <div><span>交付风险</span><h3 id="risk-title">先处理可能影响交付的订单</h3></div>
-        <strong>{{ riskOrders.length }} 条需要关注</strong>
+        <button class="risk-total-button" :class="{ 'is-active': riskFilter === 'all' }" type="button" :aria-pressed="riskFilter === 'all'" @click="setRiskFilter('all')">
+          <strong>{{ riskOrders.length }}</strong>
+          <span>条需要关注</span>
+        </button>
       </div>
       <div class="risk-counts">
-        <div><strong>{{ riskCounts.urgent }}</strong><span>加急订单</span></div>
-        <div><strong>{{ riskCounts.overdue }}</strong><span>超过预计交付</span></div>
-        <div><strong>{{ riskCounts.rejected }}</strong><span>评审驳回</span></div>
+        <button class="risk-filter-card" :class="{ 'is-active': riskFilter === 'urgent' }" type="button" :aria-pressed="riskFilter === 'urgent'" @click="setRiskFilter('urgent')"><strong>{{ riskCounts.urgent }}</strong><span>加急订单</span></button>
+        <button class="risk-filter-card" :class="{ 'is-active': riskFilter === 'overdue' }" type="button" :aria-pressed="riskFilter === 'overdue'" @click="setRiskFilter('overdue')"><strong>{{ riskCounts.overdue }}</strong><span>超过预计交付</span></button>
+        <button class="risk-filter-card" :class="{ 'is-active': riskFilter === 'rejected' }" type="button" :aria-pressed="riskFilter === 'rejected'" @click="setRiskFilter('rejected')"><strong>{{ riskCounts.rejected }}</strong><span>评审驳回</span></button>
       </div>
-      <div v-if="riskOrders.length" class="risk-list-wrap">
+      <div v-if="filteredRiskOrders.length" class="risk-list-wrap">
         <div class="risk-list">
           <article v-for="order in pagedRiskOrders" :key="order.order_no">
             <div><strong>{{ order.order_no }}</strong><span>{{ order.customer }} · {{ order.status }}</span></div>
@@ -105,7 +123,7 @@ watch(riskOrders, () => {
           <el-button size="small" plain :disabled="riskPage === riskPageCount" @click="changeRiskPage(1)">下一页</el-button>
         </div>
       </div>
-      <div v-else class="risk-empty">当前没有识别到加急、逾期或评审驳回订单。</div>
+      <div v-else class="risk-empty">当前筛选条件下没有风险订单。</div>
     </section>
 
     <div class="metric-grid">

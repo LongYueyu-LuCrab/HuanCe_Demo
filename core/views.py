@@ -4002,7 +4002,7 @@ def lims_dashboard(request):
             for item in related_orders.values('execution_mode').annotate(count=Count('id'))
         },
         'recent_orders': recent_orders,
-        'risk_orders': [_order_payload(order) for order in risk_orders_scope[:10]],
+        'risk_orders': [_order_payload(order) for order in risk_orders_scope[:list_limit]],
         'order_groups': {
             'orders': all_orders[:list_limit],
             'active_orders': active_orders[:list_limit],
