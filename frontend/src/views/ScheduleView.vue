@@ -199,6 +199,7 @@ async function submitWorkflow() {
     await workflowAction({
       action: activeAction.value,
       order_no: activeSchedule.value.order_no,
+      expected_update_time: selectedOrder.value?.updated_at,
       schedule_id: activeSchedule.value.id,
       ...form,
       sample_photos: samplePhotoFiles.value.map((item) => item.raw).filter((file): file is File => Boolean(file)),

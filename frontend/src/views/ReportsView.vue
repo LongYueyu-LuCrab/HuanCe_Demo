@@ -68,6 +68,8 @@ async function submitWorkflow() {
     await workflowAction({
       action: activeAction.value,
       report_no: activeReport.value.report_no,
+      order_no: activeReport.value.order_no,
+      expected_update_time: activeOrder.value?.updated_at,
       audit_opinion: form.audit_opinion,
     })
     ElMessage.success('报告审核已提交')

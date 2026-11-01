@@ -10,7 +10,10 @@ export async function fetchHealth(): Promise<HealthStatus> {
 async function parseJson<T>(response: Response): Promise<T> {
   const data = await response.json()
   if (!response.ok) {
-    throw new Error(data.error || '请求失败')
+    const error = new Error(data.error || '请求失败') as Error & { code?: string; status?: number }
+    error.code = data.code || `HTTP_${response.status}`
+    error.status = response.status
+    throw error
   }
   return data
 }

@@ -262,6 +262,7 @@ async function submitWorkflow() {
     await workflowAction({
       action: activeAction.value,
       order_no: activeOrderNo.value,
+      expected_update_time: activeOrder.value?.updated_at,
       schedule_id: activeSchedule.value?.id,
       ...form,
       test_item_list: activeSchedule.value?.remark || form.test_item_list,

@@ -101,6 +101,7 @@ async function submitWorkflow() {
     await workflowAction({
       action: activeAction.value,
       order_no: activeInvoice.value.order_no,
+      expected_update_time: activeOrder.value?.updated_at,
       report_no: activeInvoice.value.report_no,
       invoice_no: activeInvoice.value.invoice_no || form.invoice_no,
       invoice_amount: form.invoice_amount,

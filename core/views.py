@@ -1,6 +1,7 @@
 import json
 import mimetypes
 import re
+import time as time_module
 from io import BytesIO
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
@@ -67,11 +68,12 @@ def frontend(request):
 def health_check(request):
     """Expose a minimal production health signal without exposing business data."""
     checked_at = timezone.now().isoformat()
+    started = time_module.perf_counter()
     try:
         with connection.cursor() as cursor:
             cursor.execute('SELECT 1')
             cursor.fetchone()
-        return JsonResponse({'ok': True, 'service': 'ok', 'database': 'ok', 'checked_at': checked_at})
+        return JsonResponse({'ok': True, 'service': 'ok', 'database': 'ok', 'db_ms': round((time_module.perf_counter() - started) * 1000, 2), 'checked_at': checked_at})
     except Exception:
         return JsonResponse({'ok': False, 'service': 'ok', 'database': 'error', 'checked_at': checked_at}, status=503)
 
@@ -714,6 +716,7 @@ def _order_payload(order, include_sample_records=False):
         else '',
         'sales_owner_username': order.sale_user.username if order.sale_user else '',
         'created_at': _display_datetime(order.create_time),
+        'updated_at': order.update_time.isoformat() if order.update_time else '',
         'remark': order.remark,
         'documents': [
             {
@@ -2286,6 +2289,8 @@ def create_order(request):
         total_quote = Decimal(str(payload.get('quoted_amount') or '0'))
     except InvalidOperation:
         return JsonResponse({'ok': False, 'error': '报价金额格式错误'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if not total_quote.is_finite() or total_quote < 0:
+        return JsonResponse({'ok': False, 'code': 'INVALID_AMOUNT', 'error': '报价金额不能为负数'}, status=400, json_dumps_params={'ensure_ascii': False})
 
     outsource_requirement_data = None
     if 'outsource' in execution_attributes:
@@ -2471,6 +2476,20 @@ def lims_action(request):
     if _contains_corrupted_text(payload):
         return _corrupted_text_response()
 
+    expected_update_time = payload.get('expected_update_time')
+    order_no = payload.get('order_no')
+    if expected_update_time and order_no:
+        order = LabOrder.objects.filter(order_no=order_no).only('update_time').first()
+        if order:
+            try:
+                expected = datetime.fromisoformat(str(expected_update_time).replace('Z', '+00:00'))
+                if timezone.is_naive(expected):
+                    expected = timezone.make_aware(expected)
+                if order.update_time and abs((order.update_time - expected).total_seconds()) > 0.001:
+                    return JsonResponse({'ok': False, 'code': 'STALE_ORDER', 'error': '订单已被其他人更新，请刷新后再操作。'}, status=409, json_dumps_params={'ensure_ascii': False})
+            except (TypeError, ValueError):
+                return JsonResponse({'ok': False, 'code': 'INVALID_VERSION', 'error': '订单版本信息无效，请刷新后再操作。'}, status=400, json_dumps_params={'ensure_ascii': False})
+
     action = (payload.get('action') or '').strip()
     handlers = {
         'review_pass': _action_review_pass,
@@ -2508,7 +2527,19 @@ def lims_action(request):
         change_error = _pending_change_error(order, action)
         if change_error:
             return change_error
-    return handler(request, payload)
+    response = handler(request, payload)
+    if response.status_code < 400 and order_no:
+        order = LabOrder.objects.filter(order_no=order_no).only('id').first()
+        event = WorkflowEvent.objects.filter(order=order, actor=request.user).order_by('-create_time', '-id').first() if order else None
+        if event:
+            changes = dict(event.change_data or {})
+            changes.setdefault('_request', {
+                'ip': request.META.get('REMOTE_ADDR', ''),
+                'user_agent': request.META.get('HTTP_USER_AGENT', '')[:240],
+            })
+            event.change_data = changes
+            event.save(update_fields=['change_data', 'update_time'])
+    return response
 
 
 def _action_review_pass(request, payload):

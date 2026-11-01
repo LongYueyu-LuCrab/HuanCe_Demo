@@ -226,6 +226,7 @@ async function submitWorkflow() {
     const result = await workflowAction({
       action: activeAction.value,
       order_no: activeOrder.value.order_no,
+      expected_update_time: activeOrder.value.updated_at,
       ...actionForm,
     })
     if (activeAction.value === 'issue_report' && result.report) {

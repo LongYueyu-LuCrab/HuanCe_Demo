@@ -42,6 +42,7 @@ export type OrderItem = {
   sales_owner?: string
   sales_owner_username?: string
   created_at?: string
+  updated_at?: string
   remark?: string
   documents: OrderDocumentItem[]
   sample_records?: SampleLifecycleItem[]
