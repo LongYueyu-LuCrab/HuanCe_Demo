@@ -1638,6 +1638,94 @@ select {
   font-size: 14px;
 }
 
+/* Tech atmosphere: cool surfaces and signal colours, without neon gradients. */
+:root {
+  --hc-ground: #edf4f7;
+  --hc-surface: #fbfdfe;
+  --hc-border: #cbdde5;
+  --hc-primary: #0b6685;
+  --hc-primary-soft: #e3f2f5;
+  --hc-primary-track: #c2e2e8;
+  --el-color-primary: #0b6685;
+  --el-color-primary-light-3: #4c91a8;
+  --el-color-primary-light-5: #82b6c6;
+  --el-color-primary-light-7: #b1d2dc;
+  --el-color-primary-light-8: #cbe3e9;
+  --el-color-primary-light-9: #e3f2f5;
+  --el-color-primary-dark-2: #084c63;
+}
+
+.shell-aside {
+  background: #e8f1f4;
+  border-right-color: #c1d7e0;
+}
+
+.brand-block {
+  position: relative;
+  background: #e1edf2;
+  border-bottom: 1px solid #c1d7e0;
+}
+
+.brand-block::after {
+  position: absolute;
+  right: 20px;
+  bottom: -1px;
+  left: 20px;
+  height: 2px;
+  background: var(--hc-primary);
+  content: "";
+}
+
+.role-card {
+  background: #dcecf1;
+}
+
+.shell-header {
+  border-top: 2px solid var(--hc-primary);
+  background: #fafdff;
+}
+
+.shell-main {
+  background: var(--hc-ground);
+}
+
+.command-panel,
+.hc-card,
+.priority-panel,
+.snapshot-descriptions {
+  background: var(--hc-surface);
+}
+
+.command-panel {
+  border-color: #bfd6df;
+  border-left-color: var(--hc-primary);
+}
+
+.metric-grid {
+  background: var(--hc-surface);
+}
+
+.metric-card.active,
+.metric-card.active:hover {
+  background: var(--hc-primary-soft);
+}
+
+.priority-panel-heading {
+  background: #e7f3f6;
+}
+
+.el-table {
+  --el-table-header-bg-color: #f3f9fa;
+  --el-table-row-hover-bg-color: #e6f3f6;
+  --el-table-border-color: #d4e3e8;
+}
+
+.side-menu .el-menu-item:hover,
+.side-menu .el-menu-item.is-active {
+  color: #084c63;
+  background: #d9edf2;
+}
+
 /* Long workflow dialogs stay legible while their action remains available. */
 .el-dialog {
   overflow: hidden;
