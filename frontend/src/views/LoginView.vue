@@ -29,18 +29,18 @@ async function submit() {
 <template>
   <main class="login-page" :style="{ backgroundImage: `linear-gradient(90deg, rgba(3, 14, 27, 0.62), rgba(3, 14, 27, 0.20)), url(${backgroundImage})` }">
     <div class="login-network" aria-hidden="true">
-      <i class="network-line network-line-one"></i>
-      <i class="network-line network-line-two"></i>
-      <i class="network-line network-line-three"></i>
-      <i class="network-line network-line-four"></i>
-      <i class="network-line network-line-five"></i>
-      <i class="network-node network-node-one"></i>
-      <i class="network-node network-node-two"></i>
-      <i class="network-node network-node-three"></i>
-      <i class="network-node network-node-four"></i>
-      <i class="network-node network-node-five"></i>
-      <i class="network-node network-node-six"></i>
-      <i class="network-node network-node-seven"></i>
+      <div class="network-shape network-triangle">
+        <i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i>
+        <i class="shape-node"></i><i class="shape-node"></i><i class="shape-node"></i>
+      </div>
+      <div class="network-shape network-square">
+        <i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i>
+        <i class="shape-node"></i><i class="shape-node"></i><i class="shape-node"></i><i class="shape-node"></i>
+      </div>
+      <div class="network-shape network-chaos">
+        <i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i><i class="shape-line"></i>
+        <i class="shape-node"></i><i class="shape-node"></i><i class="shape-node"></i><i class="shape-node"></i><i class="shape-node"></i>
+      </div>
     </div>
     <div class="login-brand">
       <img :src="companyLogo" alt="苏州环测检测技术有限公司 logo">
