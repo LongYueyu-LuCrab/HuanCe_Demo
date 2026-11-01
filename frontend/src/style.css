@@ -546,6 +546,58 @@ select {
   font-weight: 700;
 }
 
+.action-dialog-context {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.8fr);
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid #b8dce4;
+  border-radius: 8px;
+  background: #eef8fa;
+  color: var(--hc-ink);
+}
+
+.action-dialog-context > div {
+  display: grid;
+  gap: 4px;
+  align-content: center;
+  min-width: 0;
+}
+
+.action-dialog-context span,
+.action-dialog-context small,
+.action-dialog-step span {
+  color: var(--hc-muted);
+  font-size: 12px;
+}
+
+.action-dialog-step {
+  padding-left: 16px;
+  border-left: 1px solid #b8dce4;
+}
+
+.action-dialog-step strong {
+  color: #075985;
+  font-size: 13px;
+}
+
+.action-dialog-step small {
+  line-height: 1.5;
+}
+
+.action-dialog .el-dialog__body {
+  max-height: min(68vh, 720px);
+  overflow-y: auto;
+}
+
+.action-dialog .el-dialog__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  border-top: 1px solid var(--hc-border);
+  background: #fff;
+}
+
 .review-queue-strip,
 .finance-queue-strip {
   display: flex;
@@ -1661,6 +1713,17 @@ select {
 @media (max-width: 760px) {
   .task-queue-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .action-dialog-context {
+    grid-template-columns: 1fr;
+  }
+
+  .action-dialog-step {
+    padding-top: 10px;
+    padding-left: 0;
+    border-top: 1px solid #b8dce4;
+    border-left: 0;
   }
 
   .shell-aside {

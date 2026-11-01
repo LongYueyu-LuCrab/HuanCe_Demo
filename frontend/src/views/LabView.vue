@@ -55,6 +55,22 @@ const form = reactive({
   final_conclusion: '',
 })
 
+const actionMeta = computed(() => {
+  const map: Record<string, { title: string; stage: string; impact: string; button: string }> = {
+    schedule_assign: { title: '确认排期 / 排台', stage: '路径准备 → 排期确认', impact: '提交后会记录计划日期、设备和样品状态。', button: '确认排期' },
+    process_change: { title: '处理执行变更', stage: '执行中 → 变更待调整', impact: '提交后会记录变更内容，原排期需要重新确认。', button: '提交变更' },
+    sample_arrival: { title: '办理样品入库', stage: '样品准备 → 样品已到', impact: '提交后记录实际入库时间和样品照片。', button: '确认入库' },
+    start_test: { title: '开始试验', stage: '排期确认 → 实验执行', impact: '确认后进入实验执行节点。', button: '开始试验' },
+    end_test: { title: '保存实验结果', stage: '实验执行 → 实验已结束', impact: '只保存本次结果，不会推进到报告流程。', button: '保存实验结果' },
+    submit_test: { title: '提交实验结果', stage: '实验已结束 → 结果已提交', impact: '确认提交后，该执行路径才会计入订单完成判断。', button: '提交结果' },
+    sample_outbound: { title: '办理样品出库', stage: '样品流转 → 样品出库', impact: '提交后使用服务器当前时间记录出库。', button: '确认出库' },
+    outsource_result: { title: '回传委外结果', stage: '委外执行 → 实验已结束', impact: '保存委外结果后，仍需继续提交结果。', button: '保存委外结果' },
+    issue_report: { title: '出具检测报告', stage: '结果已提交 → 报告审核', impact: '提交后报告进入后续审核节点。', button: '生成并提交报告' },
+    create_change: { title: '发起试验中变更', stage: '实验执行 → 变更申请', impact: '提交后等待实验室重新确认执行安排。', button: '提交变更申请' },
+  }
+  return map[activeAction.value] || { title: '实验室任务操作', stage: '当前订单流程', impact: '请确认本次操作内容后提交。', button: '确认提交' }
+})
+
 async function loadLaboratoryOrders() {
   try {
     const data = await fetchLaboratoryOrders({ lab_type: labType.value, page: 1, page_size: 500 })
@@ -307,8 +323,12 @@ async function submitWorkflow() {
       @detail="openOrderDetail"
     />
 
-    <el-dialog v-model="dialogVisible" title="实验室任务操作" width="min(960px, 94vw)">
-      <p><strong>{{ activeSchedule?.order_no }}</strong> · {{ activeSchedule?.project_name }} · {{ activeSchedule?.remark }}</p>
+    <el-dialog v-model="dialogVisible" class="action-dialog" :title="actionMeta.title" width="min(960px, 94vw)">
+      <div class="action-dialog-context">
+        <div><strong>{{ activeSchedule?.order_no }}</strong><span>{{ activeSchedule?.project_name }} · {{ activeSchedule?.remark }}</span></div>
+        <div class="action-dialog-step"><span>流程影响</span><strong>{{ actionMeta.stage }}</strong><small>{{ actionMeta.impact }}</small></div>
+      </div>
+      <el-divider content-position="left">本次操作</el-divider>
       <el-form label-position="top" class="form-grid mt-16">
         <template v-if="activeAction === 'schedule_assign' || activeAction === 'process_change'">
           <el-form-item :label="activeAction === 'process_change' ? '调整后开始' : '计划开始'">
@@ -449,7 +469,7 @@ async function submitWorkflow() {
       <el-collapse class="mt-16"><el-collapse-item title="查看订单详情与流程" name="context"><OrderSnapshot :order="activeOrder" :loading="orderLoading" :show-actions="false" title="试验任务订单信息" /></el-collapse-item></el-collapse>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" :disabled="availabilityLoading" @click="submitWorkflow">确认提交</el-button>
+        <el-button type="primary" :loading="submitting" :disabled="availabilityLoading" @click="submitWorkflow">{{ actionMeta.button }}</el-button>
       </template>
     </el-dialog>
 
