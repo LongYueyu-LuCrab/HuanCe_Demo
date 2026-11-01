@@ -1726,6 +1726,22 @@ select {
   background: #d9edf2;
 }
 
+.metric-card.active,
+.metric-card.active:hover {
+  border-bottom: 3px solid #0b6685;
+  background: #cfe8ee;
+}
+
+.metric-card.active span {
+  color: #0b536d;
+  font-weight: 700;
+}
+
+.metric-card.active strong {
+  color: #06445d;
+  font-weight: 700;
+}
+
 /* Long workflow dialogs stay legible while their action remains available. */
 .el-dialog {
   overflow: hidden;
