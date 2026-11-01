@@ -30,7 +30,11 @@ Git 提交号：1a91aecfcc1129ef88b9b82d41f849d492833594
 5. 修复 Dashboard 加急查询错误：is_urgent 是模型属性，改为按备注标记查询；同时修复评审驳回重提后的评审周期判断，避免旧评审污染新周期。
 影响范围：应用壳层状态反馈、权限导航、订单处理效率、生产健康监控、前端首屏依赖加载和评审流程查询；不改变业务权限规则和数据库结构。
 验证结果：Vite 构建成功；Django check 通过；core 全量测试 81 项通过；impeccable detector 对 frontend/src 返回空结果；构建保留依赖包既有 Rolldown 注释提示，无新增错误。
-部署状态：代码提交完成，待推送并部署生产环境。
+部署状态：已推送 GitHub Main_V2，并部署生产环境。
+部署补充：
+1. 生产发布前已备份服务器应用目录：/opt/huance/backups/app_before_reliability_20261101_203814.tar.gz。
+2. 已完成 Django 配置检查、数据库迁移检查和静态文件收集；本次无数据库迁移。
+3. 发布后 huance、nginx、postgresql 均为 active；/api/health/ 返回 service=ok、database=ok，HTTPS 首页返回 HTTP 200。
 署名：GPT二号
 
 日期：2026-11-01
