@@ -33,7 +33,12 @@ Git 提交号：待提交后补录
 验证结果：
 1. 已完成 pnpm run build，TypeScript 检查和 Vite 构建成功。
 2. taste-skill lint 与 Impeccable detector 已执行；现有全局历史样式提示仍存在，本轮未新增高风险装饰模式。
-部署状态：待提交、推送并部署生产环境。
+部署状态：已部署生产环境；待推送 GitHub Main_V2。
+部署补充：
+1. 发布前已备份服务器应用目录：/opt/huance/backups/app_before_action_dialogs_20261101_172834.tar.gz。
+2. 已上传 LabView.vue、ScheduleView.vue、style.css 和最新 static/frontend 构建产物。
+3. Django check 通过，No migrations to apply；huance、nginx、postgresql 均 active。
+4. 生产首页 HTTPS 返回 HTTP 200。
 署名：GPT二号
 
 日期：2026-11-01
