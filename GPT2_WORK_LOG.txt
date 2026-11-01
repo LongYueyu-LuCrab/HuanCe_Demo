@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-01
-Git 提交号：待提交
+Git 提交号：e46d118
 提交说明：为交付风险区增加分类筛选与全部风险订单联动
 变更范围：Dashboard 交付风险前端交互、风险订单接口返回范围
 具体改动：
@@ -30,7 +30,8 @@ Git 提交号：待提交
 5. 强化总计数字和选中状态的视觉反馈，并保留键盘可操作和 aria-pressed 状态。
 影响范围：Dashboard 交付风险区的展示与筛选；不修改风险识别规则、权限、订单流程和数据库结构。
 验证结果：pnpm run build 成功；Django system check 通过；core 测试 81/81 通过；Impeccable detector 为 []；git diff --check 通过。
-部署状态：待提交后部署生产环境。
+部署状态：已部署到生产环境。
+部署补充：已同步前端构建产物和 core/views.py；首页静态资源全部 HTTP 200，生产健康接口 HTTP 200，Django system check 通过，nginx 与 huance active。
 署名：GPT二号
 
 日期：2026-11-01
