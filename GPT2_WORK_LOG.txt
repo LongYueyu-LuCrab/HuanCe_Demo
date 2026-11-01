@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-01
-Git 提交号：待本地 Main_V2 提交完成后补录
+Git 提交号：f02f047（Dashboard 指标卡选中态对比度）
 提交说明：优化 Dashboard 指标卡选中态对比度
 变更范围：Dashboard 指标条、全局视觉样式
 具体改动：
@@ -28,7 +28,12 @@ Git 提交号：待本地 Main_V2 提交完成后补录
 3. 加深选中态标题和数值颜色，保留原有点击切换和订单筛选逻辑。
 影响范围：Dashboard 四个/多个指标卡的选中态可识别性；不修改业务逻辑、接口、权限和数据。
 验证结果：已完成 pnpm run build、TypeScript 检查和 git diff --check；构建仅保留依赖包既有 Rolldown 注释与大 chunk 提示。
-部署状态：本地 Main_V2 已完成，待提交并部署生产环境。
+部署状态：已部署到生产环境；已推送到 GitHub Main_V2。
+部署补充：
+1. 发布前备份：/opt/huance/backups/app_before_metric_selected_20261101_122652.tar.gz。
+2. 已上传全局视觉样式和新的 static/frontend 构建产物。
+3. 生产 PostgreSQL 无待执行迁移；huance、nginx、postgresql 均 active。
+4. 发布后已执行 Django check、collectstatic，并重启 huance。
 署名：GPT二号
 
 日期：2026-11-01
