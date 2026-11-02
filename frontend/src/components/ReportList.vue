@@ -35,7 +35,7 @@ const reportQueue = computed(() => ({
   sales: props.reports.filter((report) => report.status_key === 2).length,
   gm: props.reports.filter((report) => report.status_key === 3).length,
   rejected: props.reports.filter((report) => report.status_key === 4).length,
-  ready: props.reports.filter((report) => report.status_key === 5).length,
+  ready: props.reports.filter((report) => report.status_key === 5 && !report.order_is_closed).length,
 }))
 
 const roleSet = computed(() => new Set(props.user?.roles || []))
@@ -47,6 +47,7 @@ function hasRole(role: string) {
 
 function actionsFor(report: ReportItem) {
   const actions: Array<{ key: string; label: string; type?: 'primary' | 'danger' | 'success' }> = []
+  if (report.order_is_closed) return actions
   if (report.status_key === 2 && hasRole('销售')) {
     actions.push({ key: 'report_sales_pass', label: '初审通过', type: 'success' })
     actions.push({ key: 'report_sales_reject', label: '初审驳回', type: 'danger' })

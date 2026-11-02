@@ -46,6 +46,7 @@ export type OrderItem = {
   remark?: string
   can_view_contracts: boolean
   documents: OrderDocumentItem[]
+  workflow_action_keys?: string[]
   sample_records?: SampleLifecycleItem[]
   experiment_records?: ExperimentLifecycleItem[]
   report_records?: ReportItem[]
@@ -107,6 +108,9 @@ export type ScheduleItem = {
   project_name: string
   status: string
   status_key: number
+  order_status?: string
+  order_status_key?: number
+  order_is_closed?: boolean
   test_type: string
   start_time: string
   end_time: string

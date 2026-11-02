@@ -144,11 +144,14 @@ function actionsFor(order: OrderItem) {
   if (order.workflow_version === 1 && [5, 8].includes(order.status_key) && hasRole('质量部')) {
     actions.push({ key: 'issue_report', label: '出具报告', type: 'primary' })
   }
+  const labActionKeys = Array.isArray(order.workflow_action_keys)
+    ? new Set(order.workflow_action_keys)
+    : null
   if (order.workflow_version === 1 && [3, 4].includes(order.status_key) && (hasRole('苏州实验室') || hasRole('江阴实验室'))) {
-    actions.push({ key: 'start_test', label: '开始试验', type: 'primary' })
-    actions.push({ key: 'end_test', label: '实验结束', type: 'warning' })
-    actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
-    actions.push({ key: 'create_change', label: '试验中变更', type: 'warning' })
+    if (!labActionKeys || labActionKeys.has('start_test')) actions.push({ key: 'start_test', label: '开始试验', type: 'primary' })
+    if (!labActionKeys || labActionKeys.has('end_test')) actions.push({ key: 'end_test', label: '实验结束', type: 'warning' })
+    if (!labActionKeys || labActionKeys.has('submit_test')) actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
+    if (!labActionKeys || labActionKeys.has('create_change')) actions.push({ key: 'create_change', label: '试验中变更', type: 'warning' })
   }
   if (
     order.workflow_version === 2
@@ -156,8 +159,8 @@ function actionsFor(order: OrderItem) {
     && [3, 4].includes(order.status_key)
     && (hasRole('苏州实验室') || hasRole('江阴实验室'))
   ) {
-    actions.push({ key: 'outsource_result', label: '委外结果回传', type: 'success' })
-    actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
+    if (!labActionKeys || labActionKeys.has('outsource_result')) actions.push({ key: 'outsource_result', label: '委外结果回传', type: 'success' })
+    if (!labActionKeys || labActionKeys.has('submit_test')) actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
   }
   if (
     order.workflow_version === 2

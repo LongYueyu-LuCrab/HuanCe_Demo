@@ -696,6 +696,27 @@ def _order_payload(order, include_sample_records=False, viewer=None):
     )
 
     can_view_contracts = _can_view_order_contracts(viewer, order)
+    workflow_action_keys = set()
+    if order.order_status not in [LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]:
+        for schedule in schedules:
+            schedule_payload = _schedule_payload(schedule)
+            execution_state = schedule_payload['execution_state']
+            if schedule.schedule_status == SchedulePlan.Status.CHANGE_PENDING:
+                workflow_action_keys.add('process_change')
+                continue
+            if schedule.test_type == SchedulePlan.TestType.OUTSOURCE:
+                if execution_state in {'outsource', 'running'}:
+                    workflow_action_keys.add('outsource_result')
+                elif execution_state == 'result_pending':
+                    workflow_action_keys.add('submit_test')
+                continue
+            if execution_state == 'ready':
+                workflow_action_keys.add('start_test')
+            elif execution_state == 'running':
+                workflow_action_keys.add('end_test')
+                workflow_action_keys.add('create_change')
+            elif execution_state == 'result_pending':
+                workflow_action_keys.add('submit_test')
     payload = {
         'order_no': order.order_no,
         'is_outsource': order.outsourced_execution,
@@ -752,6 +773,8 @@ def _order_payload(order, include_sample_records=False, viewer=None):
                 OrderDocument.DocumentType.OUTSOURCE_CONTRACT,
             }
         ],
+        # Dashboard rows need path-level state instead of aggregate order status.
+        'workflow_action_keys': sorted(workflow_action_keys),
     }
     if include_sample_records:
         payload['schedule_records'] = [_schedule_payload(schedule) for schedule in schedules]
@@ -826,6 +849,7 @@ def order_detail(request, order_no):
 
 
 def _report_payload(report):
+    order_is_closed = report.order.order_status == LabOrder.Status.INVOICED_CLOSED
     return {
         'id': report.id,
         'report_no': report.report_no,
@@ -833,8 +857,11 @@ def _report_payload(report):
         'is_outsource': report.order.outsourced_execution,
         'customer': report.order.customer_name,
         'project_name': report.order.project_name,
-        'status': report.get_report_status_display(),
+        'status': report.order.get_order_status_display() if order_is_closed else report.get_report_status_display(),
         'status_key': report.report_status,
+        'order_status': report.order.get_order_status_display(),
+        'order_status_key': report.order.order_status,
+        'order_is_closed': order_is_closed,
         'conclusion': report.final_conclusion,
         'remake_count': report.remake_count,
         'quality_user': report.create_quality_user.first_name or report.create_quality_user.username
@@ -4026,11 +4053,16 @@ def lims_dashboard(request):
         'metrics': {
             'orders': related_orders.count(),
             'active_orders': active_related_orders.count(),
-            'running_experiments': Experiment.objects.filter(order__in=related_orders, test_status=Experiment.Status.RUNNING).count(),
+            # The dashboard table is order-based, so count distinct orders,
+            # not parallel experiment records.
+            'running_experiments': Experiment.objects.filter(
+                order__in=related_orders,
+                test_status=Experiment.Status.RUNNING,
+            ).values('order_id').distinct().count(),
             'pending_reports': TestReport.objects.filter(order__in=related_orders).exclude(report_status=TestReport.Status.APPROVED).count(),
             'change_requests': ChangeRequest.objects.filter(order__in=related_orders).exclude(
                 change_status=ChangeRequest.Status.APPLIED
-            ).count(),
+            ).values('order_id').distinct().count(),
         },
         'risk_counts': {
             'urgent': related_orders.filter(remark__icontains='加急').exclude(
