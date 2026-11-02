@@ -535,7 +535,7 @@ def _workflow_progress_payload(order):
         {
             'key': 'sales_audit', 'sequence': 11, 'phase': 'approval', 'phase_title': '审核结算',
             'title': '销售初审', 'owner': '销售', 'state': 'pending',
-            'detail': latest_sales_audit.get_audit_result_display() if latest_sales_audit else '等待报告提交',
+            'detail': latest_sales_audit.get_audit_result_display() if latest_sales_audit else '等待销售初审',
             'time': _display_datetime(latest_sales_audit.audit_time) if latest_sales_audit else '',
         },
         {
@@ -1042,6 +1042,24 @@ def _schedule_payload(schedule):
     samples = _schedule_samples(schedule)
     sample = samples[0] if samples else None
     experiment = _schedule_experiment(schedule)
+    if schedule.schedule_status == SchedulePlan.Status.FINISHED or (
+        experiment and experiment.test_status == Experiment.Status.FINISHED
+    ):
+        execution_state = 'completed'
+    elif schedule.schedule_status == SchedulePlan.Status.ENDED or (
+        experiment and experiment.test_status == Experiment.Status.ENDED
+    ):
+        execution_state = 'result_pending'
+    elif experiment and experiment.test_status == Experiment.Status.RUNNING:
+        execution_state = 'running'
+    elif not schedule.scheduled_at or schedule.schedule_status == SchedulePlan.Status.CHANGE_PENDING:
+        execution_state = 'schedule'
+    elif not schedule.sample_arrived:
+        execution_state = 'sample'
+    elif schedule.test_type == SchedulePlan.TestType.OUTSOURCE:
+        execution_state = 'outsource'
+    else:
+        execution_state = 'ready'
     return {
         'id': schedule.id,
         'order_no': order.order_no,
@@ -1076,6 +1094,7 @@ def _schedule_payload(schedule):
         'sample_status': sample.get_sample_status_display() if sample else ('样品已到' if schedule.sample_arrived else '样品未到'),
         'sample_photos': _sample_photo_payloads(schedule),
         'experiment_status': experiment.get_test_status_display() if experiment else '',
+        'execution_state': execution_state,
         'experiment_result_key': experiment.result_status if experiment else '',
         'experiment_result': experiment.get_result_status_display() if experiment and experiment.result_status else '',
         'experiment_conclusion': experiment.test_conclusion_temp if experiment else '',

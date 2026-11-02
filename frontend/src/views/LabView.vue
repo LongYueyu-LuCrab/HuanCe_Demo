@@ -27,6 +27,7 @@ const activeSchedule = ref<ScheduleItem | null>(null)
 const activeOrder = ref<OrderItem | null>(null)
 const orderLoading = ref(false)
 const detailDrawerVisible = ref(false)
+const activeScheduleChangePending = computed(() => activeSchedule.value?.schedule_status_key === 2)
 const availabilityLoading = ref(false)
 const availableDevices = ref<LabDevice[]>([])
 const samplePhotoFiles = ref<UploadUserFile[]>([])
@@ -134,7 +135,7 @@ function openOrderDetail(schedule: ScheduleItem) {
 
 function scheduleFromDetail() {
   if (!activeSchedule.value) return
-  openActionFromDetail('schedule_assign', activeSchedule.value)
+  openActionFromDetail(activeScheduleChangePending.value ? 'process_change' : 'schedule_assign', activeSchedule.value)
 }
 
 function sampleArrivalFromDetail() {
@@ -483,7 +484,7 @@ async function submitWorkflow() {
 
     <el-drawer v-model="detailDrawerVisible" title="订单详情" size="min(720px, 94vw)">
       <el-alert
-        v-if="activeSchedule && !activeSchedule.is_scheduled && [3, 4].includes(activeSchedule.status_key)"
+        v-if="activeSchedule && !activeSchedule.is_scheduled && activeSchedule.schedule_status_key !== 2 && [3, 4].includes(activeSchedule.status_key)"
         class="mb-16"
         title="该执行路径尚未由实验室确认排期"
         type="warning"
@@ -495,8 +496,21 @@ async function submitWorkflow() {
           <el-button class="mt-8" type="primary" @click="scheduleFromDetail">排期 / 排台</el-button>
         </template>
       </el-alert>
+      <el-alert
+        v-if="activeSchedule && activeSchedule.schedule_status_key === 2 && [3, 4].includes(activeSchedule.status_key)"
+        class="mb-16"
+        title="该执行路径存在待处理变更"
+        type="warning"
+        :closable="false"
+        description="请先处理变更并重新确认排期，确认后再继续实验执行。"
+        show-icon
+      >
+        <template #default>
+          <el-button class="mt-8" type="primary" @click="scheduleFromDetail">处理变更并排期</el-button>
+        </template>
+      </el-alert>
       <div v-if="activeSchedule && [3, 4].includes(activeSchedule.status_key) && ![4, 5].includes(activeSchedule.schedule_status_key)" class="row-actions mb-16">
-        <el-button type="primary" @click="scheduleFromDetail">{{ activeSchedule.is_scheduled ? '重新排期' : '排期 / 排台' }}</el-button>
+        <el-button type="primary" @click="scheduleFromDetail">{{ activeSchedule.schedule_status_key === 2 ? '处理变更并排期' : activeSchedule.is_scheduled ? '重新排期' : '排期 / 排台' }}</el-button>
         <el-button v-if="!isBusinessDept" type="success" @click="sampleArrivalFromDetail">{{ activeSchedule.sample_arrived ? '补充样品图片' : '样品入库' }}</el-button>
       </div>
       <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="实验室订单信息" />

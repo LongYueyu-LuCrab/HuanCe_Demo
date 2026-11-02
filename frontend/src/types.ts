@@ -130,6 +130,7 @@ export type ScheduleItem = {
   sample_status: string
   sample_photos: SamplePhotoItem[]
   experiment_status: string
+  execution_state: 'schedule' | 'sample' | 'running' | 'result_pending' | 'completed' | 'outsource' | 'ready'
   experiment_result_key: string
   experiment_result: string
   experiment_conclusion: string

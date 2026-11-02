@@ -92,8 +92,12 @@ function taskState(row: ScheduleItem) {
   if (row.end_time && row.end_time < new Date().toISOString().slice(0, 10) && !row.experiment_status.includes('结束') && !row.experiment_status.includes('提交')) {
     return { key: 'overdue', label: '排期已逾期' }
   }
-  if (row.experiment_status.includes('待提交')) return { key: 'result', label: '待提交结果' }
-  if (row.experiment_status.includes('试验中')) return { key: 'running', label: '实验进行中' }
+  // 后端返回规范化执行状态，避免依赖中文展示文案判断流程节点。
+  if (row.execution_state === 'completed') {
+    return { key: 'completed', label: '结果已提交' }
+  }
+  if (row.execution_state === 'result_pending') return { key: 'result', label: '待提交结果' }
+  if (row.execution_state === 'running') return { key: 'running', label: '实验进行中' }
   if (!row.is_scheduled) return { key: 'schedule', label: '等待排期' }
   if (!row.sample_arrived) return { key: 'sample', label: '等待样品' }
   if (row.test_type.includes('委外')) return { key: 'outsource', label: '待委外回传' }
@@ -107,16 +111,19 @@ function nextActionLabel(row: ScheduleItem) {
   if (state === 'running') return '继续实验'
   if (state === 'sample') return '先确认样品'
   if (state === 'outsource') return '回传委外结果'
+  if (state === 'completed') return '等待出具报告'
   if (state === 'schedule' || state === 'ready') return '先处理排期'
   return '查看任务'
 }
 
 function statusLabel(row: ScheduleItem) {
-  return taskState(row).key === 'outsource' ? '委外执行中' : row.status
+  const state = taskState(row).key
+  return state === 'outsource' ? '委外执行中' : state === 'completed' ? '结果已提交' : row.status
 }
 
 function scheduleStatusLabel(row: ScheduleItem) {
-  return taskState(row).key === 'outsource' ? '已排期 · 待委外回传' : row.schedule_status
+  const state = taskState(row).key
+  return state === 'outsource' ? '已排期 · 待委外回传' : state === 'completed' ? '已完成 · 结果已提交' : row.schedule_status
 }
 
 const taskStats = computed(() => {
