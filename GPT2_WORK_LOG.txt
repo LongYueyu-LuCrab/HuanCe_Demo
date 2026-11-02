@@ -746,7 +746,7 @@ Git 提交号：88765c05a276695760e7b54b11d0a1768280da54
 署名：GPT二号
 
 日期：2026-11-02
-Git 提交号：待本次提交生成
+Git 提交号：8787d69
 提交说明：修复工作台操作入口、质量部排期数据范围及总经理终审提示
 变更范围：前端 Dashboard/订单页操作入口、质量部历史排期接口、订单流程节点提示
 具体改动：
@@ -758,8 +758,14 @@ Git 提交号：待本次提交生成
 影响范围：质量部、实验室负责人、总经理工作台及相关订单详情展示；不影响登录、权限模型、数据库结构和既有订单业务数据。
 验证结果：
 1. frontend pnpm build 成功。
-2. Django 定向测试 11 项全部通过：core.test_assigned_schedule_scope、core.test_report_review_round、core.test_order_detail_privacy。
+2. Django 定向测试 11 项全部通过：core.test_assigned_schedule_scope、core.test_report_review_round、core.test_order_detail_privacy；全量 Django 测试 82 项全部通过。
 3. 通过浏览器真实操作验证质量部工作台“出具报告”跳转并自动打开表单；苏州实验室工作台“实验结束”跳转并自动打开表单；总经理查看 RPT-DEMO-2026-0085 时显示“等待总经理终审”；质量部历史排期加载 156 条任务。
-部署状态：待本次 Git 提交推送后部署服务器。
+部署状态：已推送 GitHub Main_V2，并部署到生产环境。
+部署补充：
+1. GitHub：Main_V2 已从 26fc0f6 推送到 8787d69。
+2. 发布前已创建生产备份：/opt/huance/backups/release-20261102_091653（应用、.env、PostgreSQL dump）。
+3. 已同步 core/views.py、DashboardView.vue、OrdersView.vue 和 static/frontend 构建产物；生产 .env、PostgreSQL 数据库、用户上传媒体和 Nginx 配置未覆盖。
+4. 生产 manage.py check 通过，迁移结果为 No migrations to apply；collectstatic 完成；huance、nginx 均 active。
+5. 生产首页和健康接口均 HTTP 200；关键源码与本地 SHA-256 一致；服务器部署标记为 8787d69。
 署名：GPT二号
 
