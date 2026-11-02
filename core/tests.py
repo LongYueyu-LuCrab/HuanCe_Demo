@@ -1737,6 +1737,33 @@ class LaboratoryOperatorTests(TestCase):
             [ready_earlier.id, ready_later.id, waiting_sample.id],
         )
 
+    def test_laboratory_orders_exclude_closed_and_cancelled_history(self):
+        closed_order = LabOrder.objects.create(
+            order_no='LAB-CLOSED-001', customer_name='已办结客户', project_name='历史办结订单',
+            test_demand='不应进入实验操作队列', order_status=LabOrder.Status.INVOICED_CLOSED,
+            workflow_version=LabOrder.WorkflowVersion.LAB_DIRECT, lead_lab_manager=self.manager,
+        )
+        cancelled_order = LabOrder.objects.create(
+            order_no='LAB-CANCELLED-001', customer_name='已退单客户', project_name='历史退单订单',
+            test_demand='不应进入实验操作队列', order_status=LabOrder.Status.CANCELLED,
+            workflow_version=LabOrder.WorkflowVersion.LAB_DIRECT, lead_lab_manager=self.manager,
+        )
+        closed_schedule = SchedulePlan.objects.create(
+            order=closed_order, test_type=SchedulePlan.TestType.SUZHOU,
+            lab_manager=self.manager, schedule_status=SchedulePlan.Status.FINISHED,
+        )
+        cancelled_schedule = SchedulePlan.objects.create(
+            order=cancelled_order, test_type=SchedulePlan.TestType.SUZHOU,
+            lab_manager=self.manager, schedule_status=SchedulePlan.Status.NEW,
+        )
+
+        self.client.force_login(self.manager)
+        response = self.client.get(reverse('laboratory_orders'), {'lab_type': 1, 'page_size': 500})
+        self.assertEqual(response.status_code, 200)
+        returned_ids = {item['id'] for item in response.json()['items']}
+        self.assertNotIn(closed_schedule.id, returned_ids)
+        self.assertNotIn(cancelled_schedule.id, returned_ids)
+
     def test_operator_cannot_manage_devices(self):
         self.client.force_login(self.operator)
         response = self.client.post(

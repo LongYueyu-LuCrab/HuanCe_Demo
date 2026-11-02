@@ -31,6 +31,7 @@ const actionableSchedules = computed(() => {
   if (!isLabAccount.value || !props.order) return []
   return (props.order.schedule_records || []).filter((schedule) => {
     const canSubmitResult = schedule.experiment_status.includes('待提交结果')
+    if ([6, 7].includes(props.order?.status_key || 0)) return false
     if (![3, 4].includes(schedule.status_key) || schedule.schedule_status_key === 5) return false
     if (schedule.schedule_status_key === 4 && !canSubmitResult) return false
     if (labRoles.value.has('商务部')) return schedule.schedule_status_key !== 2
@@ -155,7 +156,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
               @click="openLabAction(schedule.id, schedule.lab_type, 'start_test')"
             >开始试验</el-button>
             <el-button
-              v-if="!labRoles.has('商务部') && schedule.experiment_status.includes('试验中')"
+              v-if="!labRoles.has('商务部') && schedule.experiment_status.includes('试验中') && schedule.schedule_status_key !== 2"
               type="warning"
               @click="openLabAction(schedule.id, schedule.lab_type, 'end_test')"
             >实验结束</el-button>

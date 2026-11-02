@@ -88,6 +88,7 @@ const canLabOperate = computed(() => isChairman.value || roleSet.value.has('苏�
 const canIssueReport = computed(() => isChairman.value || roleSet.value.has('苏州实验室') || roleSet.value.has('江阴实验室'))
 
 function taskState(row: ScheduleItem) {
+  if ([6, 7].includes(row.status_key)) return { key: 'closed', label: row.status || '流程已关闭' }
   if (row.schedule_status.includes('变更')) return { key: 'blocked', label: '变更待处理' }
   if (row.end_time && row.end_time < new Date().toISOString().slice(0, 10) && !row.experiment_status.includes('结束') && !row.experiment_status.includes('提交')) {
     return { key: 'overdue', label: '排期已逾期' }
@@ -130,11 +131,13 @@ const taskStats = computed(() => {
   const stats = { attention: 0, sample: 0, running: 0, result: 0, ready: 0 }
   for (const row of props.orders) {
     const key = taskState(row).key
+    if (key === 'closed') continue
     if (key === 'blocked' || key === 'overdue') stats.attention += 1
-    else if (key === 'sample') stats.sample += 1
-    else if (key === 'running') stats.running += 1
-    else if (key === 'result') stats.result += 1
-    else if (key === 'ready' || key === 'schedule' || key === 'outsource') stats.ready += 1
+    // 队列摘要按实际执行状态计数，不能被“变更待处理”的展示优先级覆盖。
+    if (row.experiment_status.includes('试验中')) stats.running += 1
+    else if (row.experiment_status.includes('待提交结果')) stats.result += 1
+    else if (!row.sample_arrived) stats.sample += 1
+    else if (['ready', 'schedule', 'outsource'].includes(row.execution_state)) stats.ready += 1
   }
   return stats
 })
@@ -310,14 +313,14 @@ async function exportOrders(selectedOnly: boolean) {
                 </template>
                 <template v-else>
                   <el-button v-if="row.is_scheduled && row.sample_arrived && row.device_id && !row.experiment_status" size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
-                  <el-button v-if="row.experiment_status.includes('试验中')" size="small" type="warning" plain @click="emit('workflow', 'end_test', row)">实验结束</el-button>
+                  <el-button v-if="row.experiment_status.includes('试验中') && !row.schedule_status.includes('变更')" size="small" type="warning" plain @click="emit('workflow', 'end_test', row)">实验结束</el-button>
                 </template>
                 <el-button v-if="row.experiment_status.includes('待提交结果') && !row.schedule_status.includes('变更')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">提交结果</el-button>
                 <el-button v-if="row.is_lead && canIssueReport && (row.status_key === 8 || row.status_key === 5)" size="small" type="primary" plain @click="emit('workflow', 'issue_report', row)">汇总出报告</el-button>
               </template>
               <template v-else>
-                <el-button v-if="!row.experiment_status" size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
-                <el-button v-if="row.experiment_status.includes('试验中')" size="small" type="warning" plain @click="emit('workflow', 'end_test', row)">实验结束</el-button>
+                <el-button v-if="row.is_scheduled && row.sample_arrived && row.device_id && !row.experiment_status && !row.schedule_status.includes('变更')" size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>
+                <el-button v-if="row.experiment_status.includes('试验中') && !row.schedule_status.includes('变更')" size="small" type="warning" plain @click="emit('workflow', 'end_test', row)">实验结束</el-button>
                 <el-button v-if="row.experiment_status.includes('待提交结果')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">提交结果</el-button>
               </template>
               <el-button v-if="row.sample_arrived && [4, 5].includes(row.schedule_status_key) && !row.sample_outbound_at" size="small" plain @click="emit('workflow', 'sample_outbound', row)">样品出库</el-button>

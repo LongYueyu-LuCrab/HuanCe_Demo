@@ -1879,6 +1879,11 @@ def _laboratory_schedule_queryset(request):
             queryset=Experiment.objects.select_related('test_operator').order_by('-create_time'),
             to_attr='ordered_experiments',
         ),
+    ).exclude(
+        # 已开票办结和退单仍可能存在历史排期记录，但不应再次进入
+        # 实验操作队列；其余历史状态继续保留，避免丢失待评审/待分配
+        # 的实验室可见任务。
+        order__order_status__in=[LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]
     ).distinct()
     if assigned_scope:
         if not global_reader:

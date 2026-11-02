@@ -509,7 +509,7 @@ async function submitWorkflow() {
           <el-button class="mt-8" type="primary" @click="scheduleFromDetail">处理变更并排期</el-button>
         </template>
       </el-alert>
-      <div v-if="activeSchedule && [3, 4].includes(activeSchedule.status_key) && ![4, 5].includes(activeSchedule.schedule_status_key)" class="row-actions mb-16">
+      <div v-if="activeSchedule && ![6, 7].includes(activeSchedule.status_key) && [3, 4].includes(activeSchedule.status_key) && ![4, 5].includes(activeSchedule.schedule_status_key)" class="row-actions mb-16">
         <el-button type="primary" @click="scheduleFromDetail">{{ activeSchedule.schedule_status_key === 2 ? '处理变更并排期' : activeSchedule.is_scheduled ? '重新排期' : '排期 / 排台' }}</el-button>
         <el-button v-if="!isBusinessDept" type="success" @click="sampleArrivalFromDetail">{{ activeSchedule.sample_arrived ? '补充样品图片' : '样品入库' }}</el-button>
       </div>
