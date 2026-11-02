@@ -96,6 +96,7 @@ function taskState(row: ScheduleItem) {
   if (row.experiment_status.includes('试验中')) return { key: 'running', label: '实验进行中' }
   if (!row.is_scheduled) return { key: 'schedule', label: '等待排期' }
   if (!row.sample_arrived) return { key: 'sample', label: '等待样品' }
+  if (row.test_type.includes('委外')) return { key: 'outsource', label: '待委外回传' }
   return { key: 'ready', label: '已准备' }
 }
 
@@ -105,8 +106,17 @@ function nextActionLabel(row: ScheduleItem) {
   if (state === 'result') return '先提交结果'
   if (state === 'running') return '继续实验'
   if (state === 'sample') return '先确认样品'
+  if (state === 'outsource') return '回传委外结果'
   if (state === 'schedule' || state === 'ready') return '先处理排期'
   return '查看任务'
+}
+
+function statusLabel(row: ScheduleItem) {
+  return taskState(row).key === 'outsource' ? '委外执行中' : row.status
+}
+
+function scheduleStatusLabel(row: ScheduleItem) {
+  return taskState(row).key === 'outsource' ? '已排期 · 待委外回传' : row.schedule_status
 }
 
 const taskStats = computed(() => {
@@ -117,7 +127,7 @@ const taskStats = computed(() => {
     else if (key === 'sample') stats.sample += 1
     else if (key === 'running') stats.running += 1
     else if (key === 'result') stats.result += 1
-    else if (key === 'ready' || key === 'schedule') stats.ready += 1
+    else if (key === 'ready' || key === 'schedule' || key === 'outsource') stats.ready += 1
   }
   return stats
 })
@@ -249,8 +259,8 @@ async function exportOrders(selectedOnly: boolean) {
             <span class="task-state-dot" aria-hidden="true"></span>
             <strong>{{ taskState(row).label }}</strong>
           </div>
-          <StatusBadge :label="row.status" />
-          <span class="cell-sub block">{{ row.schedule_status }}</span>
+          <StatusBadge :label="statusLabel(row)" />
+          <span class="cell-sub block">{{ scheduleStatusLabel(row) }}</span>
           <el-tag v-if="!row.is_scheduled" class="mt-8" size="small" type="warning" effect="plain">
             待确认排期
           </el-tag>
@@ -273,6 +283,7 @@ async function exportOrders(selectedOnly: boolean) {
             <div v-if="row.experiment_operator" class="cell-sub">操作：{{ row.experiment_operator }}</div>
             <div v-if="row.experiment_conclusion" class="cell-sub">结论：{{ row.experiment_conclusion }}</div>
           </template>
+          <span v-else-if="taskState(row).key === 'outsource'" class="cell-sub">待委外回传</span>
           <span v-else class="cell-sub">尚未开始</span>
         </template>
       </el-table-column>
