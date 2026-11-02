@@ -316,7 +316,7 @@ async function exportOrders(selectedOnly: boolean) {
                   <el-button v-if="row.experiment_status.includes('试验中') && !row.schedule_status.includes('变更')" size="small" type="warning" plain @click="emit('workflow', 'end_test', row)">实验结束</el-button>
                 </template>
                 <el-button v-if="row.experiment_status.includes('待提交结果') && !row.schedule_status.includes('变更')" size="small" type="success" plain @click="emit('workflow', 'submit_test', row)">提交结果</el-button>
-                <el-button v-if="row.is_lead && canIssueReport && (row.status_key === 8 || row.status_key === 5)" size="small" type="primary" plain @click="emit('workflow', 'issue_report', row)">汇总出报告</el-button>
+                <el-button v-if="row.is_lead && canIssueReport && (row.status_key === 8 || row.status_key === 5) && (row.latest_report_status_key == null || row.latest_report_status_key === 4)" size="small" type="primary" plain @click="emit('workflow', 'issue_report', row)">汇总出报告</el-button>
               </template>
               <template v-else>
                 <el-button v-if="row.is_scheduled && row.sample_arrived && row.device_id && !row.experiment_status && !row.schedule_status.includes('变更')" size="small" type="primary" plain @click="emit('workflow', 'start_test', row)">开始试验</el-button>

@@ -141,7 +141,9 @@ function actionsFor(order: OrderItem) {
       actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
     }
   }
-  if (order.workflow_version === 1 && [5, 8].includes(order.status_key) && hasRole('质量部')) {
+  const canIssueLegacyReport = [5, 8].includes(order.status_key)
+    && (order.latest_report_status_key == null || order.latest_report_status_key === 4)
+  if (order.workflow_version === 1 && canIssueLegacyReport && hasRole('质量部')) {
     actions.push({ key: 'issue_report', label: '出具报告', type: 'primary' })
   }
   const labActionKeys = Array.isArray(order.workflow_action_keys)

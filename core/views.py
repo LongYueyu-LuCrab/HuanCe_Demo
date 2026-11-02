@@ -221,6 +221,11 @@ def _orders_for_user(user):
         'sale_user', 'lead_lab_manager', 'outsource_requirement'
     ).prefetch_related(
         'documents',
+        Prefetch(
+            'reports',
+            queryset=TestReport.objects.order_by('-update_time', '-create_time', '-id'),
+            to_attr='payload_reports',
+        ),
         Prefetch('schedules', queryset=SchedulePlan.objects.only('id', 'order_id', 'scheduled_at', 'schedule_status'), to_attr='payload_schedules'),
     )
     if _is_chairman(user):
@@ -694,6 +699,10 @@ def _order_payload(order, include_sample_records=False, viewer=None):
         if hasattr(order, 'payload_schedules')
         else list(order.schedules.all())
     )
+    payload_reports = getattr(order, 'payload_reports', None)
+    if payload_reports is None:
+        payload_reports = list(order.reports.order_by('-update_time', '-create_time', '-id')[:1])
+    latest_report = payload_reports[0] if payload_reports else None
 
     can_view_contracts = _can_view_order_contracts(viewer, order)
     workflow_action_keys = set()
@@ -773,6 +782,9 @@ def _order_payload(order, include_sample_records=False, viewer=None):
                 OrderDocument.DocumentType.OUTSOURCE_CONTRACT,
             }
         ],
+        'latest_report_no': latest_report.report_no if latest_report else '',
+        'latest_report_status': latest_report.get_report_status_display() if latest_report else '',
+        'latest_report_status_key': latest_report.report_status if latest_report else None,
         # Dashboard rows need path-level state instead of aggregate order status.
         'workflow_action_keys': sorted(workflow_action_keys),
     }
@@ -1066,6 +1078,10 @@ def _pending_preinvoice_payload(order):
 
 def _schedule_payload(schedule):
     order = schedule.order
+    payload_reports = getattr(order, 'payload_reports', None)
+    if payload_reports is None:
+        payload_reports = list(order.reports.order_by('-update_time', '-create_time', '-id')[:1])
+    latest_report = payload_reports[0] if payload_reports else None
     samples = _schedule_samples(schedule)
     sample = samples[0] if samples else None
     experiment = _schedule_experiment(schedule)
@@ -1130,6 +1146,9 @@ def _schedule_payload(schedule):
         'experiment_ended_at': _display_datetime(experiment.test_end_time) if experiment else '',
         'experiment_operator': _display_user(experiment.test_operator) if experiment else '',
         'workflow_version': order.workflow_version,
+        'latest_report_no': latest_report.report_no if latest_report else '',
+        'latest_report_status': latest_report.get_report_status_display() if latest_report else '',
+        'latest_report_status_key': latest_report.report_status if latest_report else None,
         'remark': schedule.remark,
     }
 
@@ -2097,6 +2116,11 @@ def _sales_order_queryset(request, require_sales_role=True):
             'sale_user', 'lead_lab_manager', 'outsource_requirement',
         ).prefetch_related(
             'documents',
+            Prefetch(
+                'reports',
+                queryset=TestReport.objects.order_by('-update_time', '-create_time', '-id'),
+                to_attr='payload_reports',
+            ),
             Prefetch('schedules', queryset=SchedulePlan.objects.only('id', 'order_id', 'scheduled_at', 'schedule_status'), to_attr='payload_schedules'),
         )
         if not can_view_all_sales_orders:
@@ -3525,13 +3549,18 @@ def _action_issue_report(request, payload):
         role_error = _require_role(request.user, ROLE_QUALITY)
         if role_error:
             return role_error
+        if order.order_status not in [LabOrder.Status.TEST_FINISHED, LabOrder.Status.REPORT_REVIEW]:
+            return JsonResponse({'ok': False, 'error': '当前订单尚未进入出具报告节点'}, status=400, json_dumps_params={'ensure_ascii': False})
     experiment = order.experiments.order_by('-create_time').first()
     if not experiment:
         return JsonResponse({'ok': False, 'error': '请先完成试验记录'}, status=400, json_dumps_params={'ensure_ascii': False})
     report_type = payload.get('report_type') or TestReport.ReportType.FORMAL
     if report_type not in TestReport.ReportType.values:
         return JsonResponse({'ok': False, 'error': '请选择有效的报告版本'}, status=400, json_dumps_params={'ensure_ascii': False})
-    report = order.reports.filter(report_status=TestReport.Status.REJECTED).order_by('-create_time').first()
+    latest_report = order.reports.order_by('-update_time', '-create_time', '-id').first()
+    if latest_report and latest_report.report_status != TestReport.Status.REJECTED:
+        return JsonResponse({'ok': False, 'error': '当前报告已进入审核或开票流程，不能重复出具'}, status=400, json_dumps_params={'ensure_ascii': False})
+    report = latest_report if latest_report and latest_report.report_status == TestReport.Status.REJECTED else None
     if report:
         report.test_record = experiment
         report.report_type = report_type
