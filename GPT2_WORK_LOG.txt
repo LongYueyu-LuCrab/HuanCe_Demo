@@ -894,6 +894,11 @@ Git 提交号：3793b07
 2. frontend TypeScript 检查与 Vite 生产构建通过；仅有既有依赖注释和 chunk 体积提示。
 3. Impeccable UI 检测通过。
 4. 通过浏览器真实操作验证：执行中统计与列表均为 12；试验中订单仅显示路径允许动作；LIMS-2026-0001 显示“已开票办结”且“通过待开票”为 0。
-部署状态：代码已提交 Git；待部署生产环境。
+部署状态：已推送 GitHub Main_V2，并已部署到生产环境。
+部署补充：
+1. GitHub Main_V2、本地 HEAD 与服务器部署标记均为 548180d7399a99c75f01254db562f7ec7f79f195。
+2. 发布前服务器应用备份：/opt/huance/backups/release-20261102_230028/app_before.tar.gz；同时备份生产 .env。
+3. 已同步 core/views.py、前端源码、static/frontend 构建产物和 GPT2_WORK_LOG.txt；未覆盖生产 PostgreSQL、.env、用户上传媒体和 Nginx 配置。
+4. 生产 manage.py check 通过，collectstatic 完成；huance、nginx active，HTTPS 健康接口返回 ok/database ok。
 署名：GPT二号
 
