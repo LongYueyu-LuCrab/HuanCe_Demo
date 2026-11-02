@@ -198,9 +198,9 @@ export function getMetricCards(user: User, dashboard: Dashboard | null) {
     const pendingInvoices = dashboard?.finance?.pending_invoices?.length ?? 0
     const issuedInvoices = dashboard?.finance?.issued_invoices?.length ?? 0
     return [
-      { key: 'finance_orders', label: '可预开票订单', value: preinvoiceCandidates },
-      { key: 'finance_orders', label: '待最终总开票', value: pendingInvoices },
-      { key: 'finance_orders', label: '已开票记录', value: issuedInvoices },
+      { key: 'preinvoice_orders', label: '可预开票订单', value: preinvoiceCandidates },
+      { key: 'pending_invoice_orders', label: '待最终总开票', value: pendingInvoices },
+      { key: 'issued_invoice_orders', label: '已开票记录', value: issuedInvoices },
     ]
   }
   return [

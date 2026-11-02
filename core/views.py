@@ -705,8 +705,17 @@ def _order_payload(order, include_sample_records=False, viewer=None):
     )
     payload_reports = getattr(order, 'payload_reports', None)
     if payload_reports is None:
-        payload_reports = list(order.reports.order_by('-update_time', '-create_time', '-id')[:1])
+        payload_reports = list(order.reports.order_by('-update_time', '-create_time', '-id')[:1]) if order.pk and not order._state.adding else []
     latest_report = payload_reports[0] if payload_reports else None
+
+    status_label = order.get_order_status_display()
+    if order.order_status == LabOrder.Status.REPORT_REVIEW and latest_report:
+        status_label = {
+            TestReport.Status.SALES_REVIEW: '待销售初审',
+            TestReport.Status.GM_REVIEW: '待总经理终审',
+            TestReport.Status.REJECTED: '审核驳回重制',
+            TestReport.Status.APPROVED: '报告已审核通过，等待最终开票',
+        }.get(latest_report.report_status, status_label)
 
     can_view_contracts = _can_view_order_contracts(viewer, order)
     workflow_action_keys = set()
@@ -742,7 +751,7 @@ def _order_payload(order, include_sample_records=False, viewer=None):
         'test_demand': order.test_demand,
         'test_method': order.test_method,
         'test_standard': order.test_standard,
-        'status': order.get_order_status_display(),
+        'status': status_label,
         'status_key': order.order_status,
         'execution_mode': _execution_mode_label(order, schedules),
         'execution_attributes': execution_attributes,
@@ -1084,7 +1093,7 @@ def _schedule_payload(schedule):
     order = schedule.order
     payload_reports = getattr(order, 'payload_reports', None)
     if payload_reports is None:
-        payload_reports = list(order.reports.order_by('-update_time', '-create_time', '-id')[:1])
+        payload_reports = list(order.reports.order_by('-update_time', '-create_time', '-id')[:1]) if order.pk and not order._state.adding else []
     latest_report = payload_reports[0] if payload_reports else None
     samples = _schedule_samples(schedule)
     sample = samples[0] if samples else None
@@ -1368,19 +1377,31 @@ def _pending_reports_for_user(user, related_orders):
     roles = set(_roles(user))
     query = Q()
     if (ROLE_SALES in roles or ROLE_BUSINESS_DEPT in roles):
-        query |= Q(order__sale_user=user)
+        # 销售工作台的“待我初审报告”必须只返回销售初审节点。
+        # 之前仅按订单归属过滤，导致已完成初审、终审甚至已开票的历史报告
+        # 混入待办列表，计数和可操作按钮也随之不一致。
+        query |= Q(order__sale_user=user, report_status=TestReport.Status.SALES_REVIEW)
     if ROLE_GENERAL_MANAGER in roles:
-        return reports
+        return reports.filter(report_status=TestReport.Status.GM_REVIEW)
     if ROLE_ACCOUNTING in roles:
         query |= Q(report_status=TestReport.Status.APPROVED)
     if ROLE_QUALITY in roles:
-        query |= Q(order__workflow_version=LabOrder.WorkflowVersion.LEGACY_QUALITY)
+        query |= Q(
+            order__workflow_version=LabOrder.WorkflowVersion.LEGACY_QUALITY,
+            report_status__in=[TestReport.Status.DRAFT, TestReport.Status.REJECTED],
+        )
     if ROLE_SUZHOU_LAB in roles or ROLE_JIANGYIN_LAB in roles:
-        query |= Q(order__lead_lab_manager=user)
+        query |= Q(
+            order__lead_lab_manager=user,
+            report_status__in=[TestReport.Status.DRAFT, TestReport.Status.REJECTED],
+        )
     if ROLE_LAB_OPERATOR in roles:
         lab_type = _user_lab_type(user)
         manager_role = ROLE_SUZHOU_LAB if lab_type == LabDevice.LabType.SUZHOU else ROLE_JIANGYIN_LAB
-        query |= Q(order__lead_lab_manager__groups__name=manager_role)
+        query |= Q(
+            order__lead_lab_manager__groups__name=manager_role,
+            report_status__in=[TestReport.Status.DRAFT, TestReport.Status.REJECTED],
+        )
     if not query:
         return reports.none()
     return reports.filter(query)
@@ -4006,6 +4027,11 @@ def lims_dashboard(request):
         for order in related_orders.filter(id__in=finance_order_ids).distinct().order_by('-create_time')
     ]
     pending_reports = _pending_reports_for_user(request.user, related_orders)
+    pending_report_order_ids = pending_reports.values_list('order_id', flat=True)
+    pending_report_orders = [
+        _order_payload(order, viewer=request.user)
+        for order in related_orders.filter(id__in=pending_report_order_ids).distinct().order_by('-create_time')
+    ]
     outsource_orders = [
         _order_payload(order, viewer=request.user)
         for order in related_orders.filter(
@@ -4072,6 +4098,21 @@ def lims_dashboard(request):
             order__in=related_orders,
         ).order_by('-invoice_date', '-create_time')
 
+    preinvoice_orders = [
+        _order_payload(order, viewer=request.user)
+        for order in preinvoice_candidate_orders[:list_limit]
+    ]
+    pending_invoice_order_ids = pending_invoice_reports.values_list('order_id', flat=True)
+    pending_invoice_orders = [
+        _order_payload(order, viewer=request.user)
+        for order in related_orders.filter(id__in=pending_invoice_order_ids).distinct().order_by('-create_time')[:list_limit]
+    ]
+    issued_invoice_order_ids = invoices.values_list('order_id', flat=True)
+    issued_invoice_orders = [
+        _order_payload(order, viewer=request.user)
+        for order in related_orders.filter(id__in=issued_invoice_order_ids).distinct().order_by('-create_time')[:list_limit]
+    ]
+
     risk_orders_scope = related_orders.exclude(
         order_status__in=[LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]
     ).filter(
@@ -4092,7 +4133,7 @@ def lims_dashboard(request):
                 order__in=related_orders,
                 test_status=Experiment.Status.RUNNING,
             ).values('order_id').distinct().count(),
-            'pending_reports': TestReport.objects.filter(order__in=related_orders).exclude(report_status=TestReport.Status.APPROVED).count(),
+            'pending_reports': pending_reports.count(),
             'change_requests': ChangeRequest.objects.filter(order__in=related_orders).exclude(
                 change_status=ChangeRequest.Status.APPLIED
             ).values('order_id').distinct().count(),
@@ -4127,9 +4168,12 @@ def lims_dashboard(request):
             'orders': all_orders[:list_limit],
             'active_orders': active_orders[:list_limit],
             'running_experiments': running_orders[:list_limit],
-            'pending_reports': report_orders[:list_limit],
+            'pending_reports': pending_report_orders[:list_limit],
             'change_requests': change_orders[:list_limit],
             'finance_orders': finance_orders[:list_limit],
+            'preinvoice_orders': preinvoice_orders,
+            'pending_invoice_orders': pending_invoice_orders,
+            'issued_invoice_orders': issued_invoice_orders,
         },
         'labs': {
             'suzhou': _lab_payload(SchedulePlan.TestType.SUZHOU, '苏州实验室', related_orders, request.user),
