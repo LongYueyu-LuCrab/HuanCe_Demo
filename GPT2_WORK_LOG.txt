@@ -34,7 +34,12 @@ Git 提交号：c0897cf
 2. 确认实验室角色资料分区不显示合同下载内容；实验室任务保留实验结束入口；变更状态打开专用“处理执行变更”表单。
 3. frontend pnpm build 成功；仅有依赖包既有 Rolldown 注释提示和大文件体积提示。
 4. Django core 全量测试 82 项通过；git diff --check 通过。
-部署状态：本地提交已完成；GitHub 推送与生产部署进行中。
+部署状态：已部署生产环境；GitHub 推送因当前网络/SSH 权限问题暂未完成。
+部署补充：
+1. 生产服务器已同步 core/views.py、frontend/src/components/ScheduleTable.vue、frontend/src/types.ts、frontend/src/views/LabView.vue、GPT2_WORK_LOG.txt 及最新 static/frontend 构建产物。
+2. 生产 manage.py check 通过，迁移结果为 No migrations to apply；collectstatic 完成；huance、nginx 均 active；官网 HTTPS HTTP 200。
+3. 服务器部署标记为 08b3f29；本地 Main_V2 当前 HEAD 为 08b3f29。
+4. GitHub Main_V2 已尝试 HTTPS、HTTP/1.1 和 SSH 三种方式；HTTPS 无法连接 GitHub 443，SSH 为 Permission denied (publickey)，待网络或 GitHub 凭据恢复后补推。
 署名：GPT二号
 
 日期：2026-11-02
