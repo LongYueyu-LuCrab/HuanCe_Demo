@@ -131,9 +131,14 @@ async function exportSalesOrders() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   const order = String(route.query.order || '')
-  void loadManagerOrders(order ? { ...managerOrderQuery, keyword: order, page: 1 } : managerOrderQuery)
+  await loadManagerOrders(order ? { ...managerOrderQuery, keyword: order, page: 1 } : managerOrderQuery)
+  const action = String(route.query.action || '')
+  if (order && action) {
+    const target = managerOrders.value.find((item) => item.order_no === order)
+    if (target) openWorkflow(action, target)
+  }
 })
 
 function hasExecutionRoute(route: string) {

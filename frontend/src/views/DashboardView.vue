@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { getMetricCards } from '../permissions'
 import OrderTable from '../components/OrderTable.vue'
 import { useSession } from '../stores/session'
 
 const session = useSession()
+const router = useRouter()
 const activeMetric = ref('')
 
 const cards = computed(() => getMetricCards(session.state.user, session.state.dashboard))
@@ -81,6 +83,12 @@ function setRiskFilter(filter: RiskFilter) {
   riskPage.value = 1
 }
 
+// Dashboard actions share the same workflow forms as the order management page.
+// Route the selected action there so every visible action button has a real handler.
+function openWorkflow(action: string, order: (typeof orders.value)[number]) {
+  void router.push({ name: 'orders', query: { order: order.order_no, action } })
+}
+
 watch(riskOrders, () => {
   if (riskPage.value > riskPageCount.value) riskPage.value = riskPageCount.value
 })
@@ -145,7 +153,7 @@ watch(riskOrders, () => {
     </div>
 
     <div class="workbench-grid">
-      <OrderTable :orders="orders" :title="`${selectedLabel}明细`" subtitle="点击订单行查看客户、报价、交付、试验需求和当前流程状态。" />
+      <OrderTable :orders="orders" :title="`${selectedLabel}明细`" subtitle="点击订单行查看客户、报价、交付、试验需求和当前流程状态。" @workflow="openWorkflow" />
 
       <aside class="priority-panel" aria-labelledby="priority-title">
         <div class="priority-panel-heading">

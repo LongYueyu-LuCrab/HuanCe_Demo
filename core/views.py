@@ -541,7 +541,10 @@ def _workflow_progress_payload(order):
         {
             'key': 'gm_audit', 'sequence': 12, 'phase': 'approval', 'phase_title': '审核结算',
             'title': '总经理终审', 'owner': '总经理', 'state': 'pending',
-            'detail': latest_gm_audit.get_audit_result_display() if latest_gm_audit else '等待销售初审通过',
+            'detail': latest_gm_audit.get_audit_result_display() if latest_gm_audit else (
+                '等待总经理终审' if latest_sales_audit and latest_sales_audit.audit_result == ReportAudit.Result.APPROVED
+                else '等待销售初审通过'
+            ),
             'time': _display_datetime(latest_gm_audit.audit_time) if latest_gm_audit else '',
         },
         {
@@ -1828,7 +1831,9 @@ def lab_device_availability(request):
 
 def _laboratory_schedule_queryset(request):
     assigned_scope = request.GET.get('scope') == 'assigned'
-    global_reader = _is_chairman(request.user) or bool({ROLE_GENERAL_MANAGER, ROLE_BUSINESS_DEPT}.intersection(_roles(request.user)))
+    # Quality owns the legacy V1 scheduling queue. It has no personal lab type,
+    # so the assigned view must be allowed to query the full historical queue.
+    global_reader = _is_chairman(request.user) or bool({ROLE_GENERAL_MANAGER, ROLE_BUSINESS_DEPT, ROLE_QUALITY}.intersection(_roles(request.user)))
     try:
         lab_type = int(request.GET.get('lab_type') or _user_lab_type(request.user) or 0)
     except (TypeError, ValueError):
@@ -1838,7 +1843,7 @@ def _laboratory_schedule_queryset(request):
     allowed_lab_type = _user_lab_type(request.user)
     if not global_reader and allowed_lab_type != lab_type:
         return None, None, JsonResponse({'ok': False, 'error': '无权查询其他实验室订单'}, status=403, json_dumps_params={'ensure_ascii': False})
-    if not _has_any_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_GENERAL_MANAGER, ROLE_BUSINESS_DEPT):
+    if not _has_any_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_GENERAL_MANAGER, ROLE_BUSINESS_DEPT, ROLE_QUALITY):
         return None, None, JsonResponse({'ok': False, 'error': '当前岗位无权查询实验室订单'}, status=403, json_dumps_params={'ensure_ascii': False})
 
     schedules = SchedulePlan.objects.select_related(
