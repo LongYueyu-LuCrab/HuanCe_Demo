@@ -623,12 +623,16 @@ def _workflow_progress_payload(order):
     elif order.order_status == LabOrder.Status.REPORT_REVIEW:
         if not latest_report or latest_report.report_status == TestReport.Status.DRAFT:
             current_keys = ['report']
+            summary = '等待出具报告'
         elif latest_report.report_status == TestReport.Status.SALES_REVIEW:
             current_keys = ['sales_audit']
+            summary = '等待销售初审'
         elif latest_report.report_status == TestReport.Status.GM_REVIEW:
             current_keys = ['gm_audit']
+            summary = '等待总经理终审'
         elif latest_report.report_status == TestReport.Status.APPROVED:
             current_keys = ['final_invoice']
+            summary = '报告已审核通过，等待最终开票'
     for key in current_keys:
         if step_map[key]['state'] != 'completed':
             step_map[key]['state'] = 'current'

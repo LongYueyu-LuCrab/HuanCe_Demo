@@ -40,6 +40,21 @@ class ReportIssueGuardTests(TestCase):
         self.assertEqual(payload['latest_report_no'], self.report.report_no)
         self.assertEqual(payload['latest_report_status_key'], TestReport.Status.APPROVED)
         self.assertEqual(payload['latest_report_status'], '审核通过待开票')
+    def test_workflow_summary_tracks_report_review_node(self):
+        payload = _order_payload(self.order, include_sample_records=True, viewer=self.quality)
+        self.assertEqual(payload['workflow_progress']['summary'], '报告已审核通过，等待最终开票')
+
+        expected = {
+            TestReport.Status.DRAFT: '等待出具报告',
+            TestReport.Status.SALES_REVIEW: '等待销售初审',
+            TestReport.Status.GM_REVIEW: '等待总经理终审',
+            TestReport.Status.APPROVED: '报告已审核通过，等待最终开票',
+        }
+        for status, summary in expected.items():
+            self.report.report_status = status
+            self.report.save(update_fields=['report_status', 'update_time'])
+            payload = _order_payload(self.order, include_sample_records=True, viewer=self.quality)
+            self.assertEqual(payload['workflow_progress']['summary'], summary)
 
     def test_approved_report_cannot_be_issued_again(self):
         self.client.force_login(self.quality)

@@ -105,7 +105,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
         <el-button v-if="orderSequence?.length" size="small" plain :disabled="!canNavigatePrevious" @click="navigateOrder(-1)">上一订单</el-button>
         <el-button v-if="orderSequence?.length" size="small" plain :disabled="!canNavigateNext" @click="navigateOrder(1)">下一订单</el-button>
         <el-tag v-if="order.is_urgent" type="warning">加急</el-tag>
-        <el-tag effect="plain">{{ order.status }}</el-tag>
+        <el-tag effect="plain">{{ order.workflow_progress?.summary || order.status }}</el-tag>
       </el-space>
     </div>
 
