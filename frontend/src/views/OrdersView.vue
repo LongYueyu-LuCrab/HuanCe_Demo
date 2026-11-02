@@ -646,7 +646,10 @@ async function submit() {
         </template>
 
         <template v-else-if="activeAction === 'issue_report'">
-          <el-form-item label="报告编号"><el-input v-model="actionForm.report_no" placeholder="留空自动生成" /></el-form-item>
+          <el-form-item label="报告编号">
+            <el-input v-model="actionForm.report_no" placeholder="可手动填写" />
+            <div class="field-help">留空将自动生成</div>
+          </el-form-item>
           <el-form-item label="报告版本" class="form-wide">
             <el-radio-group v-model="actionForm.report_type">
               <el-radio-button value="formal">正式版</el-radio-button>
