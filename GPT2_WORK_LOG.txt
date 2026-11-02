@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-03
-Git 提交号：待提交
+Git 提交号：b348909
 提交说明：全节点前端巡检、工作台队列隔离与测试兼容性修复
 变更范围：工作台报告队列、财务队列、订单状态载荷、前端测试流程
 具体改动：
@@ -35,7 +35,12 @@ Git 提交号：待提交
 2. Django 全量测试 89 项全部通过，系统检查无问题。
 3. 浏览器真实操作验证了角色节点入口和 LIMS-2026-0002 的前半程流程；实验室订单接口返回排期、设备、计划日期与页面刷新结果一致。
 4. 前端 TypeScript 检查与 Vite 生产构建通过；仅有依赖包既有的 Rolldown 注释提示和 chunk 体积提示。
-部署状态：待本轮最终提交与部署。
+部署状态：已推送 GitHub Main_V2，并已部署到生产环境。
+部署补充：
+1. GitHub Main_V2、本地代码与生产应用代码均已同步到 b348909；生产发布前备份目录为 /opt/huance/backups/release-20261103-b348909。
+2. 已同步 core/views.py、core/test_dashboard_report_scope.py、frontend/src/permissions.ts、static/frontend 构建产物和本工作日志；未覆盖生产 PostgreSQL 数据库、.env、用户上传媒体和 Nginx 配置。
+3. 生产 manage.py check 通过；迁移结果为 No migrations to apply；collectstatic 完成；huance、nginx 均 active。
+4. 生产 HTTPS 健康接口返回 ok/database ok。
 署名：GPT二号
 
 日期：2026-11-02
