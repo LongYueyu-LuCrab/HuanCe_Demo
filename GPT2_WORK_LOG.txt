@@ -808,3 +808,27 @@ Git 提交号：867d04e7d58a424f2dd1069a0e69e86edcc9efd6
 4. 服务器部署标记：867d04e7d58a424f2dd1069a0e69e86edcc9efd6。
 署名：GPT二号
 
+日期：2026-11-02
+Git 提交号：dce757d
+提交说明：补充报告编号自动生成提示
+变更范围：实验室任务、排期任务和订单管理中的出具检测报告表单
+具体改动：
+1. 将报告编号输入框占位调整为“可手动填写”。
+2. 在报告编号字段下方增加“留空将自动生成”提示。
+3. 三处报告表单统一使用现有 field-help 样式，保持与整体界面风格一致。
+4. 后端保持现有逻辑：填写报告编号时使用角色输入值，留空时调用自动编号逻辑。
+影响范围：报告表单的操作提示和信息表达；不修改后端接口、数据库结构、自动编号规则、报告生成逻辑和权限。
+验证结果：
+1. TypeScript 检查通过。
+2. Vite 生产构建通过；构建过程仅有依赖包既有的 Rolldown 注释提示和大文件体积提示。
+3. Impeccable UI 检测通过。
+4. 服务器 manage.py check 通过、无待执行迁移；collectstatic 完成。
+部署状态：已推送 GitHub Main_V2，并部署到生产环境。
+部署补充：
+1. GitHub Main_V2 已从 087dc81 推送到 dce757d。
+2. 发布前备份：/opt/huance/backups/release-20261102-报告编号提示/app_before.tar.gz。
+3. 已同步 LabView.vue、OrdersView.vue、ScheduleView.vue 和 static/frontend 构建产物；生产数据库、.env、用户上传媒体和 Nginx 配置未覆盖。
+4. 服务器 huance、nginx 均 active，生产健康接口已验证 HTTP 200。
+5. 服务器部署标记：dce757d。
+署名：GPT二号
+
