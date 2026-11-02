@@ -19,14 +19,19 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-02
-Git 提交号：待生成
+Git 提交号：ba38d60
 提交说明：修复 V1 流程缺少样品出库操作入口
 变更范围：实验室排期与样品流转前端操作区
 具体改动：将“样品出库”按钮从 workflow_version === 2 专属区域移至实验室通用操作区域；V1、V2 订单在样品已入库、实验已结束且尚未出库时均可打开样品出库表单。后端权限和出库状态校验保持不变。
 验证结果：
 1. frontend pnpm build 成功；仅存在既有 Rolldown 注释提示和大体积 chunk 提示。
 2. 通过浏览器真实操作验证 V1 订单 DEMO-2026-0073 已显示“样品出库”，并成功打开“办理样品出库”表单；未点击确认出库，未修改业务数据。
-部署状态：本地修复完成，Git 提交与生产部署进行中。
+部署状态：已推送 GitHub Main_V2，并部署到生产环境。
+部署补充：
+1. GitHub Main_V2 提交为 ba38d60；生产发布备份为 /opt/huance/backups/app_before_sample_outbound_20261102_1808.tar.gz。
+2. 生产已同步 ScheduleTable.vue、static/frontend 构建产物和本工作日志；未修改生产数据库、.env、媒体文件和 Nginx 配置。
+3. 生产 manage.py check 通过，迁移无待执行项，collectstatic 完成；huance、nginx 均 active。
+4. 服务器部署标记已更新为 ba38d60。
 署名：GPT二号
 
 日期：2026-11-01
