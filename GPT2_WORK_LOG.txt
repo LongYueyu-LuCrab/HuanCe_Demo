@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-03
-Git 提交号：待提交
+Git 提交号：8d1ed2a9851194e55faef79540ca5421150202f0
 提交说明：修复报告审核成功后待办列表不自动消失
 变更范围：报告审核前端状态刷新与 Dashboard 请求缓存策略；不修改审核后端状态流转。
 具体改动：
@@ -30,7 +30,7 @@ Git 提交号：待提交
 1. frontend TypeScript 检查与 Vite 生产构建通过；仅有依赖包既有 Rolldown 注释和 chunk 体积提示。
 2. Django `check` 通过；报告审核相关测试 9 项全部通过。
 3. Impeccable UI 检测通过。
-部署状态：待提交并部署。
+部署状态：已推送 GitHub Main_V2，并部署到生产环境；服务器备份目录为 `/opt/huance/backups/release-20261103_2330/`，`huance` 与 `nginx` 均 active，生产首页 HTTP 200。
 署名：GPT二号
 
 日期：2026-11-03
