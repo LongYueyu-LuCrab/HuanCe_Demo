@@ -148,6 +148,16 @@ function actionsFor(order: OrderItem) {
   if (order.workflow_version === 1 && canIssueLegacyReport && roleSet.value.has('质量部')) {
     actions.push({ key: 'issue_report', label: '出具报告', type: 'primary' })
   }
+  // 报告已进入审核节点时，订单列表也必须暴露对应角色的审核入口。
+  // 报告工作台已有相同动作，这里只提供导航，不复制审核逻辑。
+  if (order.status_key === 8 && order.latest_report_status_key === 2 && hasRole('销售')) {
+    actions.push({ key: 'report_sales_pass', label: '销售初审', type: 'success' })
+    actions.push({ key: 'report_sales_reject', label: '驳回重制', type: 'danger' })
+  }
+  if (order.status_key === 8 && order.latest_report_status_key === 3 && hasRole('总经理')) {
+    actions.push({ key: 'report_gm_pass', label: '总经理终审', type: 'success' })
+    actions.push({ key: 'report_gm_reject', label: '驳回重制', type: 'danger' })
+  }
   const labActionKeys = Array.isArray(order.workflow_action_keys)
     ? new Set(order.workflow_action_keys)
     : null

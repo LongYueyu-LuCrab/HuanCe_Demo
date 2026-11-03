@@ -161,6 +161,10 @@ const actionTitleMap: Record<string, string> = {
 }
 
 function openWorkflow(action: string, order: OrderItem) {
+  if (action.startsWith('report_')) {
+    void router.push({ name: 'reports', query: { order: order.order_no, action } })
+    return
+  }
   activeAction.value = action
   activeOrder.value = order
   Object.keys(actionForm).forEach((key) => delete actionForm[key])

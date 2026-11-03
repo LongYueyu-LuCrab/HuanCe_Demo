@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import ReportList from '../components/ReportList.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
@@ -8,6 +9,7 @@ import { useSession } from '../stores/session'
 import type { OrderItem, ReportItem } from '../types'
 
 const session = useSession()
+const route = useRoute()
 const reports = computed(() => session.state.dashboard?.pending_reports ?? [])
 const dialogVisible = ref(false)
 const submitting = ref(false)
@@ -17,6 +19,15 @@ const activeOrder = ref<OrderItem | null>(null)
 const orderLoading = ref(false)
 const detailDrawerVisible = ref(false)
 const form = reactive({ audit_opinion: '' })
+
+onMounted(() => {
+  const orderNo = String(route.query.order || '')
+  const action = String(route.query.action || '')
+  const target = reports.value.find((report) => report.order_no === orderNo)
+  if (target && ['report_sales_pass', 'report_sales_reject', 'report_gm_pass', 'report_gm_reject'].includes(action)) {
+    openWorkflow(action, target)
+  }
+})
 
 const titleMap: Record<string, string> = {
   report_sales_pass: '销售初审通过',
