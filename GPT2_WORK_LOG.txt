@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-03
-Git 提交号：待提交
+Git 提交号：0e82a1f253464ab854187b2e17ea6aa20255a679
 提交说明：分支流程前端测试并修复 V1 报告操作权限展示
 变更范围：评审驳回/修改重提/退单分支、订单操作按钮权限、V1 报告出具入口
 具体改动：
@@ -34,7 +34,11 @@ Git 提交号：待提交
 3. TypeScript 检查与 Vite 生产构建通过；仅有依赖包既有 Rolldown 注释提示和 chunk 体积提示。
 4. Django 定向报告测试 6 项全部通过，系统检查无问题。
 5. 修复后以董事长身份重新打开 `DEMO-2026-0088`，页面显示“无可操作”；未再出现“出具报告”。
-部署状态：待本条修复提交并部署。
+部署状态：已推送 GitHub Main_V2，并已部署到生产环境。
+部署补充：
+1. GitHub Main_V2、本地代码与生产部署标记均已同步到 0e82a1f253464ab854187b2e17ea6aa20255a679。
+2. 已同步 `frontend/src/components/OrderTable.vue`、前端生产构建产物和本工作日志；未覆盖生产 PostgreSQL、.env、用户上传媒体和 Nginx 配置。
+3. 生产 huance、nginx 均 active；manage.py check 与 HTTPS 健康接口已核验，返回 `ok/database ok`。
 署名：GPT二号
 
 日期：2026-11-03
