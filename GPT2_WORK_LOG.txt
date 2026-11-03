@@ -19,6 +19,23 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-03
+Git 提交号：待提交
+提交说明：修复生产静态资源未收集导致首页白屏
+变更范围：生产部署静态资源同步流程
+具体改动：
+1. 排查发现线上首页 HTML 已引用最新构建文件，但 Nginx 实际服务目录为 /opt/huance/app/staticfiles/，新构建文件当时只存在于 /opt/huance/app/static/frontend/。
+2. 在生产服务器执行 collectstatic，将最新 JS/CSS 构建产物收集到 Nginx 实际服务目录。
+3. 重新验证首页引用的 index JS、index CSS、运行时、Vue 和 Element Plus 资源均可正常返回。
+影响范围：生产静态资源发布；不修改业务代码、数据库、用户上传文件和权限。
+验证结果：
+1. 新版 index JS 与 index CSS HTTP 200。
+2. huance、nginx 均 active。
+3. HTTPS 健康接口返回 ok/database ok。
+4. 白屏原因已消除，后续部署需保留“构建产物同步 + collectstatic + 资源 HTTP 200”校验。
+部署状态：已修复并部署服务器；日志提交同步进行中。
+署名：GPT二号
+
+日期：2026-11-03
 Git 提交号：1678721
 提交说明：登录页增加备案信息
 变更范围：登录页底部信息展示
