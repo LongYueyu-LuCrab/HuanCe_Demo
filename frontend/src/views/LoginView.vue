@@ -6,6 +6,7 @@ import { login } from '../services/api'
 import { useSession } from '../stores/session'
 import companyLogo from '../assets/suzhou-huance-logo.png'
 import backgroundImage from '../assets/lims-login-background-v2.webp'
+import securityEmblem from '../assets/public-security-emblem.png'
 
 const router = useRouter()
 const session = useSession()
@@ -50,6 +51,9 @@ async function submit() {
       </el-form>
     </el-card>
 
-    <p class="login-record">苏ICP备2026043637号</p>
+    <div class="login-record" aria-label="备案信息">
+      <img :src="securityEmblem" alt="">
+      <span>苏ICP备2026043637号</span>
+    </div>
   </main>
 </template>
