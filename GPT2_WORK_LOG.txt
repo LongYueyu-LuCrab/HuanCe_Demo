@@ -37,7 +37,7 @@ Git 提交号：017ca468c394b6d913e5d4210d09afddd5fd9ce0（功能修复）；本
 部署补充：
 1. 功能代码提交 017ca468c394b6d913e5d4210d09afddd5fd9ce0 已部署；生产发布前备份目录为 /opt/huance/backups/release-20261103-017ca46。
 2. 本次仅更新工作日志并同步到 Main_V2 与生产，未覆盖生产数据库、.env、用户上传媒体和 Nginx 配置。
-3. 生产 manage.py check、HTTPS 健康接口及服务状态将在日志提交后再次核验。
+3. 生产 huance、nginx 均 active；manage.py check 与 HTTPS 健康接口已核验，返回 `ok/database ok`。
 署名：GPT二号
 
 日期：2026-11-03
