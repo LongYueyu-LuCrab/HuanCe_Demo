@@ -151,7 +151,8 @@ function actionsFor(order: OrderItem) {
   const labActionKeys = Array.isArray(order.workflow_action_keys)
     ? new Set(order.workflow_action_keys)
     : null
-  if (order.workflow_version === 1 && [3, 4].includes(order.status_key) && (hasRole('苏州实验室') || hasRole('江阴实验室'))) {
+  const canOperateLabTask = hasRole('苏州实验室') || hasRole('江阴实验室') || roleSet.value.has('实验操作员')
+  if (order.workflow_version === 1 && [3, 4].includes(order.status_key) && canOperateLabTask) {
     if (!labActionKeys || labActionKeys.has('start_test')) actions.push({ key: 'start_test', label: '开始试验', type: 'primary' })
     if (!labActionKeys || labActionKeys.has('end_test')) actions.push({ key: 'end_test', label: '实验结束', type: 'warning' })
     if (!labActionKeys || labActionKeys.has('submit_test')) actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
@@ -160,11 +161,20 @@ function actionsFor(order: OrderItem) {
   if (
     order.workflow_version === 2
     && order.execution_mode.includes('委外')
-    && [3, 4].includes(order.status_key)
-    && (hasRole('苏州实验室') || hasRole('江阴实验室'))
+    && [2, 3, 4].includes(order.status_key)
+    && canOperateLabTask
   ) {
     if (!labActionKeys || labActionKeys.has('outsource_result')) actions.push({ key: 'outsource_result', label: '委外结果回传', type: 'success' })
     if (!labActionKeys || labActionKeys.has('submit_test')) actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
+  }
+  if (
+    order.workflow_version === 2
+    && order.status_key === 2
+    && !order.execution_mode.includes('委外')
+    && canOperateLabTask
+    && labActionKeys?.has('submit_test')
+  ) {
+    actions.push({ key: 'submit_test', label: '提交结果', type: 'success' })
   }
   if (
     order.workflow_version === 2
@@ -234,7 +244,7 @@ function actionsFor(order: OrderItem) {
         <template #default="{ row }">
           <div class="row-actions">
             <el-button size="small" plain @click.stop="openOrder(row)">订单详情</el-button>
-            <el-button v-if="isLabAccount && row.workflow_version === 2 && [3, 4].includes(row.status_key)" size="small" type="primary" plain @click.stop="openOrder(row)">排期 / 查看任务</el-button>
+            <el-button v-if="isLabAccount && row.workflow_version === 2 && [2, 3, 4].includes(row.status_key)" size="small" type="primary" plain @click.stop="openOrder(row)">排期 / 查看任务</el-button>
             <el-button
               v-for="action in actionsFor(row)"
               :key="action.key"
@@ -245,7 +255,7 @@ function actionsFor(order: OrderItem) {
             >
               {{ action.label }}
             </el-button>
-            <span v-if="actionsFor(row).length === 0 && !(isLabAccount && row.workflow_version === 2 && [3, 4].includes(row.status_key))" class="cell-sub">无可操作</span>
+            <span v-if="actionsFor(row).length === 0 && !(isLabAccount && row.workflow_version === 2 && [2, 3, 4].includes(row.status_key))" class="cell-sub">无可操作</span>
           </div>
         </template>
       </el-table-column>
