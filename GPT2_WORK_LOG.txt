@@ -19,6 +19,27 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-03
+Git 提交号：6cefeaf
+提交说明：登录页备案信息增加公安徽标
+变更范围：登录页底部备案信息组件与静态资源
+具体改动：
+1. 使用用户提供的公安备案徽标素材，放置在“苏ICP备2026043637号”左侧。
+2. 将备案信息调整为徽标与文字的水平组合，整体继续保持底部居中。
+3. 增加图片替代文本策略和固定尺寸，避免徽标加载或布局变化影响登录框。
+影响范围：仅登录页视觉展示；不修改登录逻辑、权限、后端接口和业务流程。
+验证结果：
+1. TypeScript 检查与 Vite 生产构建通过。
+2. Impeccable detector 检查通过。
+3. 通过浏览器真实页面核验，徽标与备案文字均正确显示，位置和间距符合预期。
+部署状态：已推送 GitHub Main_V2，并已部署到生产环境。
+部署补充：
+1. GitHub Main_V2、本地 HEAD 与服务器部署标记均为 6cefeafe39c9b18e5b6fc94eed357f721c59e596。
+2. 发布前服务器应用备份：/opt/huance/backups/release-20261103-security-emblem/app_before.tar.gz。
+3. 已同步 LoginView.vue、style.css、公安备案徽标素材和 static/frontend 构建产物，并执行 collectstatic；生产数据库、.env、用户上传媒体和 Nginx 配置未覆盖。
+4. huance、nginx 均 active，HTTPS 健康接口返回 ok。
+署名：GPT二号
+
+日期：2026-11-03
 Git 提交号：待提交
 提交说明：修复生产静态资源未收集导致首页白屏
 变更范围：生产部署静态资源同步流程
