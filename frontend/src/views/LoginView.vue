@@ -50,7 +50,7 @@ async function submit() {
         </el-form-item>
         <div class="login-options">
           <el-checkbox v-model="rememberLogin">保持登录状态</el-checkbox>
-          <span class="login-options-hint">仅保存安全会话，不保存密码</span>
+      <span class="login-options-hint">登录状态保持 14 天，不保存密码</span>
         </div>
         <el-button :loading="loading" size="large" type="primary" class="full-button" @click="submit">登录系统</el-button>
       </el-form>
