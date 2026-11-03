@@ -161,7 +161,7 @@ function actionsFor(order: OrderItem) {
   if (
     order.workflow_version === 2
     && order.execution_mode.includes('委外')
-    && [2, 3, 4].includes(order.status_key)
+    && [3, 4, 9].includes(order.status_key)
     && canOperateLabTask
   ) {
     if (!labActionKeys || labActionKeys.has('outsource_result')) actions.push({ key: 'outsource_result', label: '委外结果回传', type: 'success' })
@@ -169,7 +169,7 @@ function actionsFor(order: OrderItem) {
   }
   if (
     order.workflow_version === 2
-    && order.status_key === 2
+    && order.status_key === 9
     && !order.execution_mode.includes('委外')
     && canOperateLabTask
     && labActionKeys?.has('submit_test')
@@ -244,7 +244,7 @@ function actionsFor(order: OrderItem) {
         <template #default="{ row }">
           <div class="row-actions">
             <el-button size="small" plain @click.stop="openOrder(row)">订单详情</el-button>
-            <el-button v-if="isLabAccount && row.workflow_version === 2 && [2, 3, 4].includes(row.status_key)" size="small" type="primary" plain @click.stop="openOrder(row)">排期 / 查看任务</el-button>
+            <el-button v-if="isLabAccount && row.workflow_version === 2 && [3, 4, 9].includes(row.status_key)" size="small" type="primary" plain @click.stop="openOrder(row)">排期 / 查看任务</el-button>
             <el-button
               v-for="action in actionsFor(row)"
               :key="action.key"
@@ -255,7 +255,7 @@ function actionsFor(order: OrderItem) {
             >
               {{ action.label }}
             </el-button>
-            <span v-if="actionsFor(row).length === 0 && !(isLabAccount && row.workflow_version === 2 && [2, 3, 4].includes(row.status_key))" class="cell-sub">无可操作</span>
+            <span v-if="actionsFor(row).length === 0 && !(isLabAccount && row.workflow_version === 2 && [3, 4, 9].includes(row.status_key))" class="cell-sub">无可操作</span>
           </div>
         </template>
       </el-table-column>
