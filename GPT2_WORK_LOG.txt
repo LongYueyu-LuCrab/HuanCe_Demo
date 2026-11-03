@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-03
-Git 提交号：待提交
+Git 提交号：8dde6ecadb391234272ef4da0aea2343fad28a51
 提交说明：修正实验结果提交按钮的订单状态判断
 变更范围：订单总览流程操作按钮、实验结果提交节点
 具体改动：
@@ -28,7 +28,8 @@ Git 提交号：待提交
 3. 保留后端任务分配、实验室范围和权限校验，不放开无关角色操作。
 影响范围：LIMS-2026-0186 等“实验已结束待提交结果”订单的前端操作入口；不修改订单数据和后端业务状态。
 验证结果：生产接口核验 LIMS-2026-0186 返回 status_key=9、workflow_action_keys=[submit_test]；实验员角色返回正常；前端构建与 Django manage.py check 通过。
-部署状态：待提交 Git 并部署服务器。
+部署状态：已推送 GitHub Main_V2，并已部署到生产环境。
+部署补充：本地、GitHub Main_V2 和服务器部署标记均为 8dde6ecadb391234272ef4da0aea2343fad28a51；生产 manage.py check、collectstatic、服务状态和 HTTPS 健康检查均通过。
 署名：GPT二号
 
 日期：2026-11-03
