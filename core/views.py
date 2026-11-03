@@ -2579,7 +2579,13 @@ def download_test_report(request, report_id):
     if not report.report_file or not report.report_file.storage.exists(report.report_file.name):
         return JsonResponse({'ok': False, 'error': '报告 PDF 尚未生成或已被移除'}, status=404, json_dumps_params={'ensure_ascii': False})
     filename = f'{report.report_no}-{report.get_report_type_display()}.pdf'
-    return FileResponse(report.report_file.open('rb'), content_type='application/pdf', as_attachment=True, filename=filename)
+    response = FileResponse(
+        report.report_file.open('rb'),
+        content_type='application/pdf',
+        as_attachment=request.GET.get('preview') not in {'1', 'true', 'yes'},
+        filename=filename,
+    )
+    return response
 
 
 PENDING_CHANGE_BLOCKED_ACTIONS = frozenset({

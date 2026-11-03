@@ -49,12 +49,10 @@ function actionsFor(report: ReportItem) {
   const actions: Array<{ key: string; label: string; type?: 'primary' | 'danger' | 'success' }> = []
   if (report.order_is_closed) return actions
   if (report.status_key === 2 && hasRole('销售')) {
-    actions.push({ key: 'report_sales_pass', label: '初审通过', type: 'success' })
-    actions.push({ key: 'report_sales_reject', label: '初审驳回', type: 'danger' })
+    actions.push({ key: 'start_report_review', label: '开始初审', type: 'primary' })
   }
   if (report.status_key === 3 && hasRole('总经理')) {
-    actions.push({ key: 'report_gm_pass', label: '终审通过', type: 'success' })
-    actions.push({ key: 'report_gm_reject', label: '终审驳回', type: 'danger' })
+    actions.push({ key: 'start_report_review', label: '开始终审', type: 'primary' })
   }
   return actions
 }

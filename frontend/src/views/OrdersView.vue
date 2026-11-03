@@ -161,7 +161,7 @@ const actionTitleMap: Record<string, string> = {
 }
 
 function openWorkflow(action: string, order: OrderItem) {
-  if (action.startsWith('report_')) {
+  if (action === 'start_report_review' || action.startsWith('report_')) {
     void router.push({ name: 'reports', query: { order: order.order_no, action } })
     return
   }

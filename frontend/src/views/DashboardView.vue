@@ -86,7 +86,7 @@ function setRiskFilter(filter: RiskFilter) {
 // Dashboard actions share the same workflow forms as the order management page.
 // Route the selected action there so every visible action button has a real handler.
 function openWorkflow(action: string, order: (typeof orders.value)[number]) {
-  if (action.startsWith('report_')) {
+  if (action === 'start_report_review' || action.startsWith('report_')) {
     void router.push({ name: 'reports', query: { order: order.order_no, action } })
     return
   }

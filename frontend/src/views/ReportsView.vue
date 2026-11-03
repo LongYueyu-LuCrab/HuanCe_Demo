@@ -14,6 +14,7 @@ const reports = computed(() => session.state.dashboard?.pending_reports ?? [])
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const activeAction = ref('')
+const reviewStage = ref<'sales' | 'gm'>('sales')
 const activeReport = ref<ReportItem | null>(null)
 const activeOrder = ref<OrderItem | null>(null)
 const orderLoading = ref(false)
@@ -24,35 +25,51 @@ onMounted(() => {
   const orderNo = String(route.query.order || '')
   const action = String(route.query.action || '')
   const target = reports.value.find((report) => report.order_no === orderNo)
-  if (target && ['report_sales_pass', 'report_sales_reject', 'report_gm_pass', 'report_gm_reject'].includes(action)) {
+  if (target && ['start_report_review', 'report_sales_pass', 'report_sales_reject', 'report_gm_pass', 'report_gm_reject'].includes(action)) {
     openWorkflow(action, target)
   }
 })
 
 const titleMap: Record<string, string> = {
-  report_sales_pass: '销售初审通过',
-  report_sales_reject: '销售初审驳回',
-  report_gm_pass: '总经理终审通过',
-  report_gm_reject: '总经理终审驳回',
+  sales: '销售初审',
+  gm: '总经理终审',
 }
 
 const actionMeta = computed(() => {
   const rejected = activeAction.value.includes('reject')
-  const finalReview = activeAction.value.includes('gm')
+  const finalReview = reviewStage.value === 'gm'
   return {
-    title: titleMap[activeAction.value] || '报告审核',
+    title: titleMap[reviewStage.value] || '报告审核',
     stage: rejected ? '报告审核 → 退回重制' : finalReview ? '总经理终审 → 审核结果' : '报告 → 销售初审',
     impact: rejected ? '提交后报告会退回主责实验室重制，并记录本次审核意见。' : '提交后会记录审核意见，并推进报告审核节点。',
-    button: rejected ? '确认驳回重制' : finalReview ? '确认终审通过' : '确认初审通过',
+    passLabel: finalReview ? '终审通过' : '初审通过',
+    rejectLabel: finalReview ? '终审驳回' : '初审驳回',
   }
 })
 
 function openWorkflow(action: string, report: ReportItem) {
+  reviewStage.value = report.status_key === 3 ? 'gm' : 'sales'
   activeAction.value = action
   activeReport.value = report
   form.audit_opinion = ''
   dialogVisible.value = true
   void loadOrderContext(report.order_no)
+}
+
+function reportFileUrl(preview = false) {
+  const url = activeReport.value?.download_url
+  if (!url || !preview) return url || ''
+  return `${url}${url.includes('?') ? '&' : '?'}preview=1`
+}
+
+function previewReport() {
+  const url = reportFileUrl(true)
+  if (url) window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+function downloadReport() {
+  const url = reportFileUrl()
+  if (url) window.location.assign(url)
 }
 
 async function loadOrderContext(orderNo: string) {
@@ -72,12 +89,14 @@ function openOrderDetail(report: ReportItem) {
   void loadOrderContext(report.order_no)
 }
 
-async function submitWorkflow() {
+async function submitWorkflow(result: 'pass' | 'reject') {
   if (!activeReport.value) return
   submitting.value = true
   try {
     await workflowAction({
-      action: activeAction.value,
+      action: reviewStage.value === 'sales'
+        ? result === 'pass' ? 'report_sales_pass' : 'report_sales_reject'
+        : result === 'pass' ? 'report_gm_pass' : 'report_gm_reject',
       report_no: activeReport.value.report_no,
       order_no: activeReport.value.order_no,
       expected_update_time: activeOrder.value?.updated_at,
@@ -107,6 +126,10 @@ async function submitWorkflow() {
     <div class="action-dialog-context mt-16">
       <div><strong>{{ activeReport?.report_no }}</strong><span>{{ activeReport?.customer }} · {{ activeReport?.project_name }}</span></div>
       <div class="action-dialog-step"><span>流程影响</span><strong>{{ actionMeta.stage }}</strong><small>{{ actionMeta.impact }}</small></div>
+      <el-space v-if="activeReport?.has_file" class="report-file-actions" wrap>
+        <el-button size="small" type="primary" plain @click="previewReport">预览 PDF</el-button>
+        <el-button size="small" plain @click="downloadReport">下载 PDF</el-button>
+      </el-space>
     </div>
     <el-divider content-position="left">审核意见</el-divider>
     <el-form label-position="top" class="mt-16">
@@ -116,7 +139,8 @@ async function submitWorkflow() {
     </el-form>
     <template #footer>
       <el-button @click="dialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="submitWorkflow">{{ actionMeta.button }}</el-button>
+      <el-button type="danger" plain :loading="submitting" @click="submitWorkflow('reject')">{{ actionMeta.rejectLabel }}</el-button>
+      <el-button type="primary" :loading="submitting" @click="submitWorkflow('pass')">{{ actionMeta.passLabel }}</el-button>
     </template>
   </el-dialog>
 
