@@ -1685,6 +1685,7 @@ def lims_login(request):
 
     username = payload.get('username', '').strip()
     password = payload.get('password', '')
+    remember_me = bool(payload.get('remember_me'))
     user = authenticate(request, username=username, password=password)
     if user is None:
         return JsonResponse({'ok': False, 'error': '用户名或密码错误'}, status=400, json_dumps_params={'ensure_ascii': False})
@@ -1692,6 +1693,8 @@ def lims_login(request):
         return JsonResponse({'ok': False, 'error': '账号已停用'}, status=403, json_dumps_params={'ensure_ascii': False})
 
     login(request, user)
+    # 只延长服务端会话 Cookie 的有效期，不保存或回传用户密码。
+    request.session.set_expiry(60 * 60 * 24 * 14 if remember_me else 0)
     return JsonResponse({'ok': True, 'user': _user_payload(user)}, json_dumps_params={'ensure_ascii': False})
 
 

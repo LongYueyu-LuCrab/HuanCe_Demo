@@ -11,12 +11,13 @@ import securityEmblem from '../assets/public-security-emblem.png'
 const router = useRouter()
 const session = useSession()
 const loading = ref(false)
+const rememberLogin = ref(false)
 const form = reactive({ username: '', password: '' })
 
 async function submit() {
   loading.value = true
   try {
-    const data = await login(form.username, form.password)
+    const data = await login(form.username, form.password, rememberLogin.value)
     await session.setUser(data.user)
     router.push('/dashboard')
   } catch (error) {
@@ -47,6 +48,10 @@ async function submit() {
         <el-form-item label="密码">
           <el-input v-model="form.password" size="large" type="password" show-password placeholder="请输入密码" autocomplete="current-password" />
         </el-form-item>
+        <div class="login-options">
+          <el-checkbox v-model="rememberLogin">保持登录状态</el-checkbox>
+          <span class="login-options-hint">仅保存安全会话，不保存密码</span>
+        </div>
         <el-button :loading="loading" size="large" type="primary" class="full-button" @click="submit">登录系统</el-button>
       </el-form>
     </el-card>

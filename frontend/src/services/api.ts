@@ -23,12 +23,12 @@ export async function fetchCurrentUser(): Promise<User> {
   return response.json()
 }
 
-export async function login(username: string, password: string): Promise<{ ok: boolean; user: User }> {
+export async function login(username: string, password: string, rememberLogin = false): Promise<{ ok: boolean; user: User }> {
   const response = await fetch('/api/auth/login/', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, remember_me: rememberLogin }),
   })
   return parseJson(response)
 }
