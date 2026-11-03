@@ -1337,3 +1337,25 @@ Git 提交号：3793b07
 4. 生产 manage.py check 通过，collectstatic 完成；huance、nginx active，HTTPS 健康接口返回 ok/database ok。
 署名：GPT二号
 
+日期：2026-11-03
+提交说明：取消订单详情中的样品入库跳转
+变更范围：订单详情、工作台订单抽屉、实验室角色的样品入库操作
+具体改动：
+1. 实验操作员和实验室负责人在订单详情中点击“样品入库”时，改为在当前页面直接打开入库弹窗，不再跳转到“试验任务”页面。
+2. 保留原有样品照片必填校验、样品入库接口、操作账号和时间记录逻辑。
+3. 入库成功后刷新工作台数据并重新读取当前订单详情，避免页面继续显示旧状态。
+4. 其他实验流程操作保持原有业务表单和权限链路，避免扩大本次变更影响面。
+影响范围：实验室订单详情中的样品入库交互；不修改后端接口、数据库结构、角色权限和订单状态枚举。
+验证结果：
+1. TypeScript 检查通过。
+2. Vite 生产构建通过；仅有依赖包既有的 Rolldown 注释提示和 chunk 体积提示。
+3. Impeccable UI 检测通过。
+4. 已确认样品入库成功后会刷新当前订单详情，不再依赖页面跳转。
+部署状态：已推送 GitHub Main_V2，并部署到生产环境。
+部署补充：
+1. GitHub Main_V2、本地 HEAD 与服务器部署标记均为 2d68f1a（完整提交：2d68f1a）。
+2. 发布前服务器应用备份：/opt/huance/backups/release-20261103-231116/app_before.tar.gz。
+3. 已同步 OrderSnapshot.vue、OrderTable.vue 和 static/frontend 构建产物；未覆盖生产数据库、.env、用户上传媒体和 Nginx 配置。
+4. 生产 manage.py check、collectstatic 通过；huance、nginx 均 active；生产首页和 /api/health/ 均 HTTP 200，数据库健康检查通过。
+署名：GPT二号
+

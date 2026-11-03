@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import type { UploadUserFile } from 'element-plus'
 import type { OrderItem } from '../types'
 import WorkflowProgress from './WorkflowProgress.vue'
 import OutsourceBadge from './OutsourceBadge.vue'
 import { useSession } from '../stores/session'
+import { workflowAction } from '../services/api'
 
 const props = withDefaults(defineProps<{
   order?: OrderItem | null
@@ -14,11 +16,17 @@ const props = withDefaults(defineProps<{
   orderSequence?: string[]
 }>(), { showActions: true })
 
-const emit = defineEmits<{ navigateOrder: [orderNo: string] }>()
+const emit = defineEmits<{
+  navigateOrder: [orderNo: string]
+  workflowCompleted: []
+}>()
 
-const router = useRouter()
 const session = useSession()
 const activeSection = ref('overview')
+const sampleArrivalVisible = ref(false)
+const sampleArrivalSubmitting = ref(false)
+const sampleArrivalScheduleId = ref<number | null>(null)
+const samplePhotoFiles = ref<UploadUserFile[]>([])
 const labRoles = computed(() => new Set(session.state.user.roles || []))
 const isLabAccount = computed(() => (
   labRoles.value.has('苏州实验室')
@@ -66,12 +74,40 @@ function isSection(...sections: string[]) {
 }
 
 function openLabAction(scheduleId: number, labType: number | null, action: 'schedule_assign' | 'sample_arrival' | 'process_change' | 'start_test' | 'end_test' | 'submit_test') {
+  if (action === 'sample_arrival') {
+    sampleArrivalScheduleId.value = scheduleId
+    samplePhotoFiles.value = []
+    sampleArrivalVisible.value = true
+    return
+  }
   const lab = labType === 2 ? 'jiangyin' : 'suzhou'
-  void router.push({
-    name: 'lab',
-    params: { lab },
-    query: { order: props.order?.order_no, schedule: String(scheduleId), action },
-  })
+  window.location.assign(`/labs/${lab}?order=${encodeURIComponent(props.order?.order_no || '')}&schedule=${scheduleId}&action=${action}`)
+}
+
+async function submitSampleArrival() {
+  if (!props.order?.order_no || !sampleArrivalScheduleId.value) return
+  if (samplePhotoFiles.value.length === 0) {
+    ElMessage.warning('样品入库必须上传至少一张样品图片')
+    return
+  }
+  sampleArrivalSubmitting.value = true
+  try {
+    await workflowAction({
+      action: 'sample_arrival',
+      order_no: props.order.order_no,
+      schedule_id: sampleArrivalScheduleId.value,
+      sample_arrived: true,
+      sample_photos: samplePhotoFiles.value.map((item) => item.raw).filter((file): file is File => Boolean(file)),
+    })
+    ElMessage.success('样品入库完成，当前订单已刷新')
+    sampleArrivalVisible.value = false
+    await session.refreshDashboard()
+    emit('workflowCompleted')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '样品入库失败')
+  } finally {
+    sampleArrivalSubmitting.value = false
+  }
 }
 
 function formatFileSize(size: number) {
@@ -364,4 +400,31 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
       </section>
     </template>
   </section>
+
+  <el-dialog
+    v-model="sampleArrivalVisible"
+    title="办理样品入库"
+    width="min(560px, 92vw)"
+    append-to-body
+  >
+    <el-alert
+      title="确认样品已到达"
+      description="操作将在当前订单详情内完成，不会跳转到实验任务页面。系统会记录入库时间、操作账号和现场照片。"
+      type="success"
+      :closable="false"
+      show-icon
+    />
+    <el-form label-position="top" class="mt-16">
+      <el-form-item label="样品入库照片" required>
+        <el-upload v-model:file-list="samplePhotoFiles" :auto-upload="false" multiple accept=".jpg,.jpeg,.png">
+          <el-button type="primary" plain>上传样品图片</el-button>
+          <template #tip><div class="el-upload__tip">支持 JPG、PNG；单张不超过 10MB，本次合计不超过 30MB。</div></template>
+        </el-upload>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="sampleArrivalVisible = false">取消</el-button>
+      <el-button type="primary" :loading="sampleArrivalSubmitting" @click="submitSampleArrival">确认入库</el-button>
+    </template>
+  </el-dialog>
 </template>

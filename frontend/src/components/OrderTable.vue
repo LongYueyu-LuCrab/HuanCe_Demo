@@ -105,6 +105,11 @@ async function navigateOrder(orderNo: string) {
   if (order) await openOrder(order)
 }
 
+async function refreshSelectedOrder() {
+  if (!selectedOrder.value) return
+  await openOrder(selectedOrder.value)
+}
+
 const session = useSession()
 const effectiveUser = computed(() => props.user || session.state.user)
 const roleSet = computed(() => new Set(effectiveUser.value.roles || []))
@@ -285,6 +290,6 @@ function actionsFor(order: OrderItem) {
   </el-card>
 
   <el-drawer v-model="drawerVisible" title="订单详情" size="min(960px, 94vw)">
-    <OrderSnapshot :order="selectedOrder" :order-sequence="pagedOrders.map((order) => order.order_no)" :loading="orderLoading" title="完整订单信息" @navigate-order="navigateOrder" />
+    <OrderSnapshot :order="selectedOrder" :order-sequence="pagedOrders.map((order) => order.order_no)" :loading="orderLoading" title="完整订单信息" @navigate-order="navigateOrder" @workflow-completed="refreshSelectedOrder" />
   </el-drawer>
 </template>
