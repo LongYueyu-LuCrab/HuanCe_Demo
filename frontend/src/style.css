@@ -181,6 +181,20 @@ select {
   font-weight: 800;
 }
 
+.login-record {
+  position: fixed;
+  z-index: 2;
+  bottom: 18px;
+  left: 50%;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.32);
+}
+
 .panel-kicker {
   margin: 0;
   color: #85d8bd;

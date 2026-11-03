@@ -49,5 +49,7 @@ async function submit() {
         <el-button :loading="loading" size="large" type="primary" class="full-button" @click="submit">登录系统</el-button>
       </el-form>
     </el-card>
+
+    <p class="login-record">苏ICP备2026043637号</p>
   </main>
 </template>
