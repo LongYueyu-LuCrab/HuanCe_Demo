@@ -143,7 +143,9 @@ function actionsFor(order: OrderItem) {
   }
   const canIssueLegacyReport = [5, 8].includes(order.status_key)
     && (order.latest_report_status_key == null || order.latest_report_status_key === 4)
-  if (order.workflow_version === 1 && canIssueLegacyReport && hasRole('质量部')) {
+  // V1 的报告出具接口只允许主责质量人员提交；董事长虽然可以查看全局订单，
+  // 但不应看到会打开一个最终会被后端拒绝的“出具报告”操作入口。
+  if (order.workflow_version === 1 && canIssueLegacyReport && roleSet.value.has('质量部')) {
     actions.push({ key: 'issue_report', label: '出具报告', type: 'primary' })
   }
   const labActionKeys = Array.isArray(order.workflow_action_keys)
