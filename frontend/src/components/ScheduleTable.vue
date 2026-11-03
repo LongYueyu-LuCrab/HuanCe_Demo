@@ -113,7 +113,8 @@ function nextActionLabel(row: ScheduleItem) {
   if (state === 'sample') return '先确认样品'
   if (state === 'outsource') return '回传委外结果'
   if (state === 'completed') return '等待出具报告'
-  if (state === 'schedule' || state === 'ready') return '先处理排期'
+  if (state === 'schedule') return '先处理排期'
+  if (state === 'ready') return '开始试验'
   return '查看任务'
 }
 
