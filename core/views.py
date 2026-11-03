@@ -3307,6 +3307,10 @@ def _all_test_paths_finished(order):
 
 
 def _sync_order_test_completion(order, actor):
+    # 报告已经进入审核流程后，实验完成同步不能把订单回退到“待出报告”。
+    # 否则用户重复打开/点击出报告入口时，会产生 5 -> 8 的错误状态回退。
+    if order.order_status == LabOrder.Status.REPORT_REVIEW:
+        return True
     if _all_test_paths_finished(order):
         if order.order_status != LabOrder.Status.TEST_FINISHED:
             order.mark_status(

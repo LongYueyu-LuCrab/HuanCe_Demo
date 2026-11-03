@@ -180,6 +180,7 @@ function actionsFor(order: OrderItem) {
     order.workflow_version === 2
     && [5, 8].includes(order.status_key)
     && order.lead_lab_manager_username === effectiveUser.value.username
+    && (order.latest_report_status_key == null || order.latest_report_status_key === 4)
   ) {
     actions.push({ key: 'issue_report', label: '汇总出报告', type: 'primary' })
   }
