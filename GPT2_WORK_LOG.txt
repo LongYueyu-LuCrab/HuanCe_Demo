@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-03
-Git 提交号：待提交
+Git 提交号：6a2fd4baf4c9b448fb881c5ef5552404a6a33d5f
 提交说明：将浏览器标签页图标替换为环测 Logo
 变更范围：前端入口 favicon、静态资源
 具体改动：
@@ -27,7 +27,8 @@ Git 提交号：待提交
 2. 新增 frontend/public/favicon.png，并更新 frontend/index.html 的图标引用。
 影响范围：仅影响浏览器标签页和收藏夹中的网站图标，不影响登录、权限、订单流程和业务数据。
 验证结果：Vite 生产构建通过；Django manage.py check 通过；构建产物已生成 favicon.png。
-部署状态：待提交 Git 并部署服务器。
+部署状态：已推送 GitHub Main_V2，并已部署到生产环境。
+部署补充：本地、GitHub Main_V2 和服务器部署标记均为 6a2fd4baf4c9b448fb881c5ef5552404a6a33d5f；生产 manage.py check、collectstatic、服务状态和 HTTPS 健康检查均通过。
 署名：GPT二号
 
 日期：2026-11-03
