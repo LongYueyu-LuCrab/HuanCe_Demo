@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-03
-Git 提交号：待提交
+Git 提交号：08c89f7fa61a63a53103979179cf6f81103875db
 提交说明：登录页毛玻璃升级与安全会话选项
 变更范围：登录页视觉材质、登录会话有效期选择
 具体改动：
@@ -33,7 +33,12 @@ Git 提交号：待提交
 2. Django manage.py check 通过。
 3. Impeccable detector 检查通过。
 4. 浏览器核验毛玻璃登录框、“保持登录状态”控件及备案信息均正常显示。
-部署状态：待提交 Git 并部署服务器。
+部署状态：已推送 GitHub Main_V2，并已部署到生产环境。
+部署补充：
+1. 本地、GitHub Main_V2 和服务器部署标记均为 08c89f7fa61a63a53103979179cf6f81103875db。
+2. 发布前服务器应用备份：/opt/huance/backups/release-20261103-glass-login/app_before.tar.gz。
+3. 已同步前后端源码和 static/frontend 构建产物；未覆盖生产 PostgreSQL、.env、用户上传媒体和 Nginx 配置。
+4. 生产 manage.py check 通过，collectstatic 完成；huance、nginx active，HTTPS 健康接口返回 ok/database ok。
 署名：GPT二号
 
 日期：2026-11-03
