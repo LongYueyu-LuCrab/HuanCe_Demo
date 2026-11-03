@@ -19,7 +19,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-03
-Git 提交号：待提交
+Git 提交号：aaca6810bac3be53a7be7649bc509b3108771e35
 提交说明：优化销售初审弹窗与报告 PDF 预览入口
 变更范围：报告审核列表、订单列表审核入口、销售/总经理审核弹窗、报告 PDF 响应头；不修改审核权限和状态流转。
 具体改动：
@@ -31,7 +31,7 @@ Git 提交号：待提交
 1. frontend TypeScript 检查与 Vite 生产构建通过；仅有依赖包既有 Rolldown 注释和 chunk 体积提示。
 2. Django `check` 通过；报告审核相关测试 9 项全部通过。
 3. Impeccable UI 检测通过，无新增问题。
-部署状态：待提交并部署。
+部署状态：已推送 GitHub Main_V2，并部署到生产环境；服务器备份目录为 `/opt/huance/backups/release-20261103_2310/`，`huance` 与 `nginx` 均 active，生产首页 HTTP 200。
 署名：GPT二号
 
 日期：2026-11-03
