@@ -202,12 +202,6 @@ select {
   font-size: 13px;
 }
 
-.login-options-hint {
-  color: rgba(220, 230, 242, 0.66);
-  font-size: 11px;
-  text-align: right;
-}
-
 .login-record {
   position: fixed;
   z-index: 2;
