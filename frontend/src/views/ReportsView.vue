@@ -91,6 +91,7 @@ function openOrderDetail(report: ReportItem) {
 
 async function submitWorkflow(result: 'pass' | 'reject') {
   if (!activeReport.value) return
+  const submittedReportNo = activeReport.value.report_no
   submitting.value = true
   try {
     await workflowAction({
@@ -104,6 +105,13 @@ async function submitWorkflow(result: 'pass' | 'reject') {
     })
     ElMessage.success('报告审核已提交')
     dialogVisible.value = false
+    // 审核成功后先更新当前内存中的待办，避免旧行停留到手动刷新。
+    if (session.state.dashboard) {
+      session.state.dashboard.pending_reports = session.state.dashboard.pending_reports.filter(
+        (report) => report.report_no !== submittedReportNo,
+      )
+      session.state.dashboard.metrics.pending_reports = session.state.dashboard.pending_reports.length
+    }
     await session.refreshDashboard()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '审核失败')

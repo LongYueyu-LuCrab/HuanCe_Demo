@@ -38,7 +38,10 @@ export async function logout(): Promise<void> {
 }
 
 export async function fetchDashboard(): Promise<Dashboard> {
-  const response = await fetch('/api/lims/dashboard/?limit=50', { credentials: 'include' })
+  const response = await fetch(`/api/lims/dashboard/?limit=50&_=${Date.now()}`, {
+    credentials: 'include',
+    cache: 'no-store',
+  })
   return parseJson(response)
 }
 
