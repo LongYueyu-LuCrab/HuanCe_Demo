@@ -32,7 +32,7 @@ Git 提交号：bbfd8e86ad6f5639c552e0c473cfb84aebe3a43b
 1. Django `core` 测试 90 项全部通过。
 2. frontend TypeScript 检查与 Vite 生产构建通过；仅有依赖包既有 Rolldown 注释和 chunk 体积提示。
 3. Impeccable UI 检测通过。
-部署状态：待部署生产环境。
+部署状态：已部署生产环境；服务器 `huance`、`nginx` active，HTTPS `/login` 与 `/api/health/` 均返回 200；部署前已生成应用与 PostgreSQL 备份。
 署名：GPT二号
 
 日期：2026-11-04
