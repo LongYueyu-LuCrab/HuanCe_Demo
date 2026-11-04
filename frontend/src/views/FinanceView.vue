@@ -85,6 +85,24 @@ function openPayment(order: PaymentOrderItem) {
   paymentDialogVisible.value = true
 }
 
+function openInvoicePayment(invoice: InvoiceItem) {
+  activePaymentOrder.value = {
+    order_no: invoice.order_no,
+    customer: invoice.customer,
+    project_name: invoice.project_name,
+    order_status: invoice.finish_status,
+    order_status_key: 0,
+    order_total: invoice.order_total,
+    paid_total: invoice.paid_total,
+    remaining_total: invoice.payment_remaining_total,
+    payment_status: invoice.payment_status,
+    payment_count: invoice.payment_count,
+    payments: invoice.payments,
+  }
+  Object.assign(form, { payment_amount: '', payment_date: '', payment_remark: '' })
+  paymentDialogVisible.value = true
+}
+
 function openPaymentDetails(order: PaymentOrderItem) {
   activePaymentOrder.value = order
   paymentDetailVisible.value = true
@@ -265,6 +283,7 @@ async function submitWorkflow() {
       :invoices="issuedInvoices"
       :can-operate="canOperateFinance"
       @workflow="openWorkflow"
+      @payment="openInvoicePayment"
       @detail="openOrderDetail"
     />
 

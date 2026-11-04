@@ -986,6 +986,15 @@ def _invoice_payload(invoice, current_user=None):
     order = invoice.order
     report = invoice.report
     invoiced_total, remaining_amount = _invoice_amounts(order)
+    # 历史列表会预取订单回款；不要在单条序列化时偷偷触发 N+1 查询。
+    # 未预取（例如轻量单元测试或动作响应）时使用空摘要，真正的财务列表会带完整累计数据。
+    payment_summary = _order_payment_payload(order) if hasattr(order, 'ordered_payments') else {
+        'paid_total': '0.00',
+        'remaining_total': str(order.total_quote),
+        'payment_status': '未回款',
+        'payment_count': 0,
+        'payments': [],
+    }
     has_valid_final = any(
         record.invoice_stage == Invoice.Stage.FINAL
         and record.record_status == Invoice.RecordStatus.VALID
@@ -1007,6 +1016,12 @@ def _invoice_payload(invoice, current_user=None):
         'invoice_type': invoice.invoice_type,
         'invoice_date': _display_date(invoice.invoice_date),
         'pay_status': invoice.get_pay_status_display(),
+        # 发票历史页也必须展示订单级累计回款，不能退回到单张发票的二值状态。
+        'paid_total': payment_summary['paid_total'],
+        'payment_remaining_total': payment_summary['remaining_total'],
+        'payment_status': payment_summary['payment_status'],
+        'payment_count': payment_summary['payment_count'],
+        'payments': payment_summary['payments'],
         'finish_status': invoice.get_order_finish_flag_display(),
         'record_status': invoice.record_status,
         'record_status_label': invoice.get_record_status_display(),
@@ -4306,6 +4321,11 @@ def lims_dashboard(request):
         ).order_by('-create_time')
         invoices = Invoice.objects.select_related('order', 'report', 'finance_user', 'voided_by').prefetch_related(
             'order__invoices', 'order__experiments',
+            Prefetch(
+                'order__payments',
+                queryset=OrderPayment.objects.select_related('accounting_user').order_by('-payment_date', '-create_time', '-id'),
+                to_attr='ordered_payments',
+            ),
         ).filter(
             order__in=related_orders,
         ).order_by('-invoice_date', '-create_time')

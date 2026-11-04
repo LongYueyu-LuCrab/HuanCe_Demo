@@ -320,6 +320,11 @@ export type InvoiceItem = {
   invoice_type: string
   invoice_date: string
   pay_status: string
+  paid_total: string
+  payment_remaining_total: string
+  payment_status: string
+  payment_count: number
+  payments: PaymentRecord[]
   finish_status: string
   record_status: 'valid' | 'voided'
   record_status_label: string

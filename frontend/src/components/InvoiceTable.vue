@@ -13,6 +13,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   workflow: [action: string, invoice: InvoiceItem]
+  payment: [invoice: InvoiceItem]
   detail: [invoice: InvoiceItem]
 }>()
 
@@ -59,7 +60,7 @@ const pagedInvoices = computed(() => {
 
 const invoiceQueue = computed(() => ({
   total: props.invoices.length,
-  pending: props.invoices.filter((invoice) => invoice.record_status !== 'voided' && !invoice.pay_status.includes('已')).length,
+  pending: props.invoices.filter((invoice) => invoice.record_status !== 'voided' && !invoice.payment_status.includes('已')).length,
   overdue: props.invoices.filter((invoice) => invoice.record_status === 'voided' || invoice.finish_status.includes('待')).length,
 }))
 </script>
@@ -112,7 +113,8 @@ const invoiceQueue = computed(() => ({
       <el-table-column label="状态" min-width="190">
         <template #default="{ row }">
           <StatusBadge v-if="row.record_status === 'voided'" label="已作废" />
-          <StatusBadge v-else :label="row.pay_status" />
+          <StatusBadge v-else :label="row.payment_status || row.pay_status" />
+          <div class="cell-sub">已回款 {{ row.paid_total }} · 待回款 {{ row.payment_remaining_total }}</div>
           <div class="cell-sub">{{ row.finish_status }}</div>
           <div v-if="row.record_status === 'voided'" class="cell-sub">{{ row.voided_at }} · {{ row.void_reason }}</div>
         </template>
@@ -125,7 +127,7 @@ const invoiceQueue = computed(() => ({
             <el-button size="small" plain @click="emit('detail', row)">订单详情</el-button>
             <el-button v-if="canOperate && mode === 'preinvoice'" size="small" type="warning" plain @click="emit('workflow', 'preinvoice_create', row)">阶段开票</el-button>
             <el-button v-if="canOperate && mode === 'final'" size="small" type="primary" plain @click="emit('workflow', 'invoice_create', row)">最终总开票</el-button>
-            <el-button v-if="canOperate && mode === 'history' && row.record_status !== 'voided'" size="small" type="success" plain @click="emit('workflow', 'invoice_pay', row)">更新回款</el-button>
+            <el-button v-if="canOperate && mode === 'history' && row.record_status !== 'voided'" size="small" type="success" plain @click="emit('payment', row)">{{ row.payment_count ? '登记/查看回款' : '登记回款' }}</el-button>
             <el-button v-if="canOperate && mode === 'history' && row.can_void" size="small" type="danger" plain @click="emit('workflow', 'invoice_void', row)">作废</el-button>
           </div>
         </template>
