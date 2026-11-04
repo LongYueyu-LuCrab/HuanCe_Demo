@@ -786,6 +786,13 @@ class InvoiceWorkflowTests(TestCase):
         return response.json()
 
     def test_order_payments_support_multiple_records_and_accounting_only(self):
+        missing_remark = self.action(
+            'payment_create',
+            payment_amount='50.00',
+            payment_date='2026-11-03 09:00:00',
+        )
+        self.assertEqual(missing_remark.status_code, 400)
+
         first = self.action(
             'payment_create',
             payment_amount='200.00',

@@ -3952,6 +3952,8 @@ def _action_payment_create(request, payload):
         return JsonResponse({'ok': False, 'error': '回款金额必须大于 0'}, status=400, json_dumps_params={'ensure_ascii': False})
     payment_date = _parse_datetime(payload.get('payment_date')) or timezone.now()
     remark = str(payload.get('payment_remark') or '').strip()
+    if not remark:
+        return JsonResponse({'ok': False, 'error': '请填写回款备注'}, status=400, json_dumps_params={'ensure_ascii': False})
     with transaction.atomic():
         order = LabOrder.objects.select_for_update().get(pk=order.pk)
         paid_total = order.payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')

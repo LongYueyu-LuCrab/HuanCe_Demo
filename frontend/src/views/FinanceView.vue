@@ -105,6 +105,10 @@ async function submitPayment() {
     ElMessage.warning('请选择回款时间')
     return
   }
+  if (!form.payment_remark.trim()) {
+    ElMessage.warning('请填写回款备注')
+    return
+  }
   paymentSubmitting.value = true
   try {
     await workflowAction({
@@ -329,7 +333,7 @@ async function submitWorkflow() {
       <el-form label-position="top" class="form-grid mt-16">
         <el-form-item label="本次回款金额" required><el-input v-model="form.payment_amount" type="number" placeholder="例如：200000" /></el-form-item>
         <el-form-item label="回款时间" required><el-date-picker v-model="form.payment_date" value-format="YYYY-MM-DD HH:mm:ss" type="datetime" placeholder="请选择实际到账时间" /></el-form-item>
-        <el-form-item label="回款备注" class="form-wide"><el-input v-model="form.payment_remark" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="可填写付款方、凭证号等说明" /></el-form-item>
+        <el-form-item label="回款备注" class="form-wide" required><el-input v-model="form.payment_remark" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="例如：预付款、阶段回款、提前还款等" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="paymentDialogVisible = false">取消</el-button>
