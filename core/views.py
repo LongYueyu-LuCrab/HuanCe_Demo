@@ -1464,7 +1464,7 @@ def _pending_reports_for_user(user, related_orders):
 
 def _next_order_no():
     order_day = timezone.localdate()
-    prefix = f'HCT{order_day:%Y%m%d}'
+    prefix = f'HCT-{order_day:%Y%m%d}-'
     last_order = LabOrder.objects.filter(order_no__startswith=prefix).order_by('-order_no').first()
     if not last_order:
         return f'{prefix}001'

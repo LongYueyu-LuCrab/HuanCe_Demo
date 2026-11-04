@@ -35,7 +35,7 @@ from .views import _next_order_no
 class OrderNumberGenerationTests(TestCase):
     def test_order_number_uses_actual_day_and_daily_sequence(self):
         order_day = timezone.localdate()
-        prefix = f'HCT{order_day:%Y%m%d}'
+        prefix = f'HCT-{order_day:%Y%m%d}-'
         LabOrder.objects.create(
             order_no=f'{prefix}001',
             customer_name='编号测试客户',
