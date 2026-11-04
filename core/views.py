@@ -2383,7 +2383,7 @@ def finance_orders_export(request):
     sheet.title = '财务订单回款'
     headers = [
         '序号', '订单号', '客户名称', '项目名称', '订单状态', '订单报价',
-        '累计回款', '待回款', '回款状态', '回款笔数', '回款明细',
+        '累计回款', '待回款', '回款状态', '回款笔数', '回款明细', '回款登记人',
     ]
     sheet.append(headers)
     header_fill = PatternFill('solid', fgColor='1F4E78')
@@ -2397,6 +2397,7 @@ def finance_orders_export(request):
             f"{payment['payment_date']}｜{payment['amount']} 元｜{payment['remark'] or '无备注'}"
             for payment in payment_summary['payments']
         ]
+        payment_accountants = [payment['accounting_user'] or '未记录' for payment in payment_summary['payments']]
         sheet.append([
             index,
             order.order_no,
@@ -2409,11 +2410,12 @@ def finance_orders_export(request):
             payment_summary['payment_status'],
             payment_summary['payment_count'],
             '\n'.join(payment_lines),
+            '\n'.join(payment_accountants),
         ])
-    widths = [8, 22, 28, 32, 18, 16, 16, 16, 14, 12, 64]
+    widths = [8, 22, 28, 32, 18, 16, 16, 16, 14, 12, 64, 18]
     for column, width in enumerate(widths, start=1):
         sheet.column_dimensions[get_column_letter(column)].width = width
-    for row in sheet.iter_rows(min_row=2, min_col=11, max_col=11):
+    for row in sheet.iter_rows(min_row=2, min_col=11, max_col=12):
         row[0].alignment = Alignment(wrap_text=True, vertical='top')
     sheet.freeze_panes = 'A2'
     sheet.auto_filter.ref = sheet.dimensions
