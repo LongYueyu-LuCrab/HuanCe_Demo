@@ -29,6 +29,20 @@ from .models import (
     WorkflowEvent,
 )
 from .report_pdf import build_test_report_pdf
+from .views import _next_order_no
+
+
+class OrderNumberGenerationTests(TestCase):
+    def test_order_number_uses_actual_day_and_daily_sequence(self):
+        order_day = timezone.localdate()
+        prefix = f'HCT{order_day:%Y%m%d}'
+        LabOrder.objects.create(
+            order_no=f'{prefix}001',
+            customer_name='编号测试客户',
+            test_demand='验证订单编号规则',
+        )
+
+        self.assertEqual(_next_order_no(), f'{prefix}002')
 
 
 class LimsDashboardTests(TestCase):

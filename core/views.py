@@ -1463,15 +1463,16 @@ def _pending_reports_for_user(user, related_orders):
 
 
 def _next_order_no():
-    prefix = f'LIMS-{date.today().year}-'
+    order_day = timezone.localdate()
+    prefix = f'HCT{order_day:%Y%m%d}'
     last_order = LabOrder.objects.filter(order_no__startswith=prefix).order_by('-order_no').first()
     if not last_order:
-        return f'{prefix}0001'
+        return f'{prefix}001'
     try:
-        next_number = int(last_order.order_no.rsplit('-', 1)[1]) + 1
+        next_number = int(last_order.order_no[len(prefix):]) + 1
     except (IndexError, ValueError):
         next_number = LabOrder.objects.filter(order_no__startswith=prefix).count() + 1
-    return f'{prefix}{next_number:04d}'
+    return f'{prefix}{next_number:03d}'
 
 
 def _parse_datetime(value):
