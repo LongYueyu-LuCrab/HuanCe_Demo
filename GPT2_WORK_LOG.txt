@@ -19,6 +19,18 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 署名：GPT二号
 
 日期：2026-11-04
+Git 提交号：036ce0f（部署补充记录）
+提交说明：修正生产环境前端静态资源未完全替换的问题
+变更范围：生产服务器 `/opt/huance/app/static/frontend` 静态资源目录。
+具体改动：
+1. 定位到生产入口仍引用旧版 `OrderTable` 资源，导致订单列表继续显示旧搜索框。
+2. 单独备份并同步最新前端构建产物，线上入口切换至 `index-CbdfglzZ.js`，订单列表切换至 `OrderTable-CQ1vc21h.js`，并加载 `AdvancedOrderFilter-D4kioLfd.js`。
+影响范围：生产站点订单列表现已显示“高级筛选”；后端代码、权限和订单数据不变。
+验证结果：线上资源入口与本地构建版本一致；`huance`、`nginx` active；HTTPS `/login` 与 `/api/health/` 均返回 200。
+部署状态：已部署生产环境；静态目录已备份并完成补同步。
+署名：GPT二号
+
+日期：2026-11-04
 Git 提交号：069ae680812669b2063d4b082a04b7206a5020c1
 提交说明：补齐 Dashboard 本地订单明细的高级筛选能力
 变更范围：Dashboard 内嵌订单明细组件。
