@@ -1855,6 +1855,11 @@ select {
   font-size: 14px;
 }
 
+.required-asterisk {
+  margin-right: 4px;
+  color: #f56c6c;
+}
+
 .upload-panel-heading span {
   color: var(--hc-muted);
   font-size: 12px;

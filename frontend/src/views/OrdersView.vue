@@ -266,11 +266,11 @@ function openReportCenter() {
 
 async function submit() {
   if (!form.customer_name.trim() || !form.project_name.trim() || !form.test_requirements.trim() || !form.expected_sample_arrival) {
-    ElMessage.warning('请填写客户名称、项目名称、试验需求和预计样品到达时间')
+    ElMessage.warning('下单信息有缺失，请补全')
     return
   }
   if (form.execution_attributes.length === 0) {
-    ElMessage.warning('订单执行属性至少选择“自主”或“委外”之一')
+    ElMessage.warning('下单信息有缺失，请补全')
     return
   }
   if (isOutsourceSelected.value) {
@@ -283,15 +283,15 @@ async function submit() {
       || !form.outsource_experiment_end_time
       || rawFiles(outsourceContractFileList.value).length !== 1
     ) {
-      ElMessage.warning('委外订单必须完整填写委外资料并上传一份委外合同')
+      ElMessage.warning('下单信息有缺失，请补全')
       return
     }
     if (Number(form.outsource_amount) <= 0 || Number(form.undertaking_amount) <= 0) {
-      ElMessage.warning('委外金额和承接金额必须大于 0')
+      ElMessage.warning('下单信息有缺失，请补全')
       return
     }
     if (new Date(form.outsource_experiment_end_time) <= new Date(form.outsource_experiment_start_time)) {
-      ElMessage.warning('委外实验结束时间必须晚于开始时间')
+      ElMessage.warning('下单信息有缺失，请补全')
       return
     }
   }
@@ -301,7 +301,7 @@ async function submit() {
     ...rawFiles(attachmentFileList.value),
   ]
   if (selectedFiles.reduce((total, file) => total + file.size, 0) > maxTotalFileSize) {
-    ElMessage.warning('合同、委外合同与附件总大小不能超过 40MB')
+    ElMessage.warning('下单信息有缺失，请补全')
     return
   }
   submitting.value = true
@@ -378,14 +378,14 @@ async function submit() {
 
     <el-dialog v-model="dialogVisible" title="销售下单" width="min(960px, 94vw)">
       <el-form label-position="top" class="form-grid">
-        <el-form-item label="客户名称"><el-input v-model="form.customer_name" /></el-form-item>
+        <el-form-item label="客户名称" required><el-input v-model="form.customer_name" /></el-form-item>
         <el-form-item label="联系人"><el-input v-model="form.contact_name" /></el-form-item>
         <el-form-item label="联系电话"><el-input v-model="form.phone" /></el-form-item>
-        <el-form-item label="项目名称"><el-input v-model="form.project_name" /></el-form-item>
+        <el-form-item label="项目名称" required><el-input v-model="form.project_name" /></el-form-item>
         <el-form-item label="预计样品到达" required><el-date-picker v-model="form.expected_sample_arrival" value-format="YYYY-MM-DD" type="date" /></el-form-item>
         <el-form-item label="预计交付日期"><el-date-picker v-model="form.expected_delivery_date" value-format="YYYY-MM-DD" type="date" /></el-form-item>
         <el-form-item label="报价金额"><el-input v-model="form.quoted_amount" type="number" /></el-form-item>
-        <el-form-item label="行业属性">
+        <el-form-item label="行业属性" required>
           <el-select v-model="form.industry_category" placeholder="请选择行业属性">
             <el-option label="汽车" value="automotive" />
             <el-option label="军工" value="military" />
@@ -393,7 +393,7 @@ async function submit() {
           </el-select>
         </el-form-item>
         <el-form-item label="加急"><el-switch v-model="form.is_urgent" /></el-form-item>
-        <el-form-item label="订单执行属性">
+        <el-form-item label="订单执行属性" required>
           <el-checkbox-group v-model="form.execution_attributes">
             <el-checkbox value="autonomous">自主</el-checkbox>
             <el-checkbox value="outsource">委外</el-checkbox>
@@ -439,7 +439,7 @@ async function submit() {
             </el-form-item>
             <div class="form-wide order-upload-panel outsource-contract-upload">
               <div class="upload-panel-heading">
-                <strong>委外合同</strong>
+                <strong><span class="required-asterisk" aria-hidden="true">*</span>委外合同</strong>
                 <span>必传 1 份</span>
               </div>
               <el-upload
@@ -455,7 +455,7 @@ async function submit() {
             </div>
           </div>
         </section>
-        <el-form-item label="试验需求" class="form-wide"><el-input v-model="form.test_requirements" type="textarea" :rows="4" /></el-form-item>
+        <el-form-item label="试验需求" class="form-wide" required><el-input v-model="form.test_requirements" type="textarea" :rows="4" /></el-form-item>
         <el-form-item label="测试方法" class="form-wide">
           <el-input v-model="form.test_method" type="textarea" :rows="3" placeholder="填写客户指定的试验方法、实施步骤或方法文件编号" />
         </el-form-item>
