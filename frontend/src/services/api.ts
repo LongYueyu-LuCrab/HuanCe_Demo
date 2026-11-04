@@ -54,6 +54,14 @@ export async function fetchOrderDetail(orderNo: string): Promise<OrderItem> {
 export type SalesOrderQuery = {
   keyword?: string
   order_status?: string
+  execution_attribute?: string
+  sales_user?: string
+  urgent?: string
+  create_from?: string
+  create_to?: string
+  delivery_from?: string
+  delivery_to?: string
+  sort?: string
   page?: number
   page_size?: number
 }
@@ -69,7 +77,7 @@ function salesOrderParams(query: SalesOrderQuery) {
 
 export async function fetchSalesManagerOrders(query: SalesOrderQuery) {
   const response = await fetch(`/api/sales/orders/?${salesOrderParams(query)}`, { credentials: 'include' })
-  return parseJson<{ ok: boolean; total: number; page: number; page_size: number; items: OrderItem[] }>(response)
+  return parseJson<{ ok: boolean; total: number; page: number; page_size: number; items: OrderItem[]; filter_options?: Record<string, unknown> }>(response)
 }
 
 export async function exportSalesManagerOrders(query: SalesOrderQuery): Promise<void> {
@@ -235,7 +243,7 @@ function labOrderParams(query: LabOrderQuery) {
 
 export async function fetchLaboratoryOrders(query: LabOrderQuery) {
   const response = await fetch(`/api/labs/orders/?${labOrderParams(query)}`, { credentials: 'include' })
-  return parseJson<{ ok: boolean; total: number; items: import('../types').ScheduleItem[] }>(response)
+  return parseJson<{ ok: boolean; total: number; items: import('../types').ScheduleItem[]; filter_options?: Record<string, unknown> }>(response)
 }
 
 export async function exportLaboratoryOrders(query: LabOrderQuery): Promise<void> {

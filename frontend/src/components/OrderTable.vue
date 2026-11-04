@@ -5,6 +5,7 @@ import OrderSnapshot from './OrderSnapshot.vue'
 import InlineErrorState from './InlineErrorState.vue'
 import OutsourceBadge from './OutsourceBadge.vue'
 import StatusBadge from './StatusBadge.vue'
+import AdvancedOrderFilter from './AdvancedOrderFilter.vue'
 import { fetchOrderDetail } from '../services/api'
 import { useSession } from '../stores/session'
 import type { OrderItem, User } from '../types'
@@ -18,15 +19,17 @@ const props = defineProps<{
   total?: number
   loading?: boolean
   error?: string
+  filterOptions?: any
 }>()
 
 const emit = defineEmits<{
   workflow: [action: string, order: OrderItem]
-  query: [query: { keyword: string; page: number; page_size: number }]
+  query: [query: Record<string, unknown>]
   retry: []
 }>()
 
 const keyword = ref('')
+const advancedFilters = ref<Record<string, unknown>>({})
 const page = ref(1)
 const pageSize = ref(10)
 const selectedOrder = ref<OrderItem | null>(null)
@@ -75,7 +78,21 @@ function resetPage() {
 }
 
 function emitQuery() {
-  emit('query', { keyword: keyword.value.trim(), page: page.value, page_size: pageSize.value })
+  emit('query', { ...advancedFilters.value, keyword: keyword.value.trim(), page: page.value, page_size: pageSize.value })
+}
+
+function applyFilters(value: Record<string, unknown>) {
+  advancedFilters.value = value
+  keyword.value = String(value.keyword || '')
+  page.value = 1
+  if (props.remote) emitQuery()
+}
+
+function resetFilters() {
+  advancedFilters.value = {}
+  keyword.value = ''
+  page.value = 1
+  if (props.remote) emitQuery()
 }
 
 function handlePageChange() {
@@ -209,13 +226,7 @@ function actionsFor(order: OrderItem) {
           <h2>{{ title || '订单列表' }}</h2>
           <p>{{ subtitle || '按订单号、客户、项目、状态检索，并查看订单详情。' }}</p>
         </div>
-        <el-input
-          v-model="keyword"
-          clearable
-          class="table-search"
-          placeholder="搜索订单号、客户、项目、状态"
-          @input="resetPage"
-        />
+        <AdvancedOrderFilter kind="orders" :model-value="advancedFilters" :options="filterOptions" @apply="applyFilters" @reset="resetFilters" />
       </div>
     </template>
 

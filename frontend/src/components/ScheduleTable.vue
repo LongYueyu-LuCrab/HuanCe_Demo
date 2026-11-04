@@ -6,6 +6,7 @@ import type { ScheduleItem, User } from '../types'
 import OutsourceBadge from './OutsourceBadge.vue'
 import StatusBadge from './StatusBadge.vue'
 import InlineErrorState from './InlineErrorState.vue'
+import AdvancedOrderFilter from './AdvancedOrderFilter.vue'
 
 const props = defineProps<{
   orders: ScheduleItem[]
@@ -17,6 +18,7 @@ const props = defineProps<{
   loading?: boolean
   initialDeviceId?: number
   error?: string
+  filterOptions?: any
 }>()
 const emit = defineEmits<{
   workflow: [action: string, schedule: ScheduleItem]
@@ -32,6 +34,7 @@ const orderStatus = ref<number | ''>('')
 const scheduleStatus = ref<number | ''>('')
 const deviceId = ref<number | ''>(props.initialDeviceId || '')
 const dateRange = ref<[string, string] | []>([])
+const advancedFilters = ref<Record<string, unknown>>({})
 const selectedRows = ref<ScheduleItem[]>([])
 const exporting = ref(false)
 let queryTimer: ReturnType<typeof setTimeout> | undefined
@@ -147,6 +150,26 @@ function resetPage() {
   page.value = 1
 }
 
+function applyFilters(value: Record<string, unknown>) {
+  advancedFilters.value = value
+  keyword.value = String(value.keyword || '')
+  orderStatus.value = value.order_status ? Number(value.order_status) : ''
+  scheduleStatus.value = value.schedule_status ? Number(value.schedule_status) : ''
+  deviceId.value = value.device_id ? Number(value.device_id) : ''
+  dateRange.value = value.start_date && value.end_date ? [String(value.start_date), String(value.end_date)] : []
+  resetPage()
+}
+
+function resetFilters() {
+  advancedFilters.value = {}
+  keyword.value = ''
+  orderStatus.value = ''
+  scheduleStatus.value = ''
+  deviceId.value = props.initialDeviceId || ''
+  dateRange.value = []
+  resetPage()
+}
+
 function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info' {
   if (result === 'pass') return 'success'
   if (result === 'fail') return 'danger'
@@ -206,26 +229,7 @@ async function exportOrders(selectedOnly: boolean) {
         <div class="task-queue-item"><strong>{{ taskStats.ready }}</strong><span>准备处理</span></div>
       </div>
     </template>
-    <div class="schedule-filter-bar">
-      <el-input v-model="keyword" clearable placeholder="搜索订单号、客户、项目、任务、设备" @input="resetPage" />
-      <el-select v-model="orderStatus" clearable placeholder="订单状态" @change="resetPage">
-        <el-option v-for="item in orderStatusOptions" :key="item[0]" :label="item[1]" :value="item[0]" />
-      </el-select>
-      <el-select v-model="scheduleStatus" clearable placeholder="排期状态" @change="resetPage">
-        <el-option v-for="item in scheduleStatusOptions" :key="item[0]" :label="item[1]" :value="item[0]" />
-      </el-select>
-      <el-select v-model="deviceId" clearable filterable placeholder="试验设备" @change="resetPage">
-        <el-option v-for="item in deviceOptions" :key="item[0]" :label="item[1]" :value="item[0]" />
-      </el-select>
-      <el-date-picker
-        v-model="dateRange"
-        type="daterange"
-        value-format="YYYY-MM-DD"
-        start-placeholder="计划开始"
-        end-placeholder="计划结束"
-        @change="resetPage"
-      />
-    </div>
+    <div class="schedule-filter-bar"><AdvancedOrderFilter kind="lab" :model-value="advancedFilters" :options="filterOptions" @apply="applyFilters" @reset="resetFilters" /></div>
     <InlineErrorState v-if="error" :message="error" @retry="emit('retry')" />
     <el-skeleton v-else-if="loading && !pagedOrders.length" :rows="6" animated class="table-skeleton" />
     <el-table v-else v-loading="loading" :data="pagedOrders" max-height="min(420px, calc(100vh - 340px))" empty-text="暂无匹配任务" @selection-change="handleSelection">

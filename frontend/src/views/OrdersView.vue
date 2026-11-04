@@ -6,7 +6,7 @@ import { Download, UploadFilled } from '@element-plus/icons-vue'
 import type { UploadFile, UploadFiles, UploadRawFile, UploadUserFile } from 'element-plus'
 import OrderTable from '../components/OrderTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
-import { createOrder, exportSalesManagerOrders, fetchOrderDetail, fetchSalesManagerOrders, workflowAction } from '../services/api'
+import { createOrder, exportSalesManagerOrders, fetchOrderDetail, fetchSalesManagerOrders, workflowAction, type SalesOrderQuery } from '../services/api'
 import { useSession } from '../stores/session'
 import type { OrderItem, ReportItem } from '../types'
 
@@ -89,7 +89,8 @@ const managerOrders = ref<OrderItem[]>([])
 const managerOrderTotal = ref(0)
 const managerOrdersLoading = ref(false)
 const managerOrdersError = ref('')
-const managerOrderQuery = reactive({ keyword: '', page: 1, page_size: 10 })
+const managerOrderQuery = reactive<SalesOrderQuery>({ keyword: '', page: 1, page_size: 10 })
+const managerFilterOptions = ref<Record<string, unknown>>({})
 const orders = computed(() => managerOrders.value)
 const isTechnicalReviewer = computed(() => !session.state.user.is_chairman && (session.state.user.roles || []).includes('总经理'))
 const routingOptions = computed(() => session.state.dashboard?.routing_options)
@@ -113,6 +114,7 @@ async function loadManagerOrders(query = managerOrderQuery) {
     const result = await fetchSalesManagerOrders(managerOrderQuery)
     managerOrders.value = result.items
     managerOrderTotal.value = result.total
+    managerFilterOptions.value = result.filter_options || {}
     managerOrdersError.value = ''
   } catch (error) {
     managerOrdersError.value = error instanceof Error ? error.message : '销售订单加载失败'
@@ -124,7 +126,7 @@ async function loadManagerOrders(query = managerOrderQuery) {
 
 async function exportSalesOrders() {
   try {
-    await exportSalesManagerOrders({})
+    await exportSalesManagerOrders(managerOrderQuery)
     ElMessage.success(isSalesManager.value ? '全部销售订单 Excel 已生成' : '我的全部订单 Excel 已生成')
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '导出失败')
@@ -371,6 +373,7 @@ async function submit() {
       :total="managerOrderTotal"
       :loading="managerOrdersLoading"
       :error="managerOrdersError"
+      :filter-options="managerFilterOptions"
       @query="loadManagerOrders"
       @workflow="openWorkflow"
       @retry="loadManagerOrders()"

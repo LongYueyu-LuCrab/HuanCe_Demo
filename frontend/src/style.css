@@ -542,6 +542,15 @@ select {
   width: min(360px, 40vw);
 }
 
+.advanced-filter { display: flex; align-items: center; }
+.advanced-filter-trigger { border-color: var(--hc-border-strong, #b8d2df); color: #126486; font-weight: 700; background: #f7fbfc; }
+.advanced-filter-trigger:hover { color: #075a83; border-color: #0b789e; background: #edf8fb; }
+.filter-trigger-icon { font-size: 18px; line-height: 1; margin-right: 7px; transform: rotate(90deg); display: inline-block; }
+.filter-count { margin-left: 8px; }
+.filter-drawer-intro { margin: -8px 0 20px; padding: 12px 14px; border: 1px solid #d8e9ee; border-radius: 10px; color: #527184; background: linear-gradient(135deg, #f5fbfc, #eef6fa); font-size: 13px; line-height: 1.6; }
+.advanced-filter-form .el-select, .advanced-filter-form .el-date-editor { width: 100%; }
+.filter-drawer-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
 .schedule-filter-bar {
   display: grid;
   grid-template-columns: minmax(260px, 1.5fr) repeat(3, minmax(150px, 0.75fr)) minmax(260px, 1fr);

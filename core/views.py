@@ -2093,6 +2093,15 @@ def laboratory_orders(request):
     schedules, lab_type, error = _laboratory_schedule_queryset(request)
     if error:
         return error
+    metadata_query = request.GET.copy()
+    for key in ('keyword', 'order_status', 'schedule_status', 'device_id', 'start_date', 'end_date', 'schedule_ids'):
+        metadata_query.pop(key, None)
+    current_query = request.GET
+    request.GET = metadata_query
+    metadata_schedules, _, metadata_error = _laboratory_schedule_queryset(request)
+    request.GET = current_query
+    if metadata_error:
+        metadata_schedules = schedules
     try:
         page = max(1, int(request.GET.get('page') or 1))
         page_size = max(10, min(500, int(request.GET.get('page_size') or 100)))
@@ -2108,6 +2117,7 @@ def laboratory_orders(request):
             'total': total,
             'page': page,
             'page_size': page_size,
+            'filter_options': _laboratory_filter_options(metadata_schedules),
             'items': [_schedule_payload(schedule) for schedule in items],
         },
         json_dumps_params={'ensure_ascii': False},
@@ -2245,7 +2255,66 @@ def _sales_order_queryset(request, require_sales_role=True):
                 json_dumps_params={'ensure_ascii': False},
             )
         orders = orders.filter(order_status=status_value)
+    attribute = (request.GET.get('execution_attribute') or '').strip()
+    if attribute == 'autonomous':
+        orders = orders.filter(autonomous_execution=True)
+    elif attribute == 'outsource':
+        orders = orders.filter(outsourced_execution=True)
+    sales_user = (request.GET.get('sales_user') or '').strip()
+    if sales_user.isdigit():
+        orders = orders.filter(sale_user_id=int(sales_user))
+    urgent = (request.GET.get('urgent') or '').strip()
+    if urgent in {'1', 'true'}:
+        orders = orders.filter(remark__icontains='加急')
+    elif urgent in {'0', 'false'}:
+        orders = orders.exclude(remark__icontains='加急')
+    for field, lookup in [('create_from', 'create_time__date__gte'), ('create_to', 'create_time__date__lte'), ('delivery_from', 'expect_delivery_time__date__gte'), ('delivery_to', 'expect_delivery_time__date__lte')]:
+        value = (request.GET.get(field) or '').strip()
+        if value:
+            orders = orders.filter(**{lookup: value})
+    sort = (request.GET.get('sort') or '').strip()
+    if sort == 'delivery_asc':
+        orders = orders.order_by('expect_delivery_time', '-create_time', '-id')
+    elif sort == 'delivery_desc':
+        orders = orders.order_by('-expect_delivery_time', '-create_time', '-id')
+    elif sort == 'amount_desc':
+        orders = orders.order_by('-total_quote', '-create_time', '-id')
     return orders, None
+
+
+def _sales_filter_options(orders):
+    status_map = dict(LabOrder.Status.choices)
+    status_values = list(orders.values_list('order_status', flat=True).distinct())
+    sales = orders.select_related('sale_user').values('sale_user__id', 'sale_user__username', 'sale_user__first_name', 'sale_user__last_name').distinct()
+    sales_options = []
+    for item in sales:
+        name = ' '.join(filter(None, [item['sale_user__first_name'], item['sale_user__last_name']])).strip() or item['sale_user__username'] or '未分配'
+        sales_options.append({'value': item['sale_user__id'], 'label': name})
+    attributes = []
+    if orders.filter(autonomous_execution=True).exists():
+        attributes.append({'value': 'autonomous', 'label': '自主'})
+    if orders.filter(outsourced_execution=True).exists():
+        attributes.append({'value': 'outsource', 'label': '委外'})
+    return {
+        'statuses': [{'value': value, 'label': status_map.get(value, str(value))} for value in status_values],
+        'execution_attributes': attributes,
+        'urgent': orders.filter(remark__icontains='加急').exists(),
+        'sales': sales_options,
+    }
+
+
+def _laboratory_filter_options(schedules):
+    order_status_map = dict(LabOrder.Status.choices)
+    schedule_status_map = dict(SchedulePlan.Status.choices)
+    status_values = list(schedules.values_list('order__order_status', flat=True).distinct())
+    schedule_values = list(schedules.values_list('schedule_status', flat=True).distinct())
+    devices = schedules.filter(device_id__isnull=False).values('device_id', 'device__device_code', 'device__device_name').distinct()
+    return {
+        'statuses': [{'value': value, 'label': order_status_map.get(value, str(value))} for value in status_values],
+        'schedule_statuses': [{'value': value, 'label': schedule_status_map.get(value, str(value))} for value in schedule_values],
+        'devices': [{'value': item['device_id'], 'label': ' · '.join(filter(None, [item['device__device_code'], item['device__device_name']]))} for item in devices],
+        'test_types': [{'value': value, 'label': dict(SchedulePlan.TestType.choices).get(value, str(value))} for value in schedules.values_list('test_type', flat=True).distinct()],
+    }
 
 
 def sales_manager_orders(request):
@@ -2257,6 +2326,15 @@ def sales_manager_orders(request):
     orders, error = _sales_order_queryset(request, require_sales_role=False)
     if error:
         return error
+    metadata_query = request.GET.copy()
+    for key in ('keyword', 'order_status', 'execution_attribute', 'sales_user', 'urgent', 'create_from', 'create_to', 'delivery_from', 'delivery_to', 'sort'):
+        metadata_query.pop(key, None)
+    current_query = request.GET
+    request.GET = metadata_query
+    metadata_orders, metadata_error = _sales_order_queryset(request, require_sales_role=False)
+    request.GET = current_query
+    if metadata_error:
+        metadata_orders = orders
     try:
         page = max(1, int(request.GET.get('page') or 1))
         page_size = max(10, min(100, int(request.GET.get('page_size') or 10)))
@@ -2270,6 +2348,7 @@ def sales_manager_orders(request):
             'total': total,
             'page': page,
             'page_size': page_size,
+            'filter_options': _sales_filter_options(metadata_orders),
             'items': [_order_payload(order, viewer=request.user) for order in orders[start:start + page_size]],
         },
         json_dumps_params={'ensure_ascii': False},

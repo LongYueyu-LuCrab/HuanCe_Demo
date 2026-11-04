@@ -18,6 +18,7 @@ const schedules = ref<ScheduleItem[]>([])
 const scheduleTotal = ref(0)
 const schedulesLoading = ref(false)
 const schedulesError = ref('')
+const scheduleFilterOptions = ref<Record<string, unknown>>({})
 let scheduleQuery: LabOrderQuery = { page: 1, page_size: 10 }
 let scheduleRequest = 0
 async function loadSchedules(query: LabOrderQuery = scheduleQuery) {
@@ -29,6 +30,7 @@ async function loadSchedules(query: LabOrderQuery = scheduleQuery) {
     if (request !== scheduleRequest) return
     schedules.value = data.items
     scheduleTotal.value = data.total
+    scheduleFilterOptions.value = data.filter_options || {}
     schedulesError.value = ''
   } catch (error) {
     if (request === scheduleRequest) schedulesError.value = error instanceof Error ? error.message : '排期查询失败'
@@ -221,7 +223,7 @@ async function submitWorkflow() {
 <template>
   <div class="page-stack">
     <div class="page-toolbar"><div><h2>{{ outsourcedOnly ? '委外排期与执行' : '排期与任务' }}</h2><p>实验室负责人在这里维护本人负责的内部及委外任务、样品、变更和报告。</p></div></div>
-    <ScheduleTable :orders="schedules" :user="session.state.user" :initial-device-id="initialDeviceId" remote :total="scheduleTotal" :loading="schedulesLoading" :error="schedulesError" @query="loadSchedules" @detail="openOrderDetail" @workflow="openWorkflow" @retry="loadSchedules()" />
+    <ScheduleTable :orders="schedules" :user="session.state.user" :initial-device-id="initialDeviceId" :filter-options="scheduleFilterOptions" remote :total="scheduleTotal" :loading="schedulesLoading" :error="schedulesError" @query="loadSchedules" @detail="openOrderDetail" @workflow="openWorkflow" @retry="loadSchedules()" />
 
     <el-dialog v-model="dialogVisible" class="action-dialog" :title="actionMeta.title" width="min(960px, 94vw)">
       <div class="action-dialog-context">
