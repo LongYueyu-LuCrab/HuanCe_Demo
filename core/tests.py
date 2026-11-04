@@ -837,11 +837,13 @@ class InvoiceWorkflowTests(TestCase):
         self.assertEqual(exported.status_code, 200)
         workbook = load_workbook(BytesIO(exported.content), read_only=True)
         rows = list(workbook.active.iter_rows(values_only=True))
-        self.assertEqual(rows[0][-4:], ('回款状态', '回款笔数', '回款明细', '回款登记人'))
+        self.assertEqual(rows[0][6:12], ('累计回款', '待回款', '回款状态', '回款笔数', '回款明细', '回款登记人'))
+        self.assertEqual(rows[0][12:17], ('累计已开票', '待开票', '开票状态', '开票笔数', '开票明细'))
         self.assertEqual(rows[1][6:10], (500.0, 500.0, '部分回款', 2))
         self.assertIn('2026-11-05 11:30', rows[1][10])
         self.assertIn('300.00 元', rows[1][10])
         self.assertIn('会计', rows[1][11])
+        self.assertEqual(rows[1][12:16], (0.0, 1000.0, '未开票', 0))
 
         over_limit = self.action(
             'payment_create',
@@ -863,6 +865,33 @@ class InvoiceWorkflowTests(TestCase):
             content_type='application/json',
         )
         self.assertEqual(denied.status_code, 403)
+
+    def test_finance_export_collapses_multiple_invoices_into_one_order_row(self):
+        self.client.force_login(self.accountant)
+        Invoice.objects.create(
+            order=self.order,
+            invoice_no='EXPORT-PRE-001',
+            invoice_stage=Invoice.Stage.PRE_REVIEW,
+            invoice_amount=Decimal('200.00'),
+            finance_user=self.accountant,
+        )
+        Invoice.objects.create(
+            order=self.order,
+            invoice_no='EXPORT-PRE-002',
+            invoice_stage=Invoice.Stage.PRE_EXPERIMENT,
+            invoice_amount=Decimal('300.00'),
+            finance_user=self.accountant,
+        )
+
+        exported = self.client.get(reverse('finance_orders_export'))
+        self.assertEqual(exported.status_code, 200)
+        workbook = load_workbook(BytesIO(exported.content), read_only=True)
+        rows = list(workbook.active.iter_rows(values_only=True))
+        row = next(item for item in rows[1:] if item[1] == self.order.order_no)
+        self.assertEqual(row[12:16], (500.0, 500.0, '部分开票', 2))
+        self.assertIn('EXPORT-PRE-001', row[16])
+        self.assertIn('EXPORT-PRE-002', row[16])
+        self.assertIn('会计', row[16])
 
     def test_preinvoices_do_not_close_order_and_final_invoice_closes_it(self):
         initial = self.dashboard()['finance']['preinvoice_candidates']

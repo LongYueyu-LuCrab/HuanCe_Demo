@@ -2360,6 +2360,10 @@ def finance_orders_export(request):
         order_status=LabOrder.Status.CANCELLED,
     ).prefetch_related(
         Prefetch(
+            'invoices',
+            queryset=Invoice.objects.select_related('finance_user').order_by('-invoice_date', '-create_time', '-id'),
+        ),
+        Prefetch(
             'payments',
             queryset=OrderPayment.objects.select_related('accounting_user').order_by('-payment_date', '-create_time', '-id'),
             to_attr='ordered_payments',
@@ -2385,6 +2389,7 @@ def finance_orders_export(request):
     headers = [
         '序号', '订单号', '客户名称', '项目名称', '订单状态', '订单报价',
         '累计回款', '待回款', '回款状态', '回款笔数', '回款明细', '回款登记人',
+        '累计已开票', '待开票', '开票状态', '开票笔数', '开票明细',
     ]
     sheet.append(headers)
     header_fill = PatternFill('solid', fgColor='1F4E78')
@@ -2399,6 +2404,16 @@ def finance_orders_export(request):
             for payment in payment_summary['payments']
         ]
         payment_accountants = [payment['accounting_user'] or '未记录' for payment in payment_summary['payments']]
+        invoices = list(order.invoices.all())
+        valid_invoices = [invoice for invoice in invoices if invoice.record_status == Invoice.RecordStatus.VALID]
+        invoiced_total, remaining_invoice = _invoice_amounts(order)
+        invoice_lines = [
+            f"{invoice.invoice_no}｜{_display_date(invoice.invoice_date)}｜{invoice.invoice_amount:.2f} 元｜"
+            f"{invoice.get_invoice_stage_display()}｜{_display_user(invoice.finance_user) or '未记录'}｜"
+            f"{invoice.get_record_status_display()}"
+            for invoice in invoices
+        ]
+        invoice_status = '未开票' if not valid_invoices else ('已全部开票' if remaining_invoice <= Decimal('0.01') else '部分开票')
         sheet.append([
             index,
             order.order_no,
@@ -2412,11 +2427,18 @@ def finance_orders_export(request):
             payment_summary['payment_count'],
             '\n'.join(payment_lines),
             '\n'.join(payment_accountants),
+            float(invoiced_total),
+            float(remaining_invoice),
+            invoice_status,
+            len(valid_invoices),
+            '\n'.join(invoice_lines),
         ])
-    widths = [8, 22, 28, 32, 18, 16, 16, 16, 14, 12, 64, 18]
+    widths = [8, 22, 28, 32, 18, 16, 16, 16, 14, 12, 64, 18, 16, 16, 14, 12, 80]
     for column, width in enumerate(widths, start=1):
         sheet.column_dimensions[get_column_letter(column)].width = width
     for row in sheet.iter_rows(min_row=2, min_col=11, max_col=12):
+        row[0].alignment = Alignment(wrap_text=True, vertical='top')
+    for row in sheet.iter_rows(min_row=2, min_col=17, max_col=17):
         row[0].alignment = Alignment(wrap_text=True, vertical='top')
     sheet.freeze_panes = 'A2'
     sheet.auto_filter.ref = sheet.dimensions
