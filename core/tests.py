@@ -803,6 +803,21 @@ class InvoiceWorkflowTests(TestCase):
         self.assertEqual(first_invoice.order_finish_flag, Invoice.FinishFlag.UNFINISHED)
         self.assertEqual(self.order.order_status, LabOrder.Status.SCHEDULING)
 
+        draft_report = TestReport.objects.create(
+            order=self.order,
+            report_no='INVOICE-DRAFT-REPORT-001',
+            final_conclusion='报告尚未终审。',
+            report_status=TestReport.Status.DRAFT,
+        )
+        final_too_early = self.action(
+            'invoice_create',
+            report_no=draft_report.report_no,
+            invoice_no='FINAL-TOO-EARLY',
+            invoice_amount='600.00',
+        )
+        self.assertEqual(final_too_early.status_code, 400)
+        self.assertFalse(Invoice.objects.filter(invoice_no='FINAL-TOO-EARLY').exists())
+
         consume_all = self.action(
             'preinvoice_create', invoice_no='PRE-TOO-MUCH', invoice_amount='600.00',
         )
@@ -875,7 +890,32 @@ class InvoiceWorkflowTests(TestCase):
             Decimal('1000.00'),
         )
 
-    def test_preinvoice_requires_both_reviews_and_payment_can_return_to_unpaid(self):
+    def test_preinvoice_is_available_before_dual_review_and_payment_can_return_to_unpaid(self):
+        for index, status in enumerate([LabOrder.Status.PENDING_REVIEW, LabOrder.Status.REVIEW_REJECTED], start=1):
+            early_order = LabOrder.objects.create(
+                order_no=f'INVOICE-EARLY-{index:03d}',
+                customer_name='任意阶段开票客户',
+                test_demand='验证订单早期阶段可预开票。',
+                total_quote=Decimal('300.00'),
+                order_status=status,
+            )
+            self.client.force_login(self.accountant)
+            early_response = self.client.post(
+                reverse('lims_action'),
+                data={
+                    'action': 'preinvoice_create',
+                    'order_no': early_order.order_no,
+                    'invoice_no': f'PRE-EARLY-{index:03d}',
+                    'invoice_amount': '100.00',
+                },
+                content_type='application/json',
+            )
+            self.assertEqual(early_response.status_code, 200)
+            self.assertEqual(
+                Invoice.objects.get(invoice_no=f'PRE-EARLY-{index:03d}').invoice_stage,
+                Invoice.Stage.PRE_ORDER,
+            )
+
         order_without_dual_review = LabOrder.objects.create(
             order_no='INVOICE-NO-DUAL-001',
             customer_name='未双评审客户',
@@ -891,7 +931,7 @@ class InvoiceWorkflowTests(TestCase):
             review_time=timezone.now(),
         )
         self.client.force_login(self.accountant)
-        denied = self.client.post(
+        created_early = self.client.post(
             reverse('lims_action'),
             data={
                 'action': 'preinvoice_create',
@@ -901,7 +941,9 @@ class InvoiceWorkflowTests(TestCase):
             },
             content_type='application/json',
         )
-        self.assertEqual(denied.status_code, 400)
+        self.assertEqual(created_early.status_code, 200)
+        early_invoice = Invoice.objects.get(invoice_no='PRE-DENIED-001')
+        self.assertEqual(early_invoice.invoice_stage, Invoice.Stage.PRE_REVIEW)
 
         created = self.action(
             'preinvoice_create', invoice_no='PRE-PAY-001', invoice_amount='100.00', pay_status=0,

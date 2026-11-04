@@ -942,8 +942,6 @@ def _has_dual_review_pass(order):
 
 
 def _preinvoice_stage(order):
-    if not _has_dual_review_pass(order):
-        return None
     if order.order_status in [LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]:
         return None
     prefetched_reports = getattr(order, '_prefetched_objects_cache', {}).get('reports')
@@ -954,6 +952,8 @@ def _preinvoice_stage(order):
     )
     if has_approved_report:
         return None
+    if order.order_status in [LabOrder.Status.PENDING_REVIEW, LabOrder.Status.REVIEW_REJECTED]:
+        return Invoice.Stage.PRE_ORDER
     if order.order_status in [
         LabOrder.Status.RESULT_PENDING,
         LabOrder.Status.TEST_FINISHED,
@@ -3752,7 +3752,7 @@ def _action_preinvoice_create(request, payload):
         stage = _preinvoice_stage(order)
         if not stage:
             return JsonResponse(
-                {'ok': False, 'error': '该订单尚未满足双评审通过或当前不允许预开票'},
+                {'ok': False, 'error': '该订单当前不允许预开票，请确认订单未退单、未办结且尚未完成最终报告审核'},
                 status=400,
                 json_dumps_params={'ensure_ascii': False},
             )

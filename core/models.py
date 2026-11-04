@@ -630,6 +630,7 @@ class ReportAudit(TimeStampedModel):
 
 class Invoice(TimeStampedModel):
     class Stage(models.TextChoices):
+        PRE_ORDER = 'pre_order', '订单阶段预开票'
         PRE_REVIEW = 'pre_review', '评审后预开票'
         PRE_EXPERIMENT = 'pre_experiment', '实验结束后预开票'
         FINAL = 'final', '最终总开票'

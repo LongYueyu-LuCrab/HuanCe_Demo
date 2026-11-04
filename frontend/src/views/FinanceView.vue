@@ -32,7 +32,7 @@ const form = reactive({
 
 const actionMeta = computed(() => {
   const map: Record<string, { title: string; stage: string; impact: string; button: string }> = {
-    preinvoice_create: { title: '预开票', stage: '审核通过 → 预开票记录', impact: '预开票不会结束订单，系统会保留后续最终开票余额。', button: '确认预开票' },
+    preinvoice_create: { title: '阶段开票', stage: '当前订单阶段 → 阶段开票记录', impact: '阶段开票不会结束订单，系统会保留后续最终总开票余额。', button: '确认阶段开票' },
     invoice_create: { title: '最终总开票', stage: '终审通过 → 订单办结', impact: '提交后必须一次性开完剩余金额，订单进入已开票办结。', button: '确认最终开票' },
     invoice_pay: { title: '更新回款状态', stage: '已开票 → 回款记录', impact: '提交后只更新回款状态，不改变发票金额和审核结果。', button: '保存回款状态' },
     invoice_void: { title: '作废发票', stage: '已开票 → 退回待开票余额', impact: '作废会影响可开票余额，必须填写清晰的作废原因。', button: '确认作废发票' },
@@ -133,8 +133,8 @@ async function submitWorkflow() {
   <div class="page-stack">
     <InvoiceTable
       mode="preinvoice"
-      title="可预开票订单"
-      subtitle="商务与技术双评审通过后可预开票；全部实验结束后可再次预开票。"
+      title="可阶段开票订单"
+      subtitle="订单未退单、未办结且尚未完成最终报告审核时，均可阶段开票；阶段开票不推进订单流程。"
       :invoices="preinvoiceCandidates"
       :can-operate="canOperateFinance"
       @workflow="openWorkflow"

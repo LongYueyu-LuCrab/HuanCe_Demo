@@ -123,7 +123,7 @@ const invoiceQueue = computed(() => ({
         <template #default="{ row }">
           <div class="row-actions">
             <el-button size="small" plain @click="emit('detail', row)">订单详情</el-button>
-            <el-button v-if="canOperate && mode === 'preinvoice'" size="small" type="warning" plain @click="emit('workflow', 'preinvoice_create', row)">预开票</el-button>
+            <el-button v-if="canOperate && mode === 'preinvoice'" size="small" type="warning" plain @click="emit('workflow', 'preinvoice_create', row)">阶段开票</el-button>
             <el-button v-if="canOperate && mode === 'final'" size="small" type="primary" plain @click="emit('workflow', 'invoice_create', row)">最终总开票</el-button>
             <el-button v-if="canOperate && mode === 'history' && row.record_status !== 'voided'" size="small" type="success" plain @click="emit('workflow', 'invoice_pay', row)">更新回款</el-button>
             <el-button v-if="canOperate && mode === 'history' && row.can_void" size="small" type="danger" plain @click="emit('workflow', 'invoice_void', row)">作废</el-button>

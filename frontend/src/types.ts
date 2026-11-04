@@ -312,7 +312,7 @@ export type InvoiceItem = {
   customer: string
   project_name: string
   invoice_amount: string
-  invoice_stage: 'pre_review' | 'pre_experiment' | 'final'
+  invoice_stage: 'pre_order' | 'pre_review' | 'pre_experiment' | 'final'
   invoice_stage_label: string
   order_total: string
   invoiced_total: string

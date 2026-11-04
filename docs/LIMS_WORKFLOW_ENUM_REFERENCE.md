@@ -213,6 +213,7 @@ and 当前角色具备销售审核权限
 
 | 值 | 枚举 | 页面文字 |
 |---|---|---|
+| `pre_order` | `PRE_ORDER` | 订单阶段预开票 |
 | `pre_review` | `PRE_REVIEW` | 评审后预开票 |
 | `pre_experiment` | `PRE_EXPERIMENT` | 实验结束后预开票 |
 | `final` | `FINAL` | 最终总开票 |
