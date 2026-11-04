@@ -33,7 +33,7 @@ Git 提交号：a15bdee5a42ff912a58e870052f7d84a1ae516e9
 1. Django `check` 通过；core 测试 90 项全部通过，包含多笔回款累计、超额拦截和非会计 403 权限测试。
 2. frontend TypeScript 检查与 Vite 生产构建通过；仅有依赖包既有 Rolldown 注释和 chunk 体积提示。
 3. Impeccable UI 机械检测通过，无新增问题。
-部署状态：代码已提交 Git；待部署生产环境。
+部署状态：已推送 GitHub Main_V2，并部署到生产环境；服务器备份目录为 `/opt/huance/backups/release-20261104-order-payments/`，迁移 `core.0023_orderpayment` 已应用，`huance` 与 `nginx` 均 active，生产首页和 `/api/health/` 均 HTTP 200。
 署名：GPT二号
 
 日期：2026-11-03
