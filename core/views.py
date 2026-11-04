@@ -23,7 +23,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabDevice, LabOrder, LabStaffProfile, OrderDocument, OutsourceRequirement, ReportAudit, Sample, SamplePhoto, SchedulePlan, TestReport, TestStandard, WorkflowEvent
+from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabDevice, LabOrder, LabStaffProfile, OrderDocument, OrderPayment, OutsourceRequirement, ReportAudit, Sample, SamplePhoto, SchedulePlan, TestReport, TestStandard, WorkflowEvent
 from .report_pdf import build_test_report_pdf
 
 
@@ -275,17 +275,9 @@ def _orders_for_user(user):
         query |= Q()
         return orders
     if ROLE_ACCOUNTING in roles:
-        business_pass_orders = BusinessReview.objects.filter(
-            review_result=True,
-            biz_review_user__isnull=False,
-        ).values('order_id')
-        tech_pass_orders = BusinessReview.objects.filter(
-            review_result=True,
-            tech_review_user__isnull=False,
-        ).values('order_id')
-        query |= (
-            Q(id__in=business_pass_orders) & Q(id__in=tech_pass_orders)
-        ) | Q(invoices__isnull=False)
+        # 会计需要在订单任意节点登记阶段开票和回款，因此可查看全部订单；
+        # 具体写入动作仍由各自的会计角色校验保护。
+        return orders
 
     if not query:
         return orders.none()
@@ -807,6 +799,10 @@ def _order_payload(order, include_sample_records=False, viewer=None):
         payload['experiment_records'] = _experiment_lifecycle_payload(order)
         payload['report_records'] = [_report_payload(report) for report in order.reports.all()]
         payload['workflow_progress'] = _workflow_progress_payload(order)
+    if viewer and _can_view_finance(viewer):
+        payment_summary = _order_payment_payload(order)
+        payload['payment_total'] = payment_summary['paid_total']
+        payload['payment_records'] = payment_summary['payments']
     return payload
 
 
@@ -860,6 +856,11 @@ def order_detail(request, order_no):
             Prefetch('schedules', queryset=schedule_queryset),
             Prefetch('reports', queryset=report_queryset),
             Prefetch('invoices', queryset=Invoice.objects.select_related('finance_user', 'report')),
+            Prefetch(
+                'payments',
+                queryset=OrderPayment.objects.select_related('order', 'accounting_user').order_by('-payment_date', '-create_time', '-id'),
+                to_attr='ordered_payments',
+            ),
         ).get(order_no=order_no)
     except LabOrder.DoesNotExist:
         return JsonResponse(
@@ -1024,6 +1025,45 @@ def _invoice_payload(invoice, current_user=None):
         'voided_at': _display_datetime(invoice.voided_at),
         'void_reason': invoice.void_reason,
         'experiment_result_status': _experiment_finance_status(order),
+    }
+
+
+def _payment_payload(payment):
+    return {
+        'id': payment.id,
+        'order_no': payment.order.order_no,
+        'amount': str(payment.amount),
+        'payment_date': _display_datetime(payment.payment_date),
+        'accounting_user': _display_user(payment.accounting_user),
+        'remark': payment.remark,
+        'created_at': _display_datetime(payment.create_time),
+    }
+
+
+def _order_payment_payload(order):
+    payments = getattr(order, 'ordered_payments', None)
+    if payments is None:
+        payments = list(order.payments.select_related('accounting_user').all())
+    total_paid = sum((payment.amount for payment in payments), Decimal('0.00'))
+    remaining = max(Decimal('0.00'), order.total_quote - total_paid)
+    if total_paid <= 0:
+        payment_status = '未回款'
+    elif remaining <= 0:
+        payment_status = '已回款'
+    else:
+        payment_status = '部分回款'
+    return {
+        'order_no': order.order_no,
+        'customer': order.customer_name,
+        'project_name': order.project_name,
+        'order_status': order.get_order_status_display(),
+        'order_status_key': order.order_status,
+        'order_total': str(order.total_quote),
+        'paid_total': str(total_paid),
+        'remaining_total': str(remaining),
+        'payment_status': payment_status,
+        'payment_count': len(payments),
+        'payments': [_payment_payload(payment) for payment in payments],
     }
 
 
@@ -1496,6 +1536,13 @@ def _require_auth(request):
 def _require_role(user, *roles):
     if not _has_any_role(user, *roles):
         return JsonResponse({'ok': False, 'error': '当前岗位无权执行此操作'}, status=403, json_dumps_params={'ensure_ascii': False})
+    return None
+
+
+def _require_accounting(user):
+    """财务写操作只允许明确的会计岗位，不沿用管理岗位越权。"""
+    if ROLE_ACCOUNTING not in set(_roles(user)):
+        return JsonResponse({'ok': False, 'error': '只有会计岗位可以执行财务操作'}, status=403, json_dumps_params={'ensure_ascii': False})
     return None
 
 
@@ -2658,6 +2705,7 @@ def lims_action(request):
         'report_gm_pass': _action_report_gm_pass,
         'report_gm_reject': _action_report_gm_reject,
         'preinvoice_create': _action_preinvoice_create,
+        'payment_create': _action_payment_create,
         'invoice_create': _action_invoice_create,
         'invoice_pay': _action_invoice_pay,
         'invoice_void': _action_invoice_void,
@@ -3740,7 +3788,7 @@ def _invoice_payment_status(payload):
 
 
 def _action_preinvoice_create(request, payload):
-    role_error = _require_role(request.user, ROLE_ACCOUNTING)
+    role_error = _require_accounting(request.user)
     if role_error:
         return role_error
     order, error = _get_order(payload)
@@ -3802,8 +3850,62 @@ def _action_preinvoice_create(request, payload):
     return JsonResponse({'ok': True, 'message': '预开票已记录，订单继续原流程', 'invoice': _invoice_payload(invoice)}, json_dumps_params={'ensure_ascii': False})
 
 
+def _action_payment_create(request, payload):
+    role_error = _require_accounting(request.user)
+    if role_error:
+        return role_error
+    order, error = _get_order(payload)
+    if error:
+        return error
+    if order.order_status == LabOrder.Status.CANCELLED:
+        return JsonResponse({'ok': False, 'error': '退单不能登记回款'}, status=400, json_dumps_params={'ensure_ascii': False})
+    raw_amount = payload.get('payment_amount')
+    try:
+        amount = Decimal(str(raw_amount)).quantize(Decimal('0.01'))
+    except (InvalidOperation, TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': '回款金额格式不正确'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if amount <= 0:
+        return JsonResponse({'ok': False, 'error': '回款金额必须大于 0'}, status=400, json_dumps_params={'ensure_ascii': False})
+    payment_date = _parse_datetime(payload.get('payment_date')) or timezone.now()
+    remark = str(payload.get('payment_remark') or '').strip()
+    with transaction.atomic():
+        order = LabOrder.objects.select_for_update().get(pk=order.pk)
+        paid_total = order.payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        remaining = order.total_quote - paid_total
+        if amount > remaining:
+            return JsonResponse(
+                {'ok': False, 'error': f'累计回款不能超过订单总金额，当前可回款余额为 {max(remaining, Decimal("0.00")):.2f} 元'},
+                status=400,
+                json_dumps_params={'ensure_ascii': False},
+            )
+        payment = OrderPayment.objects.create(
+            order=order,
+            amount=amount,
+            payment_date=payment_date,
+            accounting_user=request.user,
+            remark=remark,
+        )
+        _event(
+            order,
+            request.user,
+            f'登记订单回款：{amount:.2f} 元，回款时间 {_display_datetime(payment_date)}',
+            action_code='finance_order_payment_create',
+            changes={
+                'payment_amount': _audit_change('本次回款', '0.00', amount),
+                'paid_total': _audit_change('累计回款', paid_total, paid_total + amount),
+                'remaining_payment': _audit_change('待回款余额', remaining, remaining - amount),
+                'payment_date': _audit_change('回款时间', '', _display_datetime(payment_date)),
+            },
+        )
+    payment.order = order
+    return JsonResponse(
+        {'ok': True, 'message': '回款已登记', 'payment': _payment_payload(payment), 'payment_summary': _order_payment_payload(order)},
+        json_dumps_params={'ensure_ascii': False},
+    )
+
+
 def _action_invoice_create(request, payload):
-    role_error = _require_role(request.user, ROLE_ACCOUNTING)
+    role_error = _require_accounting(request.user)
     if role_error:
         return role_error
     report, error = _get_report(payload)
@@ -3868,7 +3970,7 @@ def _action_invoice_create(request, payload):
 
 
 def _action_invoice_pay(request, payload):
-    role_error = _require_role(request.user, ROLE_ACCOUNTING)
+    role_error = _require_accounting(request.user)
     if role_error:
         return role_error
     invoice_no = (payload.get('invoice_no') or '').strip()
@@ -3897,7 +3999,7 @@ def _action_invoice_pay(request, payload):
 
 
 def _action_invoice_void(request, payload):
-    role_error = _require_role(request.user, ROLE_ACCOUNTING)
+    role_error = _require_accounting(request.user)
     if role_error:
         return role_error
     invoice_no = (payload.get('invoice_no') or '').strip()
@@ -4011,6 +4113,7 @@ def lims_dashboard(request):
     can_view_finance = _can_view_finance(request.user)
     finance_order_ids = []
     preinvoice_candidate_orders = []
+    payment_orders = []
     if can_view_finance:
         preinvoice_scope = related_orders.filter(order_status__in=[
             LabOrder.Status.SCHEDULING,
@@ -4035,6 +4138,16 @@ def lims_dashboard(request):
         ) + list(
             Invoice.objects.filter(order__in=related_orders).values_list('order_id', flat=True)
         ) + [order.id for order in preinvoice_candidate_orders]
+        payment_scope = related_orders.exclude(
+            order_status=LabOrder.Status.CANCELLED,
+        ).prefetch_related(
+            Prefetch(
+                'payments',
+                queryset=OrderPayment.objects.select_related('accounting_user').order_by('-payment_date', '-create_time', '-id'),
+                to_attr='ordered_payments',
+            ),
+        ).order_by('-update_time', '-create_time')
+        payment_orders = [_order_payment_payload(order) for order in payment_scope[:list_limit]]
     finance_orders = [
         _order_payload(order, viewer=request.user)
         for order in related_orders.filter(id__in=finance_order_ids).distinct().order_by('-create_time')
@@ -4214,6 +4327,7 @@ def lims_dashboard(request):
             ],
             'pending_invoices': [_pending_final_invoice_payload(report) for report in _limit_queryset(pending_invoice_reports, list_limit)],
             'issued_invoices': [_invoice_payload(invoice, request.user) for invoice in _limit_queryset(invoices, list_limit)],
+            'payment_orders': payment_orders,
         },
         'roles': _roles(request.user),
     }

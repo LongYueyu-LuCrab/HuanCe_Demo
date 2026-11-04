@@ -9,6 +9,7 @@ from .models import (
     LabStaffProfile,
     LabOrder,
     OrderDocument,
+    OrderPayment,
     OutsourceRequirement,
     ReportAudit,
     Sample,
@@ -296,6 +297,14 @@ class InvoiceAdmin(admin.ModelAdmin):
     list_display = ('invoice_no', 'order', 'invoice_stage', 'record_status', 'report', 'invoice_amount', 'invoice_type', 'pay_status', 'order_finish_flag')
     list_filter = ('invoice_stage', 'record_status', 'invoice_type', 'pay_status', 'order_finish_flag')
     search_fields = ('invoice_no', 'order__order_no', 'report__report_no')
+
+
+@admin.register(OrderPayment)
+class OrderPaymentAdmin(admin.ModelAdmin):
+    list_display = ('order', 'amount', 'payment_date', 'accounting_user', 'remark', 'create_time')
+    list_filter = ('payment_date',)
+    search_fields = ('order__order_no', 'order__customer_name', 'remark', 'accounting_user__username')
+    readonly_fields = ('create_time', 'update_time')
 
 
 @admin.register(TestStandard)

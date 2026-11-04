@@ -20,6 +20,7 @@ from .models import (
     LabOrder,
     LabStaffProfile,
     OrderDocument,
+    OrderPayment,
     OutsourceRequirement,
     ReportAudit,
     Sample,
@@ -783,6 +784,54 @@ class InvoiceWorkflowTests(TestCase):
         response = self.client.get(reverse('lims_dashboard'))
         self.assertEqual(response.status_code, 200)
         return response.json()
+
+    def test_order_payments_support_multiple_records_and_accounting_only(self):
+        first = self.action(
+            'payment_create',
+            payment_amount='200.00',
+            payment_date='2026-11-04 10:00:00',
+            payment_remark='预付款',
+        )
+        self.assertEqual(first.status_code, 200)
+        second = self.action(
+            'payment_create',
+            payment_amount='300.00',
+            payment_date='2026-11-05 11:30:00',
+            payment_remark='阶段回款',
+        )
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(OrderPayment.objects.filter(order=self.order).count(), 2)
+
+        summary = next(
+            item for item in self.dashboard()['finance']['payment_orders']
+            if item['order_no'] == self.order.order_no
+        )
+        self.assertEqual(summary['paid_total'], '500.00')
+        self.assertEqual(summary['remaining_total'], '500.00')
+        self.assertEqual(summary['payment_status'], '部分回款')
+        self.assertEqual(summary['payment_count'], 2)
+        self.assertEqual(summary['payments'][0]['remark'], '阶段回款')
+
+        over_limit = self.action(
+            'payment_create',
+            payment_amount='500.01',
+            payment_date='2026-11-06 12:00:00',
+        )
+        self.assertEqual(over_limit.status_code, 400)
+        self.assertEqual(OrderPayment.objects.filter(order=self.order).count(), 2)
+
+        self.client.force_login(self.business)
+        denied = self.client.post(
+            reverse('lims_action'),
+            data={
+                'action': 'payment_create',
+                'order_no': self.order.order_no,
+                'payment_amount': '1.00',
+                'payment_date': '2026-11-07 12:00:00',
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(denied.status_code, 403)
 
     def test_preinvoices_do_not_close_order_and_final_invoice_closes_it(self):
         initial = self.dashboard()['finance']['preinvoice_candidates']

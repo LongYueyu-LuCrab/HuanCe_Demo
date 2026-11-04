@@ -331,6 +331,30 @@ export type InvoiceItem = {
   experiment_result_status: string
 }
 
+export type PaymentRecord = {
+  id: number
+  order_no: string
+  amount: string
+  payment_date: string
+  accounting_user: string
+  remark: string
+  created_at: string
+}
+
+export type PaymentOrderItem = {
+  order_no: string
+  customer: string
+  project_name: string
+  order_status: string
+  order_status_key: number
+  order_total: string
+  paid_total: string
+  remaining_total: string
+  payment_status: string
+  payment_count: number
+  payments: PaymentRecord[]
+}
+
 export type Dashboard = {
   company: string
   system: string
@@ -369,6 +393,7 @@ export type Dashboard = {
     preinvoice_candidates: InvoiceItem[]
     pending_invoices: InvoiceItem[]
     issued_invoices: InvoiceItem[]
+    payment_orders: PaymentOrderItem[]
   }
 }
 

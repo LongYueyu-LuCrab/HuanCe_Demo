@@ -5,15 +5,14 @@ import InvoiceTable from '../components/InvoiceTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
 import { fetchOrderDetail, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
-import type { InvoiceItem, OrderItem } from '../types'
+import type { InvoiceItem, OrderItem, PaymentOrderItem } from '../types'
 
 const session = useSession()
 const preinvoiceCandidates = computed(() => session.state.dashboard?.finance?.preinvoice_candidates ?? [])
 const pendingInvoices = computed(() => session.state.dashboard?.finance?.pending_invoices ?? [])
 const issuedInvoices = computed(() => session.state.dashboard?.finance?.issued_invoices ?? [])
-const canOperateFinance = computed(() => Boolean(
-  session.state.user?.is_chairman || session.state.user?.roles?.includes('会计'),
-))
+const paymentOrders = computed(() => session.state.dashboard?.finance?.payment_orders ?? [])
+const canOperateFinance = computed(() => Boolean(session.state.user?.roles?.includes('会计')))
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const activeAction = ref('')
@@ -21,6 +20,10 @@ const activeInvoice = ref<InvoiceItem | null>(null)
 const activeOrder = ref<OrderItem | null>(null)
 const orderLoading = ref(false)
 const detailDrawerVisible = ref(false)
+const paymentDialogVisible = ref(false)
+const paymentDetailVisible = ref(false)
+const paymentSubmitting = ref(false)
+const activePaymentOrder = ref<PaymentOrderItem | null>(null)
 const form = reactive({
   invoice_no: '',
   invoice_amount: '',
@@ -28,6 +31,9 @@ const form = reactive({
   invoice_date: '',
   pay_status: 0,
   void_reason: '',
+  payment_amount: '',
+  payment_date: '',
+  payment_remark: '',
 })
 
 const actionMeta = computed(() => {
@@ -70,6 +76,51 @@ async function loadOrderContext(orderNo: string) {
 function openOrderDetail(invoice: InvoiceItem) {
   detailDrawerVisible.value = true
   void loadOrderContext(invoice.order_no)
+}
+
+function openPayment(order: PaymentOrderItem) {
+  activePaymentOrder.value = order
+  Object.assign(form, { payment_amount: '', payment_date: '', payment_remark: '' })
+  paymentDialogVisible.value = true
+}
+
+function openPaymentDetails(order: PaymentOrderItem) {
+  activePaymentOrder.value = order
+  paymentDetailVisible.value = true
+}
+
+async function submitPayment() {
+  if (!activePaymentOrder.value) return
+  const amount = Number(form.payment_amount)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    ElMessage.warning('请填写大于 0 的回款金额')
+    return
+  }
+  if (amount > Number(activePaymentOrder.value.remaining_total)) {
+    ElMessage.warning(`本次回款不能超过待回款余额 ${activePaymentOrder.value.remaining_total} 元`)
+    return
+  }
+  if (!form.payment_date) {
+    ElMessage.warning('请选择回款时间')
+    return
+  }
+  paymentSubmitting.value = true
+  try {
+    await workflowAction({
+      action: 'payment_create',
+      order_no: activePaymentOrder.value.order_no,
+      payment_amount: form.payment_amount,
+      payment_date: form.payment_date,
+      payment_remark: form.payment_remark,
+    })
+    ElMessage.success('回款已登记，累计金额已更新')
+    paymentDialogVisible.value = false
+    await session.refreshDashboard()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '回款登记失败')
+  } finally {
+    paymentSubmitting.value = false
+  }
 }
 
 async function submitWorkflow() {
@@ -140,6 +191,46 @@ async function submitWorkflow() {
       @workflow="openWorkflow"
       @detail="openOrderDetail"
     />
+
+    <el-card shadow="never" class="hc-card">
+      <template #header>
+        <div class="card-heading">
+          <div>
+            <h2>订单回款</h2>
+            <p>回款不依赖开票，订单任意节点均可登记；同一订单支持多次回款并累计展示。</p>
+          </div>
+        </div>
+      </template>
+      <el-table :data="paymentOrders" max-height="min(420px, calc(100vh - 320px))" empty-text="暂无可登记回款的订单">
+        <el-table-column label="订单 / 客户" min-width="240">
+          <template #default="{ row }">
+            <div class="cell-main">{{ row.order_no }}</div>
+            <div class="cell-sub">{{ row.customer }} · {{ row.project_name || '未填写项目' }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="订单状态" min-width="150">
+          <template #default="{ row }">
+            <div class="cell-main">{{ row.order_status }}</div>
+            <div class="cell-sub">{{ row.payment_status }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="金额" min-width="240">
+          <template #default="{ row }">
+            <div class="cell-main">已回款 {{ row.paid_total }} 元</div>
+            <div class="cell-sub">订单 {{ row.order_total }} · 待回款 {{ row.remaining_total }} 元</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="回款笔数" min-width="100" prop="payment_count" />
+        <el-table-column label="财务操作" fixed="right" min-width="220">
+          <template #default="{ row }">
+            <div class="row-actions">
+              <el-button v-if="canOperateFinance" size="small" type="primary" plain @click="openPayment(row)">登记回款</el-button>
+              <el-button size="small" plain @click="openPaymentDetails(row)">回款细节</el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
     <InvoiceTable
       mode="final"
       title="待最终总开票"
@@ -215,5 +306,35 @@ async function submitWorkflow() {
     <el-drawer v-model="detailDrawerVisible" title="订单详情" size="min(720px, 94vw)">
       <OrderSnapshot :order="activeOrder" :loading="orderLoading" title="财务核对订单信息" />
     </el-drawer>
+
+    <el-dialog v-model="paymentDialogVisible" title="登记回款" width="min(620px, 92vw)">
+      <div v-if="activePaymentOrder" class="action-dialog-context">
+        <div><strong>{{ activePaymentOrder.order_no }}</strong><span>{{ activePaymentOrder.customer }} · {{ activePaymentOrder.project_name }}</span></div>
+        <div class="action-dialog-step"><span>当前累计回款</span><strong>{{ activePaymentOrder.paid_total }} 元</strong><small>本次最多可登记 {{ activePaymentOrder.remaining_total }} 元</small></div>
+      </div>
+      <el-form label-position="top" class="form-grid mt-16">
+        <el-form-item label="本次回款金额" required><el-input v-model="form.payment_amount" type="number" placeholder="例如：200000" /></el-form-item>
+        <el-form-item label="回款时间" required><el-date-picker v-model="form.payment_date" value-format="YYYY-MM-DD HH:mm:ss" type="datetime" placeholder="请选择实际到账时间" /></el-form-item>
+        <el-form-item label="回款备注" class="form-wide"><el-input v-model="form.payment_remark" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="可填写付款方、凭证号等说明" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="paymentDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="paymentSubmitting" @click="submitPayment">保存回款</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="paymentDetailVisible" title="回款细节" width="min(760px, 92vw)">
+      <div v-if="activePaymentOrder" class="action-dialog-context mb-16">
+        <div><strong>{{ activePaymentOrder.order_no }}</strong><span>{{ activePaymentOrder.customer }} · {{ activePaymentOrder.project_name }}</span></div>
+        <div class="action-dialog-step"><span>累计回款</span><strong>{{ activePaymentOrder.paid_total }} 元</strong><small>共 {{ activePaymentOrder.payment_count }} 笔，待回款 {{ activePaymentOrder.remaining_total }} 元</small></div>
+      </div>
+      <el-table v-if="activePaymentOrder?.payments.length" :data="activePaymentOrder.payments" empty-text="暂无回款记录">
+        <el-table-column prop="payment_date" label="回款时间" min-width="170" />
+        <el-table-column label="回款金额" min-width="140"><template #default="{ row }">{{ row.amount }} 元</template></el-table-column>
+        <el-table-column prop="accounting_user" label="登记会计" min-width="120" />
+        <el-table-column prop="remark" label="备注" min-width="220" />
+      </el-table>
+      <el-empty v-else description="暂无回款记录" :image-size="64" />
+    </el-dialog>
   </div>
 </template>

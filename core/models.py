@@ -689,6 +689,38 @@ class Invoice(TimeStampedModel):
         return self.invoice_no
 
 
+class OrderPayment(TimeStampedModel):
+    order = models.ForeignKey(
+        LabOrder,
+        verbose_name='销售订单',
+        on_delete=models.CASCADE,
+        related_name='payments',
+    )
+    amount = models.DecimalField('回款金额', max_digits=12, decimal_places=2)
+    payment_date = models.DateTimeField('回款时间', default=timezone.now)
+    accounting_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='登记会计',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lims_order_payments',
+    )
+    remark = models.CharField('回款备注', max_length=500, blank=True)
+
+    class Meta:
+        db_table = 'lims_order_payment'
+        verbose_name = '订单回款记录'
+        verbose_name_plural = '订单回款记录'
+        ordering = ['-payment_date', '-create_time', '-id']
+        indexes = [
+            models.Index(fields=['order', '-payment_date'], name='idx_payment_order_date'),
+        ]
+
+    def __str__(self):
+        return f'{self.order.order_no} - {self.amount:.2f}'
+
+
 class TestStandard(TimeStampedModel):
     industry = models.CharField('行业分类', max_length=64)
     standard_code = models.CharField('标准编号', max_length=100)
