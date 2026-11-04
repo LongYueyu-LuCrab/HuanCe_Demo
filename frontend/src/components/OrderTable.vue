@@ -38,10 +38,10 @@ const orderLoading = ref(false)
 
 const filteredOrders = computed(() => {
   if (props.remote) return props.orders
+  const filters = advancedFilters.value
   const value = keyword.value.trim().toLowerCase()
-  if (!value) return props.orders
-  return props.orders.filter((order) =>
-    [
+  return props.orders.filter((order) => {
+    const matchesKeyword = !value || [
       order.order_no,
       order.customer,
       order.contact,
@@ -62,8 +62,19 @@ const filteredOrders = computed(() => {
       .filter(Boolean)
       .join(' ')
       .toLowerCase()
-      .includes(value),
-  )
+      .includes(value)
+    const matchesStatus = !filters.order_status || String(order.status_key) === String(filters.order_status)
+    const matchesAttribute = !filters.execution_attribute || (filters.execution_attribute === 'autonomous' ? order.execution_attributes.includes('自主') : order.execution_attributes.includes('委外'))
+    const matchesUrgent = !filters.urgent || (filters.urgent === '1' ? order.is_urgent : !order.is_urgent)
+    return matchesKeyword && matchesStatus && matchesAttribute && matchesUrgent
+  })
+})
+
+const effectiveFilterOptions = computed(() => {
+  if (props.filterOptions) return props.filterOptions
+  const statuses = Array.from(new Map(props.orders.map((item) => [item.status_key, item.status])).entries()).map(([value, label]) => ({ value, label }))
+  const attributes = Array.from(new Set(props.orders.flatMap((item) => item.execution_attributes))).map((value) => ({ value: value === '自主' ? 'autonomous' : 'outsource', label: value }))
+  return { statuses, execution_attributes: attributes, urgent: props.orders.some((item) => item.is_urgent) }
 })
 
 const pagedOrders = computed(() => {
@@ -226,7 +237,7 @@ function actionsFor(order: OrderItem) {
           <h2>{{ title || '订单列表' }}</h2>
           <p>{{ subtitle || '按订单号、客户、项目、状态检索，并查看订单详情。' }}</p>
         </div>
-        <AdvancedOrderFilter kind="orders" :model-value="advancedFilters" :options="filterOptions" @apply="applyFilters" @reset="resetFilters" />
+        <AdvancedOrderFilter kind="orders" :model-value="advancedFilters" :options="effectiveFilterOptions" @apply="applyFilters" @reset="resetFilters" />
       </div>
     </template>
 
