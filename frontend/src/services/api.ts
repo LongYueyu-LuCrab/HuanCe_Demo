@@ -90,6 +90,24 @@ export async function exportSalesManagerOrders(query: SalesOrderQuery): Promise<
   URL.revokeObjectURL(url)
 }
 
+export async function exportFinanceOrders(query: Pick<SalesOrderQuery, 'keyword' | 'order_status'> = {}): Promise<void> {
+  const response = await fetch(`/api/finance/orders/export/?${salesOrderParams(query)}`, { credentials: 'include' })
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.error || '导出失败')
+  }
+  const blob = await response.blob()
+  const disposition = response.headers.get('Content-Disposition') || ''
+  const match = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+  const filename = match ? decodeURIComponent(match[1]) : '财务订单回款.xlsx'
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
 export type CreateOrderPayload = {
   customer_name: string
   contact_name: string

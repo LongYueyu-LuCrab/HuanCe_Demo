@@ -3,7 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import InvoiceTable from '../components/InvoiceTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
-import { fetchOrderDetail, workflowAction } from '../services/api'
+import { exportFinanceOrders, fetchOrderDetail, workflowAction } from '../services/api'
 import { useSession } from '../stores/session'
 import type { InvoiceItem, OrderItem, PaymentOrderItem } from '../types'
 
@@ -23,6 +23,7 @@ const detailDrawerVisible = ref(false)
 const paymentDialogVisible = ref(false)
 const paymentDetailVisible = ref(false)
 const paymentSubmitting = ref(false)
+const exportingOrders = ref(false)
 const activePaymentOrder = ref<PaymentOrderItem | null>(null)
 const form = reactive({
   invoice_no: '',
@@ -123,6 +124,18 @@ async function submitPayment() {
   }
 }
 
+async function exportPaymentOrders() {
+  exportingOrders.value = true
+  try {
+    await exportFinanceOrders()
+    ElMessage.success('财务订单回款 Excel 已生成')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '导出失败')
+  } finally {
+    exportingOrders.value = false
+  }
+}
+
 async function submitWorkflow() {
   if (!activeInvoice.value) return
   if (!['invoice_pay', 'invoice_void'].includes(activeAction.value) && (!form.invoice_amount || Number(form.invoice_amount) <= 0)) {
@@ -199,6 +212,7 @@ async function submitWorkflow() {
             <h2>订单回款</h2>
             <p>回款不依赖开票，订单任意节点均可登记；同一订单支持多次回款并累计展示。</p>
           </div>
+          <el-button type="primary" plain :loading="exportingOrders" @click="exportPaymentOrders">导出财务订单回款</el-button>
         </div>
       </template>
       <el-table :data="paymentOrders" max-height="min(420px, calc(100vh - 320px))" empty-text="暂无可登记回款的订单">

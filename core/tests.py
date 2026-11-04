@@ -812,6 +812,15 @@ class InvoiceWorkflowTests(TestCase):
         self.assertEqual(summary['payment_count'], 2)
         self.assertEqual(summary['payments'][0]['remark'], '阶段回款')
 
+        exported = self.client.get(reverse('finance_orders_export'))
+        self.assertEqual(exported.status_code, 200)
+        workbook = load_workbook(BytesIO(exported.content), read_only=True)
+        rows = list(workbook.active.iter_rows(values_only=True))
+        self.assertEqual(rows[0][-3:], ('回款状态', '回款笔数', '回款明细'))
+        self.assertEqual(rows[1][6:10], (500.0, 500.0, '部分回款', 2))
+        self.assertIn('2026-11-05 11:30', rows[1][10])
+        self.assertIn('300.00 元', rows[1][10])
+
         over_limit = self.action(
             'payment_create',
             payment_amount='500.01',

@@ -2330,6 +2330,90 @@ def sales_manager_orders_export(request):
     return response
 
 
+def finance_orders_export(request):
+    """导出财务订单总表：一笔订单一行，回款明细在单元格内换行展示。"""
+    if request.method != 'GET':
+        return HttpResponseNotAllowed(['GET'])
+    auth_error = _require_auth(request)
+    if auth_error:
+        return auth_error
+    if not _can_view_finance(request.user) or ROLE_ACCOUNTING not in set(_roles(request.user)):
+        return JsonResponse({'ok': False, 'error': '仅会计可以导出包含回款信息的订单表'}, status=403, json_dumps_params={'ensure_ascii': False})
+
+    orders = _orders_for_user(request.user).exclude(
+        order_status=LabOrder.Status.CANCELLED,
+    ).prefetch_related(
+        Prefetch(
+            'payments',
+            queryset=OrderPayment.objects.select_related('accounting_user').order_by('-payment_date', '-create_time', '-id'),
+            to_attr='ordered_payments',
+        ),
+    ).order_by('-create_time', '-id')
+    keyword = (request.GET.get('keyword') or '').strip()
+    if keyword:
+        orders = orders.filter(
+            Q(order_no__icontains=keyword)
+            | Q(customer_name__icontains=keyword)
+            | Q(project_name__icontains=keyword)
+        )
+    try:
+        status = request.GET.get('order_status')
+        if status not in (None, ''):
+            orders = orders.filter(order_status=int(status))
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': '订单状态筛选值不正确'}, status=400, json_dumps_params={'ensure_ascii': False})
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = '财务订单回款'
+    headers = [
+        '序号', '订单号', '客户名称', '项目名称', '订单状态', '订单报价',
+        '累计回款', '待回款', '回款状态', '回款笔数', '回款明细',
+    ]
+    sheet.append(headers)
+    header_fill = PatternFill('solid', fgColor='1F4E78')
+    for cell in sheet[1]:
+        cell.fill = header_fill
+        cell.font = Font(color='FFFFFF', bold=True)
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    for index, order in enumerate(orders.iterator(chunk_size=500), start=1):
+        payment_summary = _order_payment_payload(order)
+        payment_lines = [
+            f"{payment['payment_date']}｜{payment['amount']} 元｜{payment['remark'] or '无备注'}"
+            for payment in payment_summary['payments']
+        ]
+        sheet.append([
+            index,
+            order.order_no,
+            order.customer_name,
+            order.project_name,
+            order.get_order_status_display(),
+            float(order.total_quote),
+            float(payment_summary['paid_total']),
+            float(payment_summary['remaining_total']),
+            payment_summary['payment_status'],
+            payment_summary['payment_count'],
+            '\n'.join(payment_lines),
+        ])
+    widths = [8, 22, 28, 32, 18, 16, 16, 16, 14, 12, 64]
+    for column, width in enumerate(widths, start=1):
+        sheet.column_dimensions[get_column_letter(column)].width = width
+    for row in sheet.iter_rows(min_row=2, min_col=11, max_col=11):
+        row[0].alignment = Alignment(wrap_text=True, vertical='top')
+    sheet.freeze_panes = 'A2'
+    sheet.auto_filter.ref = sheet.dimensions
+    output = BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    filename = f'财务订单回款_{date.today().isoformat()}.xlsx'
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+    return response
+
+
 ORDER_DOCUMENT_EXTENSIONS = {'.doc', '.docx', '.pdf', '.jpg', '.jpeg', '.png'}
 ORDER_DOCUMENT_MAX_SIZE = 20 * 1024 * 1024
 ORDER_DOCUMENT_TOTAL_MAX_SIZE = 40 * 1024 * 1024
