@@ -18,6 +18,24 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 部署状态：未部署 / 已部署到测试环境 / 已部署到生产环境；如未部署必须明确写明
 署名：GPT二号
 
+日期：2026-11-12
+提交说明：修复生产环境前后端不同步，重新部署实验室角色金额与合同隐藏功能
+变更范围：生产部署、前端静态资源、实验室角色订单详情权限展示
+具体改动：
+1. 定位到生产环境后端源码已包含金额隐藏逻辑，但 Nginx 实际加载的前端静态包仍停留在 2026-11-04 的旧构建。
+2. 重新执行 TypeScript 检查和 Vite 生产构建，生成包含 can_view_amounts 权限字段的新前端资源。
+3. 同步 core/views.py、static/frontend 构建产物并执行 collectstatic；未覆盖生产数据库、.env、用户上传媒体和 Nginx 配置。
+4. 更新生产部署标记为 c46dd7b462b16dfa0f69a483d1c4a17286c2261c，并重启 huance.service。
+影响范围：实验室负责人、实验操作员及其他实验室角色的订单详情金额和合同展示；不改变业务流程、订单数据和角色权限模型。
+验证结果：
+1. TypeScript 检查通过，Vite 生产构建通过；仅有既有依赖注释和 chunk 体积提示。
+2. 生产 /login 返回 HTTP 200，/api/health/ 返回 HTTP 200。
+3. 生产当前 index.html 已引用新构建 index-Cas2CsR3.js，静态资源中已包含 can_view_amounts。
+4. 生产 huance.service 重启后状态为 active。
+部署状态：已部署到生产环境，待本次提交推送 GitHub Main_V2。
+部署备份：/opt/huance/backups/release-20261111-235921/app_before.tar.gz。
+署名：GPT二号
+
 日期：2026-11-11
 Git 提交号：e061ea00cae4e272850aba2a8a41405196dee120
 提交说明：隔离实验室角色的订单金额信息
