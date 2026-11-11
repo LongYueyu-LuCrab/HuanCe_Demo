@@ -30,7 +30,7 @@ Git 提交号：e061ea00cae4e272850aba2a8a41405196dee120
 5. 新增金额权限回归测试，验证实验室负责人不可见金额、销售仍可见金额。
 影响范围：实验室岗位只能处理实验执行相关信息，无法通过页面或接口查看订单金额；财务、销售和商务的原有金额业务不变。
 验证结果：Django `core` 测试 93 项全部通过；frontend TypeScript 检查通过；Vite 生产构建通过；Impeccable 检测无问题。构建仅有依赖包既有 Rolldown 注释和 chunk 体积提示。
-部署状态：待部署生产环境。
+部署状态：已部署生产环境；服务器应用与 PostgreSQL 已备份，前后端资源已同步，静态资源已收集；`huance`、`nginx` 均 active，HTTPS `/login` 与 `/api/health/` 均返回 200。
 署名：GPT二号
 
 日期：2026-11-04
