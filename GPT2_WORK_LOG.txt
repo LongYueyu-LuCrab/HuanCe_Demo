@@ -32,7 +32,8 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 2. 生产 /login 返回 HTTP 200，/api/health/ 返回 HTTP 200。
 3. 生产当前 index.html 已引用新构建 index-Cas2CsR3.js，静态资源中已包含 can_view_amounts。
 4. 生产 huance.service 重启后状态为 active。
-部署状态：已部署到生产环境，待本次提交推送 GitHub Main_V2。
+部署状态：已部署到生产环境，已推送 GitHub Main_V2。
+Git 提交号：68a435e（完整提交：68a435e）
 部署备份：/opt/huance/backups/release-20261111-235921/app_before.tar.gz。
 署名：GPT二号
 
