@@ -45,6 +45,7 @@ export type OrderItem = {
   updated_at?: string
   remark?: string
   can_view_contracts: boolean
+  can_view_amounts: boolean
   documents: OrderDocumentItem[]
   latest_report_no?: string
   latest_report_status?: string

@@ -29,7 +29,7 @@ from .models import (
     WorkflowEvent,
 )
 from .report_pdf import build_test_report_pdf
-from .views import _next_order_no
+from .views import _next_order_no, _order_payload
 
 
 class OrderNumberGenerationTests(TestCase):
@@ -194,6 +194,26 @@ class LimsDashboardTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    def test_lab_roles_do_not_receive_order_amounts(self):
+        lab_user = get_user_model().objects.create_user(
+            username='suzhou-amount-hidden',
+            password='password123',
+        )
+        lab_user.groups.add(Group.objects.get_or_create(name='苏州实验室')[0])
+        LabStaffProfile.objects.create(
+            user=lab_user,
+            lab_type=LabDevice.LabType.SUZHOU,
+            position=LabStaffProfile.Position.MANAGER,
+        )
+
+        lab_payload = _order_payload(self.order, viewer=lab_user)
+        sales_payload = _order_payload(self.order, viewer=self.user)
+
+        self.assertFalse(lab_payload['can_view_amounts'])
+        self.assertEqual(lab_payload['total_quote'], '')
+        self.assertTrue(sales_payload['can_view_amounts'])
+        self.assertEqual(sales_payload['total_quote'], str(self.order.total_quote))
 
     def test_order_workflow_progress_marks_rejected_review_nodes(self):
         self.order.order_status = LabOrder.Status.REVIEW_REJECTED

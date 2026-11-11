@@ -195,6 +195,12 @@ def _can_view_order_contracts(user, order):
     )
 
 
+def _can_view_order_amounts(user):
+    """实验室负责人和实验操作员不接触报价及委外金额。"""
+    roles = set(_roles(user)) if user and user.is_authenticated else set()
+    return not bool({ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR}.intersection(roles))
+
+
 def _user_payload(user):
     if not user.is_authenticated:
         return {'authenticated': False}
@@ -361,7 +367,7 @@ def _experiment_lifecycle_payload(order):
     return records
 
 
-def _workflow_progress_payload(order):
+def _workflow_progress_payload(order, include_amounts=True):
     reviews = list(_current_reviews(order))
     schedules = list(order.schedules.all())
     reports = list(order.reports.all())
@@ -547,7 +553,11 @@ def _workflow_progress_payload(order):
         {
             'key': 'final_invoice', 'sequence': 13, 'phase': 'approval', 'phase_title': '审核结算',
             'title': '最终总开票', 'owner': '会计', 'state': 'pending',
-            'detail': f'{final_invoice.invoice_no} · {final_invoice.invoice_amount:.2f}元' if final_invoice else '终审通过后开票并办结',
+            'detail': (
+                f'{final_invoice.invoice_no} · {final_invoice.invoice_amount:.2f}元'
+                if final_invoice and include_amounts
+                else ('已生成最终发票' if final_invoice else '终审通过后开票并办结')
+            ),
             'time': _display_datetime(final_invoice.invoice_date) if final_invoice else '',
         },
     ]
@@ -646,12 +656,12 @@ def _workflow_progress_payload(order):
         'completed_steps': sum(step['state'] == 'completed' for step in steps),
         'total_steps': len(steps),
         'preinvoice_count': len(preinvoices),
-        'preinvoice_total': str(sum((invoice.invoice_amount for invoice in preinvoices), Decimal('0.00'))),
+        'preinvoice_total': str(sum((invoice.invoice_amount for invoice in preinvoices), Decimal('0.00'))) if include_amounts else '',
         'steps': steps,
     }
 
 
-def _outsource_requirement_payload(order):
+def _outsource_requirement_payload(order, include_amounts=True):
     if not order.outsourced_execution:
         return None
     try:
@@ -660,9 +670,9 @@ def _outsource_requirement_payload(order):
         return None
     return {
         'outsource_company': requirement.outsource_company,
-        'outsource_amount': str(requirement.outsource_amount),
+        'outsource_amount': str(requirement.outsource_amount) if include_amounts else '',
         'entrust_order_no': requirement.entrust_order_no,
-        'undertaking_amount': str(requirement.undertaking_amount),
+        'undertaking_amount': str(requirement.undertaking_amount) if include_amounts else '',
         'experiment_start_time': _display_datetime(requirement.experiment_start_time),
         'experiment_end_time': _display_datetime(requirement.experiment_end_time),
         'created_by': _display_user(requirement.created_by),
@@ -710,6 +720,8 @@ def _order_payload(order, include_sample_records=False, viewer=None):
         }.get(latest_report.report_status, status_label)
 
     can_view_contracts = _can_view_order_contracts(viewer, order)
+    # 未明确传入查看者时默认不返回金额，避免动作响应或内部调用意外泄露报价。
+    can_view_amounts = _can_view_order_amounts(viewer) if viewer is not None else False
     workflow_action_keys = set()
     if order.order_status not in [LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]:
         for schedule in schedules:
@@ -747,7 +759,7 @@ def _order_payload(order, include_sample_records=False, viewer=None):
         'status_key': order.order_status,
         'execution_mode': _execution_mode_label(order, schedules),
         'execution_attributes': execution_attributes,
-        'outsource_info': _outsource_requirement_payload(order),
+        'outsource_info': _outsource_requirement_payload(order, include_amounts=can_view_amounts),
         'workflow_version': order.workflow_version,
         'workflow_label': order.get_workflow_version_display(),
         'lead_lab_manager': _display_user(order.lead_lab_manager),
@@ -761,7 +773,8 @@ def _order_payload(order, include_sample_records=False, viewer=None):
         ),
         'expected_sample_arrival': sample_arrival_value,
         'expected_delivery_date': delivery_value,
-        'total_quote': str(order.total_quote),
+        'total_quote': str(order.total_quote) if can_view_amounts else '',
+        'can_view_amounts': can_view_amounts,
         'is_urgent': order.is_urgent,
         'sales_owner': order.sale_user.first_name or order.sale_user.username
         if order.sale_user
@@ -798,7 +811,7 @@ def _order_payload(order, include_sample_records=False, viewer=None):
         payload['sample_records'] = _sample_lifecycle_payload(order)
         payload['experiment_records'] = _experiment_lifecycle_payload(order)
         payload['report_records'] = [_report_payload(report) for report in order.reports.all()]
-        payload['workflow_progress'] = _workflow_progress_payload(order)
+        payload['workflow_progress'] = _workflow_progress_payload(order, include_amounts=can_view_amounts)
     if viewer and _can_view_finance(viewer):
         payment_summary = _order_payment_payload(order)
         payload['payment_total'] = payment_summary['paid_total']
@@ -2137,13 +2150,17 @@ def laboratory_orders_export(request):
     workbook = Workbook()
     sheet = workbook.active
     lab_name = dict(LabDevice.LabType.choices)[lab_type]
+    can_view_amounts = _can_view_order_amounts(request.user)
     sheet.title = '实验室订单'
     headers = [
         '序号', '订单号', '客户名称', '项目名称', '试验任务', '执行路径', '设备编号', '设备名称',
         '计划开始', '计划结束', '预入库时间', '实际入库时间', '入库照片', '出库时间', '出库操作人',
         '样品状态', '排期状态', '订单状态', '负责人', '试验状态', '实验结果',
-        '实际开始', '实际结束', '实验操作人', '实验结论', '销售', '报价', '预计交付',
+        '实际开始', '实际结束', '实验操作人', '实验结论', '销售',
     ]
+    if can_view_amounts:
+        headers.append('报价')
+    headers.append('预计交付')
     sheet.append(headers)
     header_fill = PatternFill('solid', fgColor='1F4E78')
     for cell in sheet[1]:
@@ -2156,7 +2173,7 @@ def laboratory_orders_export(request):
         samples = _schedule_samples(schedule)
         sample = samples[0] if samples else None
         photos = getattr(schedule, 'ordered_sample_photos', [])
-        sheet.append([
+        row = [
             index,
             order.order_no,
             order.customer_name,
@@ -2183,10 +2200,15 @@ def laboratory_orders_export(request):
             _display_user(experiment.test_operator) if experiment else '',
             experiment.test_conclusion_temp if experiment else '',
             _display_user(order.sale_user),
-            float(order.total_quote),
-            _display_date(order.expect_delivery_time),
-        ])
-    widths = [8, 20, 24, 30, 34, 18, 18, 22, 14, 14, 18, 18, 28, 18, 16, 14, 16, 16, 16, 16, 14, 18, 18, 16, 28, 14, 14, 14]
+        ]
+        if can_view_amounts:
+            row.append(float(order.total_quote))
+        row.append(_display_date(order.expect_delivery_time))
+        sheet.append(row)
+    widths = [8, 20, 24, 30, 34, 18, 18, 22, 14, 14, 18, 18, 28, 18, 16, 14, 16, 16, 16, 16, 14, 18, 18, 16, 28, 14]
+    if can_view_amounts:
+        widths.append(14)
+    widths.append(14)
     for column, width in enumerate(widths, start=1):
         sheet.column_dimensions[get_column_letter(column)].width = width
     sheet.freeze_panes = 'A2'

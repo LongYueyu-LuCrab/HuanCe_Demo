@@ -228,7 +228,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
       <el-descriptions-item label="当前执行路径">{{ order.execution_mode }}</el-descriptions-item>
       <el-descriptions-item label="工作流">{{ order.workflow_label }}</el-descriptions-item>
       <el-descriptions-item label="主责实验室负责人">{{ order.workflow_version === 1 ? '质量部' : (order.lead_lab_manager || '待技术分配') }}</el-descriptions-item>
-      <el-descriptions-item label="订单报价">{{ formatQuote(order.total_quote) }}</el-descriptions-item>
+      <el-descriptions-item v-if="order.can_view_amounts" label="订单报价">{{ formatQuote(order.total_quote) }}</el-descriptions-item>
       <el-descriptions-item label="创建时间">{{ order.created_at || '未记录' }}</el-descriptions-item>
       <el-descriptions-item label="预计样品到达">{{ order.expected_sample_arrival || '待确认' }}</el-descriptions-item>
       <el-descriptions-item label="预计交付">{{ order.expected_delivery_date || '待确认' }}</el-descriptions-item>
@@ -237,8 +237,8 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
           <dl class="outsource-summary-grid">
             <div><dt>委外公司</dt><dd>{{ order.outsource_info.outsource_company }}</dd></div>
             <div><dt>委托单号</dt><dd>{{ order.outsource_info.entrust_order_no }}</dd></div>
-            <div><dt>委外金额</dt><dd>{{ formatQuote(order.outsource_info.outsource_amount) }}</dd></div>
-            <div><dt>承接金额</dt><dd>{{ formatQuote(order.outsource_info.undertaking_amount) }}</dd></div>
+            <div v-if="order.can_view_amounts"><dt>委外金额</dt><dd>{{ formatQuote(order.outsource_info.outsource_amount) }}</dd></div>
+            <div v-if="order.can_view_amounts"><dt>承接金额</dt><dd>{{ formatQuote(order.outsource_info.undertaking_amount) }}</dd></div>
             <div><dt>实验开始</dt><dd>{{ order.outsource_info.experiment_start_time }}</dd></div>
             <div><dt>实验结束</dt><dd>{{ order.outsource_info.experiment_end_time }}</dd></div>
           </dl>
@@ -385,7 +385,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
           </section>
         </div>
         <div v-else class="snapshot-empty-note">检测报告尚未生成，当前节点：{{ currentSteps.map((step) => step.title).join('、') || order.status }}</div>
-        <div class="finance-context-grid"><div><span>订单报价</span><strong>{{ formatQuote(order.total_quote) }}</strong></div><div><span>预计交付</span><strong>{{ order.expected_delivery_date || '待确认' }}</strong></div><div><span>工作流</span><strong>{{ order.workflow_label }}</strong></div></div>
+        <div class="finance-context-grid"><div v-if="order.can_view_amounts"><span>订单报价</span><strong>{{ formatQuote(order.total_quote) }}</strong></div><div><span>预计交付</span><strong>{{ order.expected_delivery_date || '待确认' }}</strong></div><div><span>工作流</span><strong>{{ order.workflow_label }}</strong></div></div>
       </section>
       <section v-if="isSection('documents')" class="snapshot-tab-section">
         <div class="section-heading-row"><div><h4>资料与备注</h4><p>需求、标准、合同和补充说明统一归档。</p></div></div>
