@@ -35,6 +35,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 部署状态：已部署到生产环境，已推送 GitHub Main_V2。
 Git 提交号：68a435e（完整提交：68a435e）
 部署备份：/opt/huance/backups/release-20261111-235921/app_before.tar.gz。
+部署复核补充：首次 collectstatic 未覆盖 Nginx 实际目录，已将同一构建产物直接同步至 /opt/huance/app/staticfiles/；线上入口现已切换至 index-Cas2CsR3.js，服务状态 active。
 署名：GPT二号
 
 日期：2026-11-11
