@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getMetricCards } from '../permissions'
+import { getMetricCards, getRoleDisplayText } from '../permissions'
 import OrderTable from '../components/OrderTable.vue'
 import { useSession } from '../stores/session'
 
@@ -13,7 +13,7 @@ const cards = computed(() => getMetricCards(session.state.user, session.state.da
 const selectedKey = computed(() => activeMetric.value || cards.value[0]?.key || 'orders')
 const orders = computed(() => session.state.dashboard?.order_groups?.[selectedKey.value] ?? [])
 const selectedLabel = computed(() => cards.value.find((card) => card.key === selectedKey.value)?.label || '相关订单')
-const roleText = computed(() => session.state.user.roles?.join(' / ') || '普通用户')
+const roleText = computed(() => getRoleDisplayText(session.state.user))
 const priorityOrders = computed(() => {
   const source = session.state.dashboard?.recent_orders ?? orders.value
   const unique = new Map(source.map((order) => [order.order_no, order]))

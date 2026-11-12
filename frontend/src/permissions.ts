@@ -12,6 +12,17 @@ export function hasRole(user: User, role: string) {
   return roleSet(user).has(role)
 }
 
+/** 将实验操作员的统一岗位与所属实验室合并展示。 */
+export function getRoleDisplayText(user: User) {
+  if (user.lab_position === '实验操作员' && user.lab_name) {
+    return `${user.lab_name}操作员`
+  }
+  if (user.lab_name && user.lab_position) {
+    return `${user.lab_name} / ${user.lab_position}`
+  }
+  return user.roles?.join(' / ') || '普通用户'
+}
+
 export function canSeeAllBusiness(user: User) {
   return Boolean(user.is_chairman || hasRole(user, '常务副总经理'))
 }

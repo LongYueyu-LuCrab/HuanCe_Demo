@@ -17,7 +17,7 @@ import {
   UserFilled,
   Wallet,
 } from '@element-plus/icons-vue'
-import { getMenuGroups } from '../permissions'
+import { getMenuGroups, getRoleDisplayText } from '../permissions'
 import { useSession } from '../stores/session'
 import companyLogo from '../assets/suzhou-huance-logo.png'
 
@@ -28,9 +28,7 @@ const mobileNavVisible = ref(false)
 
 const menuGroups = computed(() => getMenuGroups(session.state.user))
 const activePath = computed(() => route.path)
-const roleText = computed(() => session.state.user.lab_position
-  ? `${session.state.user.lab_name} / ${session.state.user.lab_position}`
-  : session.state.user.roles?.join(' / ') || '普通用户')
+const roleText = computed(() => getRoleDisplayText(session.state.user))
 const displayName = computed(() => session.state.user.display_name || session.state.user.username || '用户')
 const currentTitle = computed(() => {
   const item = menuGroups.value.flatMap((group) => group.items).find((menuItem) => menuItem.path === route.path)
