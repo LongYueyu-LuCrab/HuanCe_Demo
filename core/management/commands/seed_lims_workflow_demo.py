@@ -136,14 +136,14 @@ class Command(BaseCommand):
                 self.event(order, users['accountant01'], LabOrder.Status.REPORT_REVIEW, LabOrder.Status.INVOICED_CLOSED, '会计开票并办结，流程退出')
 
         self.stdout.write(self.style.SUCCESS('已创建/更新演示账号。'))
-        self.stdout.write(self.style.SUCCESS(f'统一演示密码：{self.demo_password}，董事长 zhihao 密码：123456'))
+        self.stdout.write(self.style.SUCCESS(f'统一演示密码：{self.demo_password}，总经理 zhihao 密码：123456'))
         self.stdout.write(self.style.SUCCESS(f'已创建模拟订单：{len(created)} 笔'))
         self.stdout.write(self.style.SUCCESS(f'DEMO-2026 订单总数：{LabOrder.objects.filter(order_no__startswith="DEMO-2026-").count()}'))
 
     def ensure_users(self):
         user_model = get_user_model()
         role_specs = {
-            'zhihao': ('董事长', '董事长', '123456', True),
+            'zhihao': ('总经理', '总经理', '123456', True),
             'sales01': ('销售一号', '销售', self.demo_password, False),
             'sales02': ('销售二号', '销售', self.demo_password, False),
             'sales03': ('销售三号', '销售', self.demo_password, False),
@@ -151,7 +151,7 @@ class Command(BaseCommand):
             'quality01': ('质量专员一号', '质量部', self.demo_password, False),
             'suzhou_lab01': ('苏州实验室负责人', '苏州实验室', self.demo_password, False),
             'jiangyin_lab01': ('江阴实验室负责人', '江阴实验室', self.demo_password, False),
-            'general_manager01': ('总经理一号', '总经理', self.demo_password, False),
+            'general_manager01': ('常务副总经理一号', '常务副总经理', self.demo_password, False),
             'accountant01': ('会计一号', '会计', self.demo_password, False),
         }
         users = {}
@@ -170,7 +170,7 @@ class Command(BaseCommand):
             users[username] = user
         legacy_chairman = user_model.objects.filter(username='LuCrab').first()
         if legacy_chairman:
-            chairman_group, _ = Group.objects.get_or_create(name='董事长')
+            chairman_group, _ = Group.objects.get_or_create(name='总经理')
             legacy_chairman.first_name = '龙老大'
             legacy_chairman.is_staff = True
             legacy_chairman.is_superuser = True

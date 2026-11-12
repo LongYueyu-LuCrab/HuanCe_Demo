@@ -11,7 +11,7 @@ from .views import _has_dual_review_pass
 class ReviewRoleTests(TestCase):
     def setUp(self):
         self.users = {}
-        for username, role in [('dept', '商务部'), ('sales', '销售'), ('chair', '董事长'), ('gm', '总经理'), ('lab', '苏州实验室'), ('oldbiz', '商务'), ('oldtech', '技术')]:
+        for username, role in [('dept', '商务部'), ('sales', '销售'), ('chair', '总经理'), ('gm', '常务副总经理'), ('lab', '苏州实验室'), ('oldbiz', '商务'), ('oldtech', '技术')]:
             user = get_user_model().objects.create_user(username)
             user.groups.add(Group.objects.get_or_create(name=role)[0])
             self.users[username] = user

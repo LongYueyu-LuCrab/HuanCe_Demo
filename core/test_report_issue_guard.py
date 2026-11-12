@@ -47,7 +47,7 @@ class ReportIssueGuardTests(TestCase):
         expected = {
             TestReport.Status.DRAFT: '等待出具报告',
             TestReport.Status.SALES_REVIEW: '等待销售初审',
-            TestReport.Status.GM_REVIEW: '等待总经理终审',
+            TestReport.Status.GM_REVIEW: '等待常务副总经理终审',
             TestReport.Status.APPROVED: '报告已审核通过，等待最终开票',
         }
         for status, summary in expected.items():

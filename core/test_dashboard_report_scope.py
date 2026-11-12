@@ -13,7 +13,7 @@ class DashboardReportScopeTests(TestCase):
         self.general_manager = user_model.objects.create_user(username='scope-gm', password='password123')
         self.quality = user_model.objects.create_user(username='scope-quality', password='password123')
         self.sales.groups.add(Group.objects.get_or_create(name='销售')[0])
-        self.general_manager.groups.add(Group.objects.get_or_create(name='总经理')[0])
+        self.general_manager.groups.add(Group.objects.get_or_create(name='常务副总经理')[0])
         self.quality.groups.add(Group.objects.get_or_create(name='质量部')[0])
 
         self.orders = []
@@ -53,7 +53,7 @@ class DashboardReportScopeTests(TestCase):
         data = self.dashboard(self.general_manager)
         self.assertEqual(data['metrics']['pending_reports'], 1)
         self.assertEqual([item['status_key'] for item in data['pending_reports']], [TestReport.Status.GM_REVIEW])
-        self.assertEqual(data['order_groups']['pending_reports'][0]['status'], '待总经理终审')
+        self.assertEqual(data['order_groups']['pending_reports'][0]['status'], '待常务副总经理终审')
 
     def test_quality_dashboard_only_returns_draft_or_rejected_reports(self):
         data = self.dashboard(self.quality)

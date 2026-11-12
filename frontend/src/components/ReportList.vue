@@ -51,7 +51,7 @@ function actionsFor(report: ReportItem) {
   if (report.status_key === 2 && hasRole('销售')) {
     actions.push({ key: 'start_report_review', label: '开始初审', type: 'primary' })
   }
-  if (report.status_key === 3 && hasRole('总经理')) {
+  if (report.status_key === 3 && hasRole('常务副总经理')) {
     actions.push({ key: 'start_report_review', label: '开始终审', type: 'primary' })
   }
   return actions
@@ -74,7 +74,7 @@ function downloadReport(report: ReportItem) {
       </div>
       <div class="review-queue-strip" aria-label="报告队列摘要">
         <div><strong>{{ reportQueue.sales }}</strong><span>待销售初审</span></div>
-        <div><strong>{{ reportQueue.gm }}</strong><span>待总经理终审</span></div>
+        <div><strong>{{ reportQueue.gm }}</strong><span>待常务副总经理终审</span></div>
         <div class="is-warning"><strong>{{ reportQueue.rejected }}</strong><span>驳回重制</span></div>
         <div><strong>{{ reportQueue.ready }}</strong><span>通过待开票</span></div>
       </div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const rows = [
-  { role: '董事长', scope: '全局订单、实验室、财务与系统', actions: '商务评审、退单、员工、权限核对' },
-  { role: '总经理', scope: '全局订单与报告财务', actions: '技术评审、报告终审、财务核对' },
+  { role: '总经理', scope: '全局订单、实验室、财务与系统', actions: '商务评审、退单、员工、权限核对' },
+  { role: '常务副总经理', scope: '全局订单与报告财务', actions: '技术评审、报告终审、财务核对' },
   { role: '销售经理', scope: '全部销售订单', actions: '订单查询、销售订单档案、报告初审' },
   { role: '销售', scope: '本人客户订单', actions: '下单、修改重提、退单、报告初审' },
   { role: '商务部', scope: '全部订单与实验室协同', actions: '下单、排期协调、报告初审' },

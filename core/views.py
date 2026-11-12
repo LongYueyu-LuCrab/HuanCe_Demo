@@ -37,9 +37,9 @@ ROLE_SUZHOU_LAB = '苏州实验室'
 ROLE_JIANGYIN_LAB = '江阴实验室'
 ROLE_LAB_OPERATOR = '实验操作员'
 ROLE_OUTSOURCE = '委外供应商'
-ROLE_GENERAL_MANAGER = '总经理'
+ROLE_GENERAL_MANAGER = '常务副总经理'
 ROLE_ACCOUNTING = '会计'
-ROLE_CHAIRMAN = '董事长'
+ROLE_CHAIRMAN = '总经理'
 VALID_ROLES = [
     ROLE_SALES,
     ROLE_SALES_MANAGER,
@@ -481,19 +481,19 @@ def _workflow_progress_payload(order, include_amounts=True):
         },
         {
             'key': 'business_review', 'sequence': 2, 'phase': 'intake', 'phase_title': '业务准入',
-            'title': '商务评审', 'owner': '董事长', 'state': 'pending',
+            'title': '商务评审', 'owner': '总经理', 'state': 'pending',
             'detail': _display_user(latest_business.biz_review_user) if latest_business else '核对报价、成本与交付条件',
             'time': _display_datetime(latest_business.review_time) if latest_business else '',
         },
         {
             'key': 'technical_review', 'sequence': 3, 'phase': 'intake', 'phase_title': '业务准入',
-            'title': '技术评审', 'owner': '总经理', 'state': 'pending',
+            'title': '技术评审', 'owner': '常务副总经理', 'state': 'pending',
             'detail': _display_user(latest_technical.tech_review_user) if latest_technical else '核对方法、标准与技术可行性',
             'time': _display_datetime(latest_technical.review_time) if latest_technical else '',
         },
         {
             'key': 'route_assignment', 'sequence': 4, 'phase': 'preparation', 'phase_title': '实施准备',
-            'title': '路径与主责分配', 'owner': '总经理' if is_v2 else '商务/质量部', 'state': 'pending',
+            'title': '路径与主责分配', 'owner': '常务副总经理' if is_v2 else '商务/质量部', 'state': 'pending',
             'detail': f'已分配{schedule_count}条执行路径' if schedule_count else '选择苏州、江阴、委外路径及主责负责人',
             'time': _display_datetime(min((schedule.create_time for schedule in schedules), default=None)),
         },
@@ -543,9 +543,9 @@ def _workflow_progress_payload(order, include_amounts=True):
         },
         {
             'key': 'gm_audit', 'sequence': 12, 'phase': 'approval', 'phase_title': '审核结算',
-            'title': '总经理终审', 'owner': '总经理', 'state': 'pending',
+            'title': '常务副总经理终审', 'owner': '常务副总经理', 'state': 'pending',
             'detail': latest_gm_audit.get_audit_result_display() if latest_gm_audit else (
-                '等待总经理终审' if latest_sales_audit and latest_sales_audit.audit_result == ReportAudit.Result.APPROVED
+                '等待常务副总经理终审' if latest_sales_audit and latest_sales_audit.audit_result == ReportAudit.Result.APPROVED
                 else '等待销售初审通过'
             ),
             'time': _display_datetime(latest_gm_audit.audit_time) if latest_gm_audit else '',
@@ -631,7 +631,7 @@ def _workflow_progress_payload(order, include_amounts=True):
             summary = '等待销售初审'
         elif latest_report.report_status == TestReport.Status.GM_REVIEW:
             current_keys = ['gm_audit']
-            summary = '等待总经理终审'
+            summary = '等待常务副总经理终审'
         elif latest_report.report_status == TestReport.Status.APPROVED:
             current_keys = ['final_invoice']
             summary = '报告已审核通过，等待最终开票'
@@ -714,7 +714,7 @@ def _order_payload(order, include_sample_records=False, viewer=None):
     if order.order_status == LabOrder.Status.REPORT_REVIEW and latest_report:
         status_label = {
             TestReport.Status.SALES_REVIEW: '待销售初审',
-            TestReport.Status.GM_REVIEW: '待总经理终审',
+        TestReport.Status.GM_REVIEW: '待常务副总经理终审',
             TestReport.Status.REJECTED: '审核驳回重制',
             TestReport.Status.APPROVED: '报告已审核通过，等待最终开票',
         }.get(latest_report.report_status, status_label)
@@ -1788,7 +1788,7 @@ def add_employee(request):
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
     if not _is_chairman(request.user):
-        return JsonResponse({'ok': False, 'error': '仅董事长可以添加员工'}, status=403, json_dumps_params={'ensure_ascii': False})
+        return JsonResponse({'ok': False, 'error': '仅总经理可以添加员工'}, status=403, json_dumps_params={'ensure_ascii': False})
 
     try:
         payload = json.loads(request.body.decode('utf-8'))
@@ -1808,7 +1808,7 @@ def add_employee(request):
     if not username or not password:
         return JsonResponse({'ok': False, 'error': '用户名和密码必填'}, status=400, json_dumps_params={'ensure_ascii': False})
     if role not in VALID_ROLES:
-        return JsonResponse({'ok': False, 'error': '请选择有效岗位；商务评审由董事长负责，技术评审由总经理负责'}, status=400)
+        return JsonResponse({'ok': False, 'error': '请选择有效岗位；商务评审由总经理负责，技术评审由常务副总经理负责'}, status=400)
     if role == ROLE_QUALITY:
         return JsonResponse({'ok': False, 'error': 'V2 工作流已取消质量部岗位，请选择实验室负责人'}, status=400, json_dumps_params={'ensure_ascii': False})
     if role == ROLE_LAB_OPERATOR and lab_type not in LabDevice.LabType.values:
@@ -2623,7 +2623,7 @@ def create_order(request):
 
     roles = set(_roles(request.user))
     if not (_is_chairman(request.user) or ROLE_SALES in roles or ROLE_BUSINESS_DEPT in roles):
-        return JsonResponse({'ok': False, 'error': '仅销售或董事长可以下单'}, status=403, json_dumps_params={'ensure_ascii': False})
+        return JsonResponse({'ok': False, 'error': '仅销售或总经理可以下单'}, status=403, json_dumps_params={'ensure_ascii': False})
 
     payload, parse_error = _request_order_payload(request)
     if parse_error:
@@ -3957,7 +3957,7 @@ def _action_report_sales_pass(request, payload):
     role_error = _require_role(request.user, ROLE_SALES, ROLE_BUSINESS_DEPT)
     if role_error:
         return role_error
-    return _audit_report(request, payload, TestReport.Status.SALES_REVIEW, ReportAudit.Level.SALES, ReportAudit.Result.APPROVED, TestReport.Status.GM_REVIEW, '销售初审通过，提交总经理终审')
+    return _audit_report(request, payload, TestReport.Status.SALES_REVIEW, ReportAudit.Level.SALES, ReportAudit.Result.APPROVED, TestReport.Status.GM_REVIEW, '销售初审通过，提交常务副总经理终审')
 
 
 def _action_report_sales_reject(request, payload):
@@ -3971,14 +3971,14 @@ def _action_report_gm_pass(request, payload):
     role_error = _require_role(request.user, ROLE_GENERAL_MANAGER)
     if role_error:
         return role_error
-    return _audit_report(request, payload, TestReport.Status.GM_REVIEW, ReportAudit.Level.GENERAL_MANAGER, ReportAudit.Result.APPROVED, TestReport.Status.APPROVED, '总经理终审通过，推送会计开票')
+    return _audit_report(request, payload, TestReport.Status.GM_REVIEW, ReportAudit.Level.GENERAL_MANAGER, ReportAudit.Result.APPROVED, TestReport.Status.APPROVED, '常务副总经理终审通过，推送会计开票')
 
 
 def _action_report_gm_reject(request, payload):
     role_error = _require_role(request.user, ROLE_GENERAL_MANAGER)
     if role_error:
         return role_error
-    return _audit_report(request, payload, TestReport.Status.GM_REVIEW, ReportAudit.Level.GENERAL_MANAGER, ReportAudit.Result.REJECTED, TestReport.Status.REJECTED, '总经理终审驳回，退回质量部重制')
+    return _audit_report(request, payload, TestReport.Status.GM_REVIEW, ReportAudit.Level.GENERAL_MANAGER, ReportAudit.Result.REJECTED, TestReport.Status.REJECTED, '常务副总经理终审驳回，退回质量部重制')
 
 
 def _invoice_amount_from_payload(payload, default_amount=None):

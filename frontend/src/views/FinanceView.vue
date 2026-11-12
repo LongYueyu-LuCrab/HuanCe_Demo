@@ -270,7 +270,7 @@ async function submitWorkflow() {
     <InvoiceTable
       mode="final"
       title="待最终总开票"
-      subtitle="总经理终审通过后进入这里，最终总开票完成后订单办结。"
+      subtitle="常务副总经理终审通过后进入这里，最终总开票完成后订单办结。"
       :invoices="pendingInvoices"
       :can-operate="canOperateFinance"
       @workflow="openWorkflow"

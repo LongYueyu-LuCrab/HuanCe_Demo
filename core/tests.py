@@ -146,7 +146,7 @@ class LimsDashboardTests(TestCase):
             uploaded_by=self.user,
         )
 
-        for role in ('董事长', '销售经理'):
+        for role in ('总经理', '销售经理'):
             with self.subTest(role=role):
                 viewer = get_user_model().objects.create_user(username=f'contract-{role}', password='password123')
                 viewer.groups.add(Group.objects.get_or_create(name=role)[0])
@@ -243,7 +243,7 @@ class LimsDashboardTests(TestCase):
             username='technical-reviewer',
             password='password123',
         )
-        technical_user.groups.add(Group.objects.get_or_create(name='总经理')[0])
+        technical_user.groups.add(Group.objects.get_or_create(name='常务副总经理')[0])
         self.order.order_status = LabOrder.Status.PENDING_REVIEW
         self.order.autonomous_execution = True
         self.order.outsourced_execution = True
@@ -548,12 +548,12 @@ class SalesManagerTests(TestCase):
 class LimsFullRoleWorkflowTests(TestCase):
     roles = {
         'sales': '销售',
-        'business': '董事长',
-        'tech': '总经理',
+        'business': '总经理',
+        'tech': '常务副总经理',
         'quality': '质量部',
         'suzhou_lab': '苏州实验室',
         'jiangyin_lab': '江阴实验室',
-        'general_manager': '总经理',
+        'general_manager': '常务副总经理',
         'accountant': '会计',
     }
 
@@ -784,8 +784,8 @@ class InvoiceWorkflowTests(TestCase):
         self.accountant = user_model.objects.create_user(
             username='invoice_accountant', password='password123', first_name='会计',
         )
-        self.business.groups.add(Group.objects.get_or_create(name='董事长')[0])
-        self.technical.groups.add(Group.objects.get_or_create(name='总经理')[0])
+        self.business.groups.add(Group.objects.get_or_create(name='总经理')[0])
+        self.technical.groups.add(Group.objects.get_or_create(name='常务副总经理')[0])
         self.accountant.groups.add(Group.objects.get_or_create(name='会计')[0])
         self.order = LabOrder.objects.create(
             order_no='INVOICE-FLOW-001',
@@ -1198,8 +1198,8 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         self.users = {}
         for username, role in {
             'sales_v2': '销售',
-            'business_v2': '董事长',
-            'tech_v2': '总经理',
+            'business_v2': '总经理',
+            'tech_v2': '常务副总经理',
             'quality_v1': '质量部',
             'suzhou_v2': '苏州实验室',
             'jiangyin_v2': '江阴实验室',

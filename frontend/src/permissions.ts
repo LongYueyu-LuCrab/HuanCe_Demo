@@ -13,7 +13,7 @@ export function hasRole(user: User, role: string) {
 }
 
 export function canSeeAllBusiness(user: User) {
-  return Boolean(user.is_chairman || hasRole(user, '总经理'))
+  return Boolean(user.is_chairman || hasRole(user, '常务副总经理'))
 }
 
 export function getMenuGroups(user: User): MenuGroup[] {
@@ -130,7 +130,7 @@ export function getMenuGroups(user: User): MenuGroup[] {
     ])].filter(Boolean) as MenuGroup[]
   }
 
-  if (hasRole(user, '总经理')) {
+  if (hasRole(user, '常务副总经理')) {
     return [
       group('经营总览', [
         { key: 'dashboard', label: '全局看板', path: '/dashboard', icon: 'DataAnalysis' },

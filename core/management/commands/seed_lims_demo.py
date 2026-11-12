@@ -33,12 +33,12 @@ class Command(BaseCommand):
             '苏州实验室',
             '江阴实验室',
             '委外供应商',
-            '总经理',
+            '常务副总经理',
             '会计',
-            '董事长',
+            '总经理',
         ]:
             group, _ = Group.objects.get_or_create(name=group_name)
-            if admin_user and group_name == '董事长':
+            if admin_user and group_name == '总经理':
                 admin_user.groups.add(group)
 
         now = timezone.now()

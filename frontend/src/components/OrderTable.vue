@@ -146,7 +146,7 @@ const effectiveRoles = computed(() => new Set(effectiveUser.value.roles || []))
 const isLabAccount = computed(() => ['苏州实验室', '江阴实验室', '实验操作员', '商务部'].some((role) => effectiveRoles.value.has(role)))
 const isSalesRole = computed(() => ['销售', '销售经理', '商务部'].some((role) => effectiveRoles.value.has(role)))
 const isFinanceRole = computed(() => effectiveRoles.value.has('会计'))
-const isManagementRole = computed(() => Boolean(effectiveUser.value.is_chairman || effectiveRoles.value.has('总经理')))
+const isManagementRole = computed(() => Boolean(effectiveUser.value.is_chairman || effectiveRoles.value.has('常务副总经理')))
 
 function hasRole(role: string) {
   return isChairman.value || roleSet.value.has(role) || (role === '销售' && roleSet.value.has('商务部'))
@@ -155,7 +155,7 @@ function hasRole(role: string) {
 function actionsFor(order: OrderItem) {
   const actions: Array<{ key: string; label: string; type?: 'primary' | 'danger' | 'warning' | 'success' }> = []
   const canSalesOperate = hasRole('销售') && (!roleSet.value.has('商务部') || isChairman.value || order.sales_owner_username === effectiveUser.value.username)
-  if (order.status_key === 1 && (isChairman.value || roleSet.value.has('总经理'))) {
+  if (order.status_key === 1 && (isChairman.value || roleSet.value.has('常务副总经理'))) {
     actions.push({ key: 'review_pass', label: '评审通过', type: 'success' })
     actions.push({ key: 'review_reject', label: '评审驳回', type: 'danger' })
   }
@@ -186,7 +186,7 @@ function actionsFor(order: OrderItem) {
   if (order.status_key === 5 && order.latest_report_status_key === 2 && hasRole('销售')) {
     actions.push({ key: 'start_report_review', label: '开始初审', type: 'primary' })
   }
-  if (order.status_key === 5 && order.latest_report_status_key === 3 && hasRole('总经理')) {
+  if (order.status_key === 5 && order.latest_report_status_key === 3 && hasRole('常务副总经理')) {
     actions.push({ key: 'start_report_review', label: '开始终审', type: 'primary' })
   }
   const labActionKeys = Array.isArray(order.workflow_action_keys)

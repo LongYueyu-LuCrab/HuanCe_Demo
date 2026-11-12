@@ -32,7 +32,7 @@ onMounted(() => {
 
 const titleMap: Record<string, string> = {
   sales: '销售初审',
-  gm: '总经理终审',
+  gm: '常务副总经理终审',
 }
 
 const actionMeta = computed(() => {
@@ -40,7 +40,7 @@ const actionMeta = computed(() => {
   const finalReview = reviewStage.value === 'gm'
   return {
     title: titleMap[reviewStage.value] || '报告审核',
-    stage: rejected ? '报告审核 → 退回重制' : finalReview ? '总经理终审 → 审核结果' : '报告 → 销售初审',
+    stage: rejected ? '报告审核 → 退回重制' : finalReview ? '常务副总经理终审 → 审核结果' : '报告 → 销售初审',
     impact: rejected ? '提交后报告会退回主责实验室重制，并记录本次审核意见。' : '提交后会记录审核意见，并推进报告审核节点。',
     passLabel: finalReview ? '终审通过' : '初审通过',
     rejectLabel: finalReview ? '终审驳回' : '初审驳回',

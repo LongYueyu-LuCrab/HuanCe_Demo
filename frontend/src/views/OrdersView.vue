@@ -92,7 +92,7 @@ const managerOrdersError = ref('')
 const managerOrderQuery = reactive<SalesOrderQuery>({ keyword: '', page: 1, page_size: 10 })
 const managerFilterOptions = ref<Record<string, unknown>>({})
 const orders = computed(() => managerOrders.value)
-const isTechnicalReviewer = computed(() => !session.state.user.is_chairman && (session.state.user.roles || []).includes('总经理'))
+const isTechnicalReviewer = computed(() => !session.state.user.is_chairman && (session.state.user.roles || []).includes('常务副总经理'))
 const routingOptions = computed(() => session.state.dashboard?.routing_options)
 const allLabManagers = computed(() => [
   ...(routingOptions.value?.suzhou_managers || []),

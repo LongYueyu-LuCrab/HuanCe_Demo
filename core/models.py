@@ -564,7 +564,7 @@ class TestReport(TimeStampedModel):
     class Status(models.IntegerChoices):
         DRAFT = 1, '草稿'
         SALES_REVIEW = 2, '待销售初审'
-        GM_REVIEW = 3, '待总经理终审'
+        GM_REVIEW = 3, '待常务副总经理终审'
         REJECTED = 4, '审核驳回重制'
         APPROVED = 5, '审核通过待开票'
 
@@ -605,7 +605,7 @@ class TestReport(TimeStampedModel):
 class ReportAudit(TimeStampedModel):
     class Level(models.IntegerChoices):
         SALES = 1, '销售初审'
-        GENERAL_MANAGER = 2, '总经理终审'
+        GENERAL_MANAGER = 2, '常务副总经理终审'
 
     class Result(models.IntegerChoices):
         REJECTED = 0, '驳回'
@@ -745,7 +745,7 @@ class WorkflowEvent(TimeStampedModel):
         REVIEW = 'review', '审核'
         CHANGE = 'change', '变更'
         COMMENT = 'comment', '备注'
-        CHAIRMAN = 'chairman', '董事长操作'
+        CHAIRMAN = 'chairman', '总经理操作'
 
     order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='events')
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='操作人', on_delete=models.SET_NULL, null=True, blank=True)

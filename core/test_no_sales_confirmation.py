@@ -17,7 +17,7 @@ class NoSalesConfirmationFiveOrderTests(TestCase):
         self.settings_override.enable()
         self.addCleanup(self.settings_override.disable)
         self.users = {}
-        for key, role in [('sales','销售'),('dept','商务部'),('chair','董事长'),('gm','总经理'),('sz','苏州实验室'),('jy','江阴实验室'),('finance','会计')]:
+        for key, role in [('sales','销售'),('dept','商务部'),('chair','总经理'),('gm','常务副总经理'),('sz','苏州实验室'),('jy','江阴实验室'),('finance','会计')]:
             u=get_user_model().objects.create_user(key)
             u.groups.add(Group.objects.get_or_create(name=role)[0]);self.users[key]=u
         self.devices={key:LabDevice.objects.create(device_code=key,device_name=key,lab_type=typ) for key,typ in [('sz',1),('jy',2)]}
