@@ -33,7 +33,7 @@ Git 提交号：完整提交 SHA 或至少 7 位短 SHA
 2. makemigrations --check 通过。
 3. 角色/报告/权限相关定向测试 23 项全部通过。
 4. TypeScript 检查和 Vite 生产构建通过；仅有既有依赖注释和 chunk 体积提示。
-部署状态：待提交 Git 和部署服务器。
+部署状态：已推送 GitHub Main_V2（提交 dea27ca），已部署到生产环境；数据库迁移 0024、0025 已应用，huance 服务已重启并处于 active。
 署名：GPT二号
 
 日期：2026-11-12
