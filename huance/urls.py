@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, re_path
-from core.views import add_employee, create_order, current_user, download_order_document, download_test_report, finance_orders_export, frontend, health_check, lab_device_availability, lab_device_detail, lab_devices, laboratory_orders, laboratory_orders_export, lims_action, lims_dashboard, lims_login, lims_logout, order_detail, sales_manager_orders, sales_manager_orders_export, view_sample_photo
+from core.views import add_employee, change_password, create_order, current_user, download_order_document, download_test_report, finance_orders_export, frontend, health_check, lab_device_availability, lab_device_detail, lab_devices, laboratory_orders, laboratory_orders_export, lims_action, lims_dashboard, lims_login, lims_logout, order_detail, sales_manager_orders, sales_manager_orders_export, view_sample_photo
 
 urlpatterns = [
     path('', frontend, name='frontend'),
@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/health/', health_check, name='health_check'),
     path('api/auth/login/', lims_login, name='lims_login'),
     path('api/auth/logout/', lims_logout, name='lims_logout'),
+    path('api/auth/change-password/', change_password, name='change_password'),
     path('api/employees/add/', add_employee, name='add_employee'),
     path('api/orders/create/', create_order, name='create_order'),
     path('api/orders/<str:order_no>/', order_detail, name='order_detail'),

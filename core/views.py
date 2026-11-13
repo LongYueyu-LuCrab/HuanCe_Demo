@@ -1797,6 +1797,38 @@ def lims_logout(request):
 
 
 @csrf_exempt
+def change_password(request):
+    """Allow an authenticated employee to replace the initial password safely."""
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False, 'error': '请先登录'}, status=401, json_dumps_params={'ensure_ascii': False})
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return JsonResponse({'ok': False, 'error': '请求格式错误'}, status=400, json_dumps_params={'ensure_ascii': False})
+
+    current_password = payload.get('current_password', '')
+    new_password = payload.get('new_password', '')
+    confirm_password = payload.get('confirm_password', '')
+    if not current_password or not new_password or not confirm_password:
+        return JsonResponse({'ok': False, 'error': '请完整填写当前密码、新密码和确认密码'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if authenticate(request, username=request.user.username, password=current_password) is None:
+        return JsonResponse({'ok': False, 'error': '当前密码不正确'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if len(new_password) < 8 or not re.search(r'[A-Za-z]', new_password) or not re.search(r'\d', new_password) or not re.search(r'[^A-Za-z0-9]', new_password):
+        return JsonResponse({'ok': False, 'error': '新密码至少 8 位，且必须包含字母、数字和符号'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if new_password != confirm_password:
+        return JsonResponse({'ok': False, 'error': '两次输入的新密码不一致'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if new_password == current_password:
+        return JsonResponse({'ok': False, 'error': '新密码不能与当前密码相同'}, status=400, json_dumps_params={'ensure_ascii': False})
+
+    request.user.set_password(new_password)
+    request.user.save(update_fields=['password'])
+    logout(request)
+    return JsonResponse({'ok': True, 'message': '密码修改成功，请使用新密码重新登录'}, json_dumps_params={'ensure_ascii': False})
+
+
+@csrf_exempt
 @transaction.atomic
 def add_employee(request):
     if request.method != 'POST':

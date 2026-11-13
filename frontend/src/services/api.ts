@@ -37,6 +37,20 @@ export async function logout(): Promise<void> {
   await fetch('/api/auth/logout/', { method: 'POST', credentials: 'include' })
 }
 
+export async function changePassword(currentPassword: string, newPassword: string, confirmPassword: string): Promise<void> {
+  const response = await fetch('/api/auth/change-password/', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+      confirm_password: confirmPassword,
+    }),
+  })
+  await parseJson(response)
+}
+
 export async function fetchDashboard(): Promise<Dashboard> {
   const response = await fetch(`/api/lims/dashboard/?limit=50&_=${Date.now()}`, {
     credentials: 'include',
