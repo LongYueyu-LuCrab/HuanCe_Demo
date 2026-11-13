@@ -7,7 +7,7 @@ const submitting = ref(false)
 const form = reactive({
   username: '', password: '', display_name: '', email: '', role: '销售', lab_type: 1,
 })
-const roles = ['销售', '销售经理', '商务部', '苏州实验室', '江阴实验室', '实验操作员', '委外供应商', '常务副总经理', '会计', '总经理']
+const roles = ['销售', '销售经理', '商务部', '商务部员工', '苏州实验室', '江阴实验室', '实验操作员', '委外供应商', '常务副总经理', '会计', '总经理', '副总经理', '总经办', '市场部部长']
 const showLab = computed(() => form.role === '实验操作员')
 
 async function submit() {

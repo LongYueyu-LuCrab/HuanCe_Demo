@@ -85,6 +85,7 @@ function rawFiles(files: UploadUserFile[]) {
 
 const isSalesManager = computed(() => ['销售经理', '商务部'].some(role => (session.state.user.roles || []).includes(role)))
 const isSales = computed(() => ['销售', '商务部'].some(role => (session.state.user.roles || []).includes(role)))
+const canExportOrders = computed(() => isSalesManager.value || isSales.value || ['副总经理', '总经办', '市场部部长', '商务部员工'].some(role => (session.state.user.roles || []).includes(role)))
 const managerOrders = ref<OrderItem[]>([])
 const managerOrderTotal = ref(0)
 const managerOrdersLoading = ref(false)
@@ -359,7 +360,7 @@ async function submit() {
       </div>
       <div class="toolbar-actions">
         <el-button v-if="managerOrdersError" type="warning" plain @click="loadManagerOrders()">重新加载</el-button>
-        <el-button v-if="isSalesManager || isSales" type="primary" plain :icon="Download" @click="exportSalesOrders">
+        <el-button v-if="canExportOrders" type="primary" plain :icon="Download" @click="exportSalesOrders">
           {{ isSalesManager ? '导出全部销售订单' : '导出我的全部订单' }}
         </el-button>
         <el-button v-if="session.canCreateOrder.value" type="primary" @click="dialogVisible = true">销售下单</el-button>

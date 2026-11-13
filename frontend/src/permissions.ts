@@ -24,7 +24,13 @@ export function getRoleDisplayText(user: User) {
 }
 
 export function canSeeAllBusiness(user: User) {
-  return Boolean(user.is_chairman || hasRole(user, '常务副总经理'))
+  return Boolean(user.is_chairman || [
+    '常务副总经理',
+    '副总经理',
+    '总经办',
+    '市场部部长',
+    '商务部员工',
+  ].some((role) => hasRole(user, role)))
 }
 
 export function getMenuGroups(user: User): MenuGroup[] {
@@ -62,6 +68,14 @@ export function getMenuGroups(user: User): MenuGroup[] {
     ].filter(Boolean) as MenuGroup[]
   }
 
+  if (['副总经理', '总经办', '市场部部长'].some((role) => hasRole(user, role))) {
+    return [group('管理查看工作台', [
+      { key: 'dashboard', label: '业务总览', path: '/dashboard', icon: 'DataAnalysis' },
+      { key: 'orders', label: '全部订单查询', path: '/orders', icon: 'List' },
+      { key: 'audit', label: '订单档案', path: '/audit', icon: 'Memo' },
+    ])].filter(Boolean) as MenuGroup[]
+  }
+
   if (hasRole(user, '销售')) {
     return [
       group('销售工作台', [
@@ -81,6 +95,14 @@ export function getMenuGroups(user: User): MenuGroup[] {
       { key: 'suzhou', label: '苏州排期', path: '/labs/suzhou', icon: 'Monitor' },
       { key: 'jiangyin', label: '江阴排期', path: '/labs/jiangyin', icon: 'OfficeBuilding' },
       { key: 'reports', label: '报告初审', path: '/reports', icon: 'DocumentChecked' },
+      { key: 'audit', label: '订单档案', path: '/audit', icon: 'Memo' },
+    ])].filter(Boolean) as MenuGroup[]
+  }
+
+  if (hasRole(user, '商务部员工')) {
+    return [group('商务部订单查看', [
+      { key: 'dashboard', label: '订单总览', path: '/dashboard', icon: 'DataAnalysis' },
+      { key: 'orders', label: '订单状态查询', path: '/orders', icon: 'List' },
       { key: 'audit', label: '订单档案', path: '/audit', icon: 'Memo' },
     ])].filter(Boolean) as MenuGroup[]
   }
@@ -179,6 +201,13 @@ export function getMetricCards(user: User, dashboard: Dashboard | null) {
       { key: 'active_orders', label: '进行中订单', value: metrics?.active_orders ?? 0 },
       { key: 'pending_reports', label: '待处理报告', value: metrics?.pending_reports ?? 0 },
       { key: 'change_requests', label: '变更待闭环', value: metrics?.change_requests ?? 0 },
+    ]
+  }
+  if (['副总经理', '总经办', '市场部部长', '商务部员工'].some((role) => hasRole(user, role))) {
+    return [
+      { key: 'orders', label: '全部订单', value: metrics?.orders ?? 0 },
+      { key: 'active_orders', label: '进行中订单', value: metrics?.active_orders ?? 0 },
+      { key: 'pending_reports', label: '待处理报告', value: metrics?.pending_reports ?? 0 },
     ]
   }
   if (hasRole(user, '销售') && !canSeeAllBusiness(user)) {

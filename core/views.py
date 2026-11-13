@@ -40,6 +40,15 @@ ROLE_OUTSOURCE = '委外供应商'
 ROLE_GENERAL_MANAGER = '常务副总经理'
 ROLE_ACCOUNTING = '会计'
 ROLE_CHAIRMAN = '总经理'
+ROLE_DEPUTY_MANAGER = '副总经理'
+ROLE_GENERAL_OFFICE = '总经办'
+ROLE_BUSINESS_STAFF = '商务部员工'
+ROLE_MARKETING_MANAGER = '市场部部长'
+GLOBAL_READ_ONLY_ROLES = {
+    ROLE_DEPUTY_MANAGER,
+    ROLE_GENERAL_OFFICE,
+    ROLE_MARKETING_MANAGER,
+}
 VALID_ROLES = [
     ROLE_SALES,
     ROLE_SALES_MANAGER,
@@ -52,6 +61,10 @@ VALID_ROLES = [
     ROLE_GENERAL_MANAGER,
     ROLE_ACCOUNTING,
     ROLE_CHAIRMAN,
+    ROLE_DEPUTY_MANAGER,
+    ROLE_GENERAL_OFFICE,
+    ROLE_BUSINESS_STAFF,
+    ROLE_MARKETING_MANAGER,
 ]
 
 CORRUPTED_TEXT_PATTERN = re.compile(r'\?{3,}')
@@ -191,6 +204,7 @@ def _can_view_order_contracts(user, order):
     return bool(
         ROLE_ACCOUNTING in roles
         or ROLE_BUSINESS_DEPT in roles
+        or GLOBAL_READ_ONLY_ROLES.intersection(roles)
         or order.sale_user_id == user.id
     )
 
@@ -198,7 +212,7 @@ def _can_view_order_contracts(user, order):
 def _can_view_order_amounts(user):
     """实验室负责人和实验操作员不接触报价及委外金额。"""
     roles = set(_roles(user)) if user and user.is_authenticated else set()
-    return not bool({ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR}.intersection(roles))
+    return not bool({ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_BUSINESS_STAFF}.intersection(roles))
 
 
 def _user_payload(user):
@@ -238,7 +252,7 @@ def _orders_for_user(user):
         return orders
 
     roles = set(_roles(user))
-    if ROLE_SALES_MANAGER in roles or ROLE_BUSINESS_DEPT in roles:
+    if ROLE_SALES_MANAGER in roles or ROLE_BUSINESS_DEPT in roles or ROLE_BUSINESS_STAFF in roles or GLOBAL_READ_ONLY_ROLES.intersection(roles):
         return orders
     query = Q()
     if (ROLE_SALES in roles or ROLE_BUSINESS_DEPT in roles):
@@ -2227,7 +2241,13 @@ def laboratory_orders_export(request):
 
 def _sales_order_queryset(request, require_sales_role=True):
     roles = set(_roles(request.user))
-    can_view_all_sales_orders = _is_chairman(request.user) or ROLE_SALES_MANAGER in roles or ROLE_BUSINESS_DEPT in roles
+    can_view_all_sales_orders = (
+        _is_chairman(request.user)
+        or ROLE_SALES_MANAGER in roles
+        or ROLE_BUSINESS_DEPT in roles
+        or ROLE_BUSINESS_STAFF in roles
+        or GLOBAL_READ_ONLY_ROLES.intersection(roles)
+    )
     if require_sales_role and not can_view_all_sales_orders and ROLE_SALES not in roles:
         return None, JsonResponse(
             {'ok': False, 'error': '仅销售或销售经理可以查询销售订单'},
@@ -2390,7 +2410,14 @@ def sales_manager_orders_export(request):
     workbook = Workbook()
     sheet = workbook.active
     roles = set(_roles(request.user))
-    can_view_all_sales_orders = _is_chairman(request.user) or ROLE_SALES_MANAGER in roles or ROLE_BUSINESS_DEPT in roles
+    can_view_all_sales_orders = (
+        _is_chairman(request.user)
+        or ROLE_SALES_MANAGER in roles
+        or ROLE_BUSINESS_DEPT in roles
+        or ROLE_BUSINESS_STAFF in roles
+        or GLOBAL_READ_ONLY_ROLES.intersection(roles)
+    )
+    can_view_amounts = _can_view_order_amounts(request.user)
     sheet.title = '全部销售订单' if can_view_all_sales_orders else '我的全部订单'
     headers = [
         '序号', '订单号', '销售账号', '销售姓名', '客户名称', '项目名称', '行业', '执行属性',
@@ -2420,14 +2447,14 @@ def sales_manager_orders_export(request):
             order.get_industry_category_display(),
             '、'.join(attributes),
             order.get_order_status_display(),
-            float(order.total_quote),
+            float(order.total_quote) if can_view_amounts else '',
             _display_datetime(order.expect_sample_arrive),
             _display_datetime(order.expect_delivery_time),
             _display_datetime(order.create_time),
             outsource.outsource_company if outsource else '',
-            float(outsource.outsource_amount) if outsource else '',
+            float(outsource.outsource_amount) if outsource and can_view_amounts else '',
             outsource.entrust_order_no if outsource else '',
-            float(outsource.undertaking_amount) if outsource else '',
+            float(outsource.undertaking_amount) if outsource and can_view_amounts else '',
         ])
     widths = [8, 22, 18, 16, 28, 32, 12, 16, 16, 14, 18, 18, 18, 28, 14, 20, 14]
     for column, width in enumerate(widths, start=1):
