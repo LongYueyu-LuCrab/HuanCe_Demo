@@ -29,7 +29,8 @@ Git 提交号：e6b1dc8
 4. 演示数据初始化命令、后端测试、项目基线和流程文档同步更新；历史工作日志中的旧名称保留为历史记录，不篡改既往变更事实。
 影响范围：公司名称显示、接口健康信息、生成报告和演示数据；不改变角色、权限、订单、流程、数据库结构和业务规则。
 验证结果：全量扫描前端、后端和接口字符串；Django check 通过；核心测试 40 项通过；TypeScript 检查和 Vite 生产构建通过；git diff --check 通过。
-部署状态：代码已提交 GitHub Main_V2，待同步部署生产服务器。
+部署状态：代码已提交 GitHub Main_V2（e6b1dc8），已部署到生产服务器。
+部署补充：生产备份位于 `/opt/huance/backups/release-20261117-branding/app_before.tar.gz`；服务器 `huance.service` active，`/api/health/` 返回 service/database 均正常，部署标记已同步到本次最终版本。
 署名：GPT二号
 
 日期：2026-11-17
