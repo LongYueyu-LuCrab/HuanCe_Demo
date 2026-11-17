@@ -20,7 +20,7 @@ from core.models import (
 
 
 class Command(BaseCommand):
-    help = '初始化苏州环测 LIMS 演示数据'
+    help = '初始化江苏澄信洹测 LIMS 演示数据'
 
     def handle(self, *args, **options):
         user_model = get_user_model()
@@ -81,7 +81,7 @@ class Command(BaseCommand):
             order, _ = LabOrder.objects.update_or_create(
                 order_no=spec['order_no'],
                 defaults={
-                    'customer_name': '苏州环测检测技术有限公司',
+                    'customer_name': '江苏澄信洹测检测技术有限公司',
                     'customer_contact': '内部演示客户',
                     'customer_phone': '0512-00000000',
                     'project_name': spec['project_name'],
@@ -215,7 +215,7 @@ class Command(BaseCommand):
         closed_order, _ = LabOrder.objects.update_or_create(
             order_no='LIMS-2026-0000',
             defaults={
-                'customer_name': '苏州环测检测技术有限公司',
+                'customer_name': '江苏澄信洹测检测技术有限公司',
                 'customer_contact': '内部演示客户',
                 'customer_phone': '0512-00000000',
                 'project_name': '历史订单开票归档',

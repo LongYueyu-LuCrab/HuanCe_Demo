@@ -7,6 +7,7 @@ import { useSession } from '../stores/session'
 import companyLogo from '../assets/suzhou-huance-logo.png'
 import backgroundImage from '../assets/lims-login-background-v2.webp'
 import securityEmblem from '../assets/public-security-emblem.png'
+import { BRAND } from '../constants/brand'
 
 const router = useRouter()
 const session = useSession()
@@ -31,16 +32,16 @@ async function submit() {
 <template>
   <main class="login-page" :style="{ backgroundImage: `linear-gradient(90deg, rgba(3, 14, 27, 0.62), rgba(3, 14, 27, 0.20)), url(${backgroundImage})` }">
     <div class="login-brand">
-      <img :src="companyLogo" alt="苏州环测检测技术有限公司 logo">
+      <img :src="companyLogo" :alt="`${BRAND.companyName} logo`">
       <div>
-        <strong>苏州环测检测技术有限公司</strong>
+        <strong>{{ BRAND.companyName }}</strong>
         <span>Laboratory Information Management System</span>
       </div>
     </div>
 
     <el-card class="login-card" shadow="always">
       <p class="panel-kicker">LIMS LOGIN</p>
-      <h1>环测实验室系统</h1>
+      <h1>{{ BRAND.systemName }}</h1>
       <el-form label-position="top" @submit.prevent="submit">
         <el-form-item label="用户名">
           <el-input v-model="form.username" size="large" placeholder="请输入用户名" autocomplete="username" />

@@ -1,4 +1,4 @@
-# 环测 LIMS 报告模板
+# 江苏澄信洹测 LIMS 报告模板
 
 `HuanCe_Report_Template.docx` 是当前唯一报告模板。
 

@@ -55,7 +55,7 @@ class LimsDashboardTests(TestCase):
         self.user.groups.add(sales_group)
         self.order = LabOrder.objects.create(
             order_no='TEST-001',
-            customer_name='苏州环测检测技术有限公司',
+            customer_name='江苏澄信洹测检测技术有限公司',
             customer_contact='王五',
             customer_phone='13800000000',
             project_name='测试订单',
@@ -72,7 +72,7 @@ class LimsDashboardTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data['company'], '苏州环测检测技术有限公司')
+        self.assertEqual(data['company'], '江苏澄信洹测检测技术有限公司')
         self.assertEqual(data['metrics']['orders'], 1)
         self.assertEqual(data['metrics']['active_orders'], 1)
         self.assertEqual(len(data['recent_orders']), 1)

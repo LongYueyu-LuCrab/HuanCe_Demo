@@ -24,6 +24,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabDevice, LabOrder, LabStaffProfile, OrderDocument, OrderPayment, OutsourceRequirement, ReportAudit, Sample, SamplePhoto, SchedulePlan, TestReport, TestStandard, WorkflowEvent
+from .branding import COMPANY_NAME, SYSTEM_NAME
 from .report_pdf import build_test_report_pdf
 
 
@@ -4539,8 +4540,8 @@ def lims_dashboard(request):
     ).order_by('expect_delivery_time', '-create_time')
 
     data = {
-        'company': '苏州环测检测技术有限公司',
-        'system': '实验室管理（LIMS）系统',
+        'company': COMPANY_NAME,
+        'system': SYSTEM_NAME,
         'metrics': {
             'orders': related_orders.count(),
             'active_orders': active_related_orders.count(),

@@ -14,6 +14,7 @@ from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .models import TestReport
+from .branding import COMPANY_NAME
 
 
 FONT_NAME = 'STSong-Light'
@@ -61,7 +62,7 @@ def _draw_page(canvas, document, report, styles):
     canvas.line(18 * mm, height - 16 * mm, width - 18 * mm, height - 16 * mm)
     canvas.setFont(FONT_NAME, 7.5)
     canvas.setFillColor(colors.HexColor('#7b8794'))
-    canvas.drawString(18 * mm, 10 * mm, f'苏州环测检测技术有限公司  |  {report.report_no}')
+    canvas.drawString(18 * mm, 10 * mm, f'{COMPANY_NAME}  |  {report.report_no}')
     canvas.drawRightString(width - 18 * mm, 10 * mm, f'第 {document.page} 页')
 
     if report.report_type == TestReport.ReportType.FORMAL:
@@ -88,10 +89,10 @@ def build_test_report_pdf(report, experiments):
         output, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
         topMargin=22 * mm, bottomMargin=18 * mm,
         title=f'{report.report_no} {report.get_report_type_display()}',
-        author='苏州环测检测技术有限公司',
+        author=COMPANY_NAME,
     )
     story = [
-        Paragraph('苏州环测检测技术有限公司', styles['subtitle']),
+        Paragraph(COMPANY_NAME, styles['subtitle']),
         Paragraph('检测报告', styles['title']),
         Paragraph(f'{report.get_report_type_display()} · {report.report_no}', styles['subtitle']),
     ]

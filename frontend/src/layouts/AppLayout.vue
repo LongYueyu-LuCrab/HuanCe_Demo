@@ -22,6 +22,7 @@ import { getMenuGroups, getRoleDisplayText } from '../permissions'
 import { changePassword } from '../services/api'
 import { useSession } from '../stores/session'
 import companyLogo from '../assets/suzhou-huance-logo.png'
+import { BRAND } from '../constants/brand'
 
 const route = useRoute()
 const router = useRouter()
@@ -120,9 +121,9 @@ async function clearAccessNotice() {
   <el-container class="admin-shell">
     <el-aside width="268px" class="shell-aside">
       <div class="brand-block">
-        <img :src="companyLogo" alt="苏州环测检测技术有限公司 logo">
+        <img :src="companyLogo" :alt="`${BRAND.companyName} logo`">
         <div>
-          <strong>环测 LIMS</strong>
+          <strong>{{ BRAND.productName }}</strong>
           <span>Laboratory Operations</span>
         </div>
       </div>
@@ -156,7 +157,7 @@ async function clearAccessNotice() {
         </div>
         <div>
           <el-breadcrumb separator="/">
-            <el-breadcrumb-item>苏州环测检测技术有限公司</el-breadcrumb-item>
+            <el-breadcrumb-item>{{ BRAND.companyName }}</el-breadcrumb-item>
             <el-breadcrumb-item>{{ currentTitle }}</el-breadcrumb-item>
           </el-breadcrumb>
           <h1>{{ currentTitle }}</h1>
@@ -199,7 +200,7 @@ async function clearAccessNotice() {
     </el-container>
   </el-container>
 
-  <el-drawer v-model="mobileNavVisible" title="环测 LIMS" direction="ltr" size="min(320px, 88vw)" class="mobile-nav-drawer">
+  <el-drawer v-model="mobileNavVisible" :title="BRAND.productName" direction="ltr" size="min(320px, 88vw)" class="mobile-nav-drawer">
     <div class="mobile-nav-role">
       <span>当前岗位</span>
       <strong>{{ roleText }}</strong>

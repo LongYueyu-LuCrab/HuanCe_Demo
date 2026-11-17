@@ -10,7 +10,7 @@ This section supersedes older workflow descriptions below. 商务部 has ordinar
 ## 1. Project
 
 - Project name: HuanCe LIMS
-- Company: 苏州环测检测技术有限公司
+- Company: 江苏澄信洹测检测技术有限公司
 - Product: 实验室管理（LIMS）系统
 - Domain: aroundtest.com / www.aroundtest.com
 - Production server: 119.45.220.99
