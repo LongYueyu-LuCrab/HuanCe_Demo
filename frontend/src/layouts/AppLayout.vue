@@ -128,12 +128,6 @@ async function clearAccessNotice() {
         </div>
       </div>
 
-      <div class="role-card">
-        <span>当前岗位</span>
-        <strong>{{ roleText }}</strong>
-        <small>按权责隔离菜单与数据</small>
-      </div>
-
       <el-scrollbar class="menu-scroll">
         <div v-for="group in menuGroups" :key="group.title" class="menu-group">
           <p>{{ group.title }}</p>
@@ -169,19 +163,21 @@ async function clearAccessNotice() {
             <el-button v-if="session.state.health.status === 'error' || session.state.connectionError" text size="small" @click="retryConnection">重试</el-button>
           </div>
           <el-button v-if="session.canAccessAdmin.value" tag="a" href="/admin/" type="primary" plain>进入 Django 后台</el-button>
-          <el-dropdown>
-            <el-button>
-              {{ displayName }}
-              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item disabled>{{ roleText }}</el-dropdown-item>
-                <el-dropdown-item @click="openPasswordDialog">修改密码</el-dropdown-item>
-                <el-dropdown-item divided @click="logout">退出登录</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <div class="header-identity">
+            <span class="header-role">{{ roleText }}</span>
+            <el-dropdown>
+              <el-button>
+                {{ displayName }}
+                <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="openPasswordDialog">修改密码</el-dropdown-item>
+                  <el-dropdown-item divided @click="logout">退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
       </el-header>
 
@@ -201,10 +197,6 @@ async function clearAccessNotice() {
   </el-container>
 
   <el-drawer v-model="mobileNavVisible" :title="BRAND.productName" direction="ltr" size="min(320px, 88vw)" class="mobile-nav-drawer">
-    <div class="mobile-nav-role">
-      <span>当前岗位</span>
-      <strong>{{ roleText }}</strong>
-    </div>
     <div v-for="group in menuGroups" :key="`mobile-${group.title}`" class="menu-group mobile-menu-group">
       <p>{{ group.title }}</p>
       <el-menu :default-active="activePath" router class="side-menu" @select="mobileNavVisible = false">
