@@ -75,7 +75,7 @@ const actionMeta = computed(() => {
     sample_outbound: { title: '办理样品出库', stage: '样品流转 → 样品出库', impact: '提交后使用服务器当前时间记录出库。', button: '确认出库' },
     outsource_result: { title: '回传委外结果', stage: '委外执行 → 实验已结束', impact: '保存委外结果后，仍需继续提交结果。', button: '保存委外结果' },
     outsource_update: { title: '补充委外资料', stage: '委外路径 → 委外资料完整', impact: '保存委外金额、委托单号、委外合同和排期信息。', button: '保存委外资料' },
-    issue_report: { title: '上传检测报告', stage: '结果已提交 → 报告审核', impact: '上传后报告进入后续审核节点。', button: '上传并提交报告' },
+    issue_report: { title: '提交检测报告', stage: '结果已提交 → 报告审核', impact: '提交后报告信息进入后续审核节点，检测报告文件可选上传。', button: '提交报告' },
     create_change: { title: '发起试验中变更', stage: '实验执行 → 变更申请', impact: '提交后等待实验室重新确认执行安排。', button: '提交变更申请' },
   }
   return map[activeAction.value] || { title: '实验室任务操作', stage: '当前订单流程', impact: '请确认本次操作内容后提交。', button: '确认提交' }
@@ -210,10 +210,6 @@ async function submitWorkflow() {
   }
   if (activeAction.value === 'issue_report' && !String(form.report_no || '').trim()) {
     ElMessage.warning('请填写报告编号')
-    return
-  }
-  if (activeAction.value === 'issue_report' && reportFiles.value.length === 0) {
-    ElMessage.warning('请上传检测报告文件')
     return
   }
   if ((activeAction.value === 'schedule_assign' || activeAction.value === 'process_change')
@@ -408,10 +404,10 @@ async function submitWorkflow() {
             <el-input v-model="form.report_no" placeholder="请填写报告编号" />
             <div class="field-help">报告编号由实验室人员填写，必须唯一。</div>
           </el-form-item>
-          <el-form-item label="检测报告文件" class="form-wide" required>
+          <el-form-item label="检测报告文件（可选）" class="form-wide">
             <el-upload v-model:file-list="reportFiles" :auto-upload="false" :limit="1" accept=".pdf,.doc,.docx">
               <el-button type="primary" plain>上传检测报告</el-button>
-              <template #tip><div class="el-upload__tip">请上传实验室员工整理好的检测报告，支持 PDF、Word，单文件不超过 20MB。</div></template>
+              <template #tip><div class="el-upload__tip">可上传实验室员工整理好的检测报告，支持 PDF、Word，单文件不超过 20MB；不上传也可以提交。</div></template>
             </el-upload>
           </el-form-item>
           <el-form-item label="最终结论" class="form-wide"><el-input v-model="form.final_conclusion" type="textarea" :rows="4" /></el-form-item>

@@ -307,7 +307,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
             <div>
               <strong>{{ report.report_no }}</strong>
               <span>{{ report.status }}</span>
-              <small>{{ report.generated_at || '生成时间未记录' }}</small>
+              <small>{{ report.generated_at || '提交时间未记录' }}</small>
             </div>
             <a v-if="report.has_file" :href="report.download_url" class="report-download-link">下载报告</a>
             <el-tag v-else type="warning" effect="plain">文件待上传</el-tag>

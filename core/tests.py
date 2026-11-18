@@ -1495,9 +1495,6 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         )
         self.order.refresh_from_db()
         self.assertEqual(self.order.order_status, LabOrder.Status.TEST_FINISHED)
-        denied_report = self.action('jiangyin_v2', 'issue_report', report_no='RPT-V2-001', final_conclusion='全部合格')
-        self.assertEqual(denied_report.status_code, 400)
-        self.assertIn('上传检测报告', denied_report.json()['error'])
         issued_report = self.action(
             'suzhou_v2',
             'issue_report',
@@ -1740,7 +1737,6 @@ class LaboratoryOperatorTests(TestCase):
             'issue_report',
             report_no='RPT-RESULT-PENDING-001',
             final_conclusion='检测项目全部合格',
-            report_files=SimpleUploadedFile('RPT-RESULT-PENDING-001.pdf', b'uploaded-report', content_type='application/pdf'),
         )
         self.assertEqual(issued_report.status_code, 200)
 
@@ -1757,7 +1753,7 @@ class LaboratoryOperatorTests(TestCase):
         ).exists())
         report = self.order.reports.get()
         self.assertEqual(report.report_type, TestReport.ReportType.FORMAL)
-        self.assertTrue(report.report_file.name.endswith('.pdf'))
+        self.assertFalse(report.report_file)
         schedule_event = WorkflowEvent.objects.get(order=self.order, action_code='lab_schedule_assign')
         self.assertEqual(schedule_event.schedule, self.schedule)
         self.assertIn('device', schedule_event.change_data)

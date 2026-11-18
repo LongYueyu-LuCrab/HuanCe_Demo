@@ -239,10 +239,6 @@ async function submitWorkflow() {
       ElMessage.warning('请填写报告编号')
       return
     }
-    if (reportFileList.value.length === 0) {
-      ElMessage.warning('请上传检测报告文件')
-      return
-    }
   }
   actionSubmitting.value = true
   try {
@@ -256,7 +252,7 @@ async function submitWorkflow() {
     if (activeAction.value === 'issue_report' && result.report) {
       generatedReport.value = result.report
       reportResultVisible.value = true
-      ElMessage.success('检测报告已上传并提交销售初审')
+      ElMessage.success(result.report.has_file ? '检测报告已上传并提交销售初审' : '检测报告信息已提交销售初审')
     } else {
       ElMessage.success(result.message || '流程操作已完成')
     }
@@ -569,7 +565,7 @@ async function submit() {
               <el-select v-model="actionForm.lead_lab_manager_id" placeholder="从上述已分配负责人中选择">
                 <el-option v-for="manager in leadManagerOptions" :key="manager.id" :label="manager.name" :value="manager.id" />
               </el-select>
-              <div class="field-help">主责负责人负责汇总所有执行路径并出具最终检测报告。</div>
+              <div class="field-help">全部执行路径完成后，实验室员工可提交报告信息；检测报告文件可选择上传。</div>
             </el-form-item>
           </template>
           <el-form-item v-if="activeAction === 'review_reject'" label="驳回原因" class="form-wide"><el-input v-model="actionForm.reject_reason" type="textarea" :rows="3" /></el-form-item>
@@ -673,7 +669,7 @@ async function submit() {
             <el-input v-model="actionForm.report_no" placeholder="请填写报告编号" />
             <div class="field-help">报告编号由实验室员工填写，必须唯一。</div>
           </el-form-item>
-          <el-form-item label="检测报告文件" class="form-wide" required>
+          <el-form-item label="检测报告文件（可选）" class="form-wide">
             <el-upload v-model:file-list="reportFileList" :auto-upload="false" :limit="1" accept=".pdf,.doc,.docx">
               <el-button type="primary" plain>上传检测报告</el-button>
               <template #tip><div class="el-upload__tip">支持 PDF、Word，单文件不超过 20MB。</div></template>
@@ -688,14 +684,14 @@ async function submit() {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="reportResultVisible" title="检测报告已上传" width="min(520px, 92vw)">
-      <el-result icon="success" title="检测报告上传成功" sub-title="报告已保存，并已提交销售初审。">
+    <el-dialog v-model="reportResultVisible" title="检测报告已提交" width="min(520px, 92vw)">
+      <el-result icon="success" :title="generatedReport?.has_file ? '检测报告上传成功' : '检测报告信息提交成功'" sub-title="报告信息已保存，并已提交销售初审。">
         <template #extra>
           <div v-if="generatedReport" class="generated-report-summary">
             <el-descriptions :column="1" border>
               <el-descriptions-item label="报告编号">{{ generatedReport.report_no }}</el-descriptions-item>
               <el-descriptions-item label="当前状态">{{ generatedReport.status }}</el-descriptions-item>
-              <el-descriptions-item label="生成时间">{{ generatedReport.generated_at }}</el-descriptions-item>
+              <el-descriptions-item label="提交时间">{{ generatedReport.generated_at }}</el-descriptions-item>
             </el-descriptions>
             <div class="dialog-result-actions">
               <el-button type="primary" :icon="Download" @click="downloadGeneratedReport">下载报告</el-button>

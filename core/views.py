@@ -4128,11 +4128,10 @@ def _action_issue_report(request, payload):
     if TestReport.objects.filter(report_no=report_no).exclude(pk=report.pk if report else None).exists():
         return JsonResponse({'ok': False, 'error': '报告编号已存在，请更换编号'}, status=400, json_dumps_params={'ensure_ascii': False})
     report_files = request.FILES.getlist('report_files')
-    file_error = _validate_order_documents(report_files, '检测报告', 1)
-    if file_error:
-        return JsonResponse({'ok': False, 'error': file_error}, status=400, json_dumps_params={'ensure_ascii': False})
-    if not report_files:
-        return JsonResponse({'ok': False, 'error': '请上传检测报告文件'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if report_files:
+        file_error = _validate_order_documents(report_files, '检测报告', 1)
+        if file_error:
+            return JsonResponse({'ok': False, 'error': file_error}, status=400, json_dumps_params={'ensure_ascii': False})
     if report:
         report.test_record = experiment
         report.report_no = report_no
@@ -4153,35 +4152,44 @@ def _action_issue_report(request, payload):
     report.generated_at = timezone.now()
     report.save()
     old_file_name = report.report_file.name if report.report_file else ''
-    uploaded_report = report_files[0]
-    report_filename = f'{report.report_no}{Path(uploaded_report.name).suffix.lower()}'
-    report.report_file.save(report_filename, uploaded_report, save=False)
-    report.report_file_url = f'/api/reports/{report.id}/download/'
-    report.save(update_fields=[
+    update_fields = [
         'report_no', 'test_record', 'report_type', 'final_conclusion', 'report_status', 'create_quality_user',
-        'generated_at', 'report_file', 'report_file_url', 'update_time',
-    ])
-    if old_file_name and old_file_name != report.report_file.name:
-        report.report_file.storage.delete(old_file_name)
+        'generated_at', 'update_time',
+    ]
+    if report_files:
+        uploaded_report = report_files[0]
+        report_filename = f'{report.report_no}{Path(uploaded_report.name).suffix.lower()}'
+        report.report_file.save(report_filename, uploaded_report, save=False)
+        report.report_file_url = f'/api/reports/{report.id}/download/'
+        update_fields.extend(['report_file', 'report_file_url'])
+        report.save(update_fields=update_fields)
+        if old_file_name and old_file_name != report.report_file.name:
+            report.report_file.storage.delete(old_file_name)
+    else:
+        report.save(update_fields=update_fields)
+    report_note = '实验室员工上传并提交检测报告' if report_files else '实验室员工提交检测报告信息'
+    order_note = f'实验室员工上传报告 {report.report_no}，提交销售初审' if report_files else f'实验室员工提交报告 {report.report_no}，提交销售初审'
+    event_changes = {
+        'report_no': _audit_change('报告编号', '', report.report_no),
+        'report_status': _audit_change('报告状态', '草稿/驳回', report.get_report_status_display()),
+        'final_conclusion': _audit_change('最终结论', '', report.final_conclusion[:500]),
+        'report_creator': _audit_change('报告提交人', '', _display_user(request.user)),
+    }
+    if report_files:
+        event_changes['report_file'] = _audit_change('报告文件', '', report.report_file.name)
     _event(
         order,
         request.user,
-        '实验室员工上传并提交检测报告',
+        report_note,
         action_code='lab_report_issue',
-        changes={
-            'report_no': _audit_change('报告编号', '', report.report_no),
-            'report_file': _audit_change('报告文件', '', report.report_file.name),
-            'report_status': _audit_change('报告状态', '草稿/驳回', report.get_report_status_display()),
-            'final_conclusion': _audit_change('最终结论', '', report.final_conclusion[:500]),
-            'report_creator': _audit_change('报告提交人', '', _display_user(request.user)),
-        },
+        changes=event_changes,
         schedule=experiment.schedule,
     )
-    order.mark_status(LabOrder.Status.REPORT_REVIEW, request.user, f'实验室员工上传报告 {report.report_no}，提交销售初审')
+    order.mark_status(LabOrder.Status.REPORT_REVIEW, request.user, order_note)
     return JsonResponse(
         {
             'ok': True,
-            'message': '检测报告已上传并提交销售初审',
+            'message': '检测报告已上传并提交销售初审' if report_files else '检测报告信息已提交销售初审',
             'order': _order_payload(order, viewer=request.user),
             'report': _report_payload(report),
         },
