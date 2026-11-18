@@ -15,11 +15,8 @@ const loadError = ref('')
 const saving = ref(false)
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
-const roles = computed(() => new Set(session.state.user.roles || []))
-const defaultLabType = computed(() => session.state.user.lab_type === 2 || roles.value.has('江阴实验室') ? 2 : 1)
-const labFilter = ref(defaultLabType.value)
-const canSwitchLab = computed(() => Boolean(session.state.user.is_chairman))
-const filteredDevices = computed(() => devices.value.filter((item) => item.lab_type === labFilter.value))
+const defaultLabType = computed(() => 1)
+const filteredDevices = computed(() => devices.value)
 const form = reactive({
   device_code: '', device_name: '', lab_type: defaultLabType.value, model_spec: '', capability: '', device_status: 1, remark: '',
 })
@@ -46,7 +43,7 @@ async function loadDevices() {
 function openCreate() {
   editingId.value = null
   Object.assign(form, {
-    device_code: '', device_name: '', lab_type: labFilter.value, model_spec: '', capability: '', device_status: 1, remark: '',
+    device_code: '', device_name: '', lab_type: defaultLabType.value, model_spec: '', capability: '', device_status: 1, remark: '',
   })
   dialogVisible.value = true
 }
@@ -113,7 +110,6 @@ onMounted(loadDevices)
         <p>维护试验台基础信息和运行状态；“实验中”由当前执行订单自动判定。</p>
       </div>
       <div class="row-actions">
-        <el-segmented v-if="canSwitchLab" v-model="labFilter" :options="[{ label: '苏州实验室', value: 1 }, { label: '江阴实验室', value: 2 }]" />
         <el-button v-if="loadError" type="warning" plain @click="loadDevices">重新加载</el-button>
         <el-button type="primary" @click="openCreate">新增设备</el-button>
       </div>
@@ -161,12 +157,7 @@ onMounted(loadDevices)
 
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑设备' : '新增设备'" width="min(720px, 94vw)">
       <el-form label-position="top" class="form-grid">
-        <el-form-item label="所属实验室">
-          <el-select v-model="form.lab_type" :disabled="!canSwitchLab || Boolean(editingId)">
-            <el-option label="苏州实验室" :value="1" />
-            <el-option label="江阴实验室" :value="2" />
-          </el-select>
-        </el-form-item>
+        <el-form-item label="所属实验室"><span>实验室</span></el-form-item>
         <el-form-item label="设备编号"><el-input v-model="form.device_code" :disabled="Boolean(editingId)" placeholder="例如 SZ-VIB-20T" /></el-form-item>
         <el-form-item label="设备名称"><el-input v-model="form.device_name" /></el-form-item>
         <el-form-item label="规格型号"><el-input v-model="form.model_spec" /></el-form-item>

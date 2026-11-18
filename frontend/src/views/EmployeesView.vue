@@ -40,12 +40,7 @@ async function submit() {
       <el-form-item label="邮箱"><el-input v-model="form.email" type="email" /></el-form-item>
       <el-form-item label="初始密码"><el-input v-model="form.password" type="password" show-password /></el-form-item>
       <el-form-item label="岗位"><el-select v-model="form.role"><el-option v-for="role in roles" :key="role" :label="role" :value="role" /></el-select></el-form-item>
-      <el-form-item v-if="showLab" label="所属实验室">
-        <el-select v-model="form.lab_type">
-          <el-option label="苏州实验室" :value="1" />
-          <el-option label="江阴实验室" :value="2" />
-        </el-select>
-      </el-form-item>
+      <el-form-item v-if="showLab" label="所属实验室"><span>实验室</span></el-form-item>
     </el-form>
     <el-button type="primary" :loading="submitting" @click="submit">创建员工</el-button>
   </el-card>

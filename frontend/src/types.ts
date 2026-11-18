@@ -380,8 +380,7 @@ export type Dashboard = {
   recent_orders: OrderItem[]
   order_groups: Record<string, OrderItem[]>
   labs: {
-    suzhou: LabView
-    jiangyin: LabView
+    laboratory: LabView
   }
   outsource_orders: OrderItem[]
   schedules: ScheduleItem[]
@@ -391,8 +390,9 @@ export type Dashboard = {
   workflow_events: WorkflowEventItem[]
   test_standards: TestStandardItem[]
   routing_options: {
-    suzhou_managers: UserOption[]
-    jiangyin_managers: UserOption[]
+    laboratory_managers: UserOption[]
+    suzhou_managers?: UserOption[]
+    jiangyin_managers?: UserOption[]
   }
   pending_reports: ReportItem[]
   finance: {

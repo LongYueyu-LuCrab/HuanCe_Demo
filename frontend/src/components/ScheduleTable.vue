@@ -182,7 +182,6 @@ function handleSelection(rows: ScheduleItem[]) {
 }
 
 async function exportOrders(selectedOnly: boolean) {
-  if (!props.labType) return
   if (selectedOnly && selectedRows.value.length === 0) {
     ElMessage.warning('请先勾选需要导出的订单')
     return
@@ -190,7 +189,7 @@ async function exportOrders(selectedOnly: boolean) {
   exporting.value = true
   try {
     await exportLaboratoryOrders({
-      lab_type: props.labType,
+      lab_type: props.labType || 0,
       keyword: keyword.value,
       order_status: orderStatus.value === '' ? '' : String(orderStatus.value),
       schedule_status: scheduleStatus.value === '' ? '' : String(scheduleStatus.value),

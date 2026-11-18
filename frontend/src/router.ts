@@ -44,7 +44,10 @@ router.beforeEach(async (to) => {
   }
   if (to.name === 'lab') {
     const lab = to.params.lab
-    const key = lab === 'jiangyin' ? 'jiangyin' : 'suzhou'
+    if (lab === 'suzhou' || lab === 'jiangyin') {
+      return { name: 'lab', params: { lab: 'laboratory' }, query: to.query }
+    }
+    const key = 'laboratory'
     if (!visibleKeys.has(key)) {
       const firstPath = getMenuGroups(session.state.user)[0]?.items[0]?.path || '/dashboard'
       return { path: firstPath, query: { denied: '1' } }

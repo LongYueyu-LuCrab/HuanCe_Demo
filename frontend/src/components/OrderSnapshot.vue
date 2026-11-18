@@ -54,8 +54,8 @@ const routeGroups = computed(() => {
   const records = props.order?.schedule_records || []
   const groups = new Map<string, { key: string; label: string; records: typeof records }>()
   for (const record of records) {
-    const key = record.lab_type === 2 ? 'jiangyin' : record.is_outsource ? 'outsource' : 'suzhou'
-    const label = key === 'jiangyin' ? '江阴实验室' : key === 'outsource' ? '外部委外' : '苏州实验室'
+    const key = record.is_outsource ? 'outsource' : 'laboratory'
+    const label = key === 'outsource' ? '外部委外' : '实验室'
     if (!groups.has(key)) groups.set(key, { key, label, records: [] })
     groups.get(key)?.records.push(record)
   }
@@ -82,7 +82,7 @@ function openLabAction(scheduleId: number, labType: number | null, action: 'sche
     sampleArrivalVisible.value = true
     return
   }
-  const lab = labType === 2 ? 'jiangyin' : 'suzhou'
+  const lab = 'laboratory'
   window.location.assign(`/labs/${lab}?order=${encodeURIComponent(props.order?.order_no || '')}&schedule=${scheduleId}&action=${action}`)
 }
 
@@ -371,7 +371,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
         <div class="section-heading-row"><div><h4>执行任务</h4><p>按实验室路径查看排期、样品、设备和实验状态。</p></div><strong>{{ order.schedule_records?.length || 0 }} 项</strong></div>
         <div v-if="order.schedule_records?.length" class="execution-task-list">
           <article v-for="record in order.schedule_records" :key="record.id" class="execution-task-row">
-            <div class="execution-task-main"><strong>{{ record.test_type }}</strong><span>{{ record.lab_type === 2 ? '江阴实验室' : record.is_outsource ? '外部委外' : '苏州实验室' }} · {{ record.lab_manager || '待分配负责人' }}</span></div>
+            <div class="execution-task-main"><strong>{{ record.test_type }}</strong><span>{{ record.is_outsource ? '外部委外' : '实验室' }} · {{ record.lab_manager || '待分配负责人' }}</span></div>
             <div class="execution-task-state"><strong>{{ record.experiment_status || record.schedule_status || '待处理' }}</strong><span>{{ record.device_name || '设备待分配' }}</span></div>
             <el-tag size="small" effect="plain" :type="record.sample_arrived ? 'success' : 'warning'">{{ record.sample_arrived ? '样品已到' : '等待样品' }}</el-tag>
           </article>

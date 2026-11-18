@@ -97,13 +97,15 @@ const orders = computed(() => managerOrders.value)
 const isTechnicalReviewer = computed(() => !session.state.user.is_chairman && (session.state.user.roles || []).includes('常务副总经理'))
 const routingOptions = computed(() => session.state.dashboard?.routing_options)
 const allLabManagers = computed(() => [
+  ...(routingOptions.value?.laboratory_managers || []),
+  ...((routingOptions.value?.laboratory_managers?.length ?? 0) > 0 ? [] : [
   ...(routingOptions.value?.suzhou_managers || []),
   ...(routingOptions.value?.jiangyin_managers || []),
+  ]),
 ])
 const leadManagerOptions = computed(() => {
   const selectedIds = new Set([
-    Number(actionForm.suzhou_manager_id || 0),
-    Number(actionForm.jiangyin_manager_id || 0),
+    Number(actionForm.laboratory_manager_id || 0),
     Number(actionForm.outsource_owner_id || 0),
   ])
   return allLabManagers.value.filter((manager) => selectedIds.has(manager.id))
@@ -185,12 +187,10 @@ function openWorkflow(action: string, order: OrderItem) {
     reject_reason: '',
     biz_quote_detail: '',
     execution_routes: [] as string[],
-    suzhou_manager_id: undefined,
-    jiangyin_manager_id: undefined,
+    laboratory_manager_id: undefined,
     outsource_owner_id: undefined,
     lead_lab_manager_id: undefined,
-    suzhou_task: order.test_demand || '',
-    jiangyin_task: order.test_demand || '',
+    laboratory_task: order.test_demand || '',
     outsource_task: order.test_demand || '',
     note: '',
     change_scene: action === 'create_change' && order.status_key === 4 ? 2 : 1,
@@ -531,27 +531,18 @@ async function submit() {
           <template v-if="activeAction === 'review_pass' && isTechnicalReviewer && activeOrder?.workflow_version === 2">
             <el-form-item label="执行路径" class="form-wide">
               <el-checkbox-group v-model="actionForm.execution_routes">
-                <el-checkbox value="suzhou">苏州内部实验室</el-checkbox>
-                <el-checkbox value="jiangyin">江阴内部实验室</el-checkbox>
+                <el-checkbox value="laboratory">实验室</el-checkbox>
                 <el-checkbox value="outsource">外部委外</el-checkbox>
               </el-checkbox-group>
               <div class="field-help">可多选；全部委外订单也可以在技术评审时拆分为“自主 + 委外”混合路径。</div>
             </el-form-item>
-            <template v-if="hasExecutionRoute('suzhou')">
-              <el-form-item label="苏州实验室负责人">
-                <el-select v-model="actionForm.suzhou_manager_id" placeholder="选择负责人">
-                  <el-option v-for="manager in routingOptions?.suzhou_managers || []" :key="manager.id" :label="manager.name" :value="manager.id" />
+            <template v-if="hasExecutionRoute('laboratory')">
+              <el-form-item label="实验室负责人">
+                <el-select v-model="actionForm.laboratory_manager_id" placeholder="选择负责人">
+                  <el-option v-for="manager in allLabManagers" :key="manager.id" :label="manager.name" :value="manager.id" />
                 </el-select>
               </el-form-item>
-              <el-form-item label="苏州任务"><el-input v-model="actionForm.suzhou_task" /></el-form-item>
-            </template>
-            <template v-if="hasExecutionRoute('jiangyin')">
-              <el-form-item label="江阴实验室负责人">
-                <el-select v-model="actionForm.jiangyin_manager_id" placeholder="选择负责人">
-                  <el-option v-for="manager in routingOptions?.jiangyin_managers || []" :key="manager.id" :label="manager.name" :value="manager.id" />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="江阴任务"><el-input v-model="actionForm.jiangyin_task" /></el-form-item>
+              <el-form-item label="实验室任务"><el-input v-model="actionForm.laboratory_task" /></el-form-item>
             </template>
             <template v-if="hasExecutionRoute('outsource')">
               <el-form-item label="委外管理负责人">
@@ -600,8 +591,7 @@ async function submit() {
         <template v-else-if="activeAction === 'schedule_assign'">
           <el-form-item label="执行路径">
             <el-select v-model="actionForm.test_type">
-              <el-option label="苏州内部实验室" :value="1" />
-              <el-option label="江阴内部实验室" :value="2" />
+              <el-option label="实验室" :value="1" />
               <el-option label="外部委外" :value="3" />
             </el-select>
           </el-form-item>

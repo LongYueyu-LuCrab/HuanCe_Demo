@@ -14,9 +14,9 @@ const route = useRoute()
 const router = useRouter()
 const session = useSession()
 const isBusinessDept = computed(() => (session.state.user.roles || []).includes('商务部'))
-const labKey = computed(() => (route.params.lab === 'jiangyin' ? 'jiangyin' : 'suzhou'))
+const labKey = computed(() => 'laboratory')
 const lab = computed(() => session.state.dashboard?.labs?.[labKey.value])
-const labType = computed(() => labKey.value === 'jiangyin' ? 2 : 1)
+const labType = computed(() => session.state.user.lab_type || 0)
 const labOrders = ref<ScheduleItem[]>([])
 const labOrdersError = ref('')
 const dialogVisible = ref(false)
@@ -295,7 +295,7 @@ async function submitWorkflow() {
     <div class="page-toolbar">
       <div>
         <h2>{{ lab?.name }}</h2>
-        <p>上半部分显示设备状态和未来排期，下半部分筛选本实验室订单。</p>
+        <p>上半部分显示设备状态和未来排期，下半部分筛选实验室订单。</p>
       </div>
     </div>
 

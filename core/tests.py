@@ -1853,6 +1853,13 @@ class LaboratoryOperatorTests(TestCase):
         self.assertEqual(unassigned_item['lab_type'], 1)
         self.assertEqual(unassigned_item['lab_manager_username'], '')
 
+        unified_response = self.client.get(reverse('laboratory_orders'), {'lab_type': 0, 'page_size': 500})
+        self.assertEqual(unified_response.status_code, 200)
+        self.assertEqual(unified_response.json()['lab_type'], 0)
+        unified_ids = {item['id'] for item in unified_response.json()['items']}
+        self.assertIn(self.schedule.id, unified_ids)
+        self.assertIn(unassigned_schedule.id, unified_ids)
+
         response = self.client.get(reverse('laboratory_orders'), {'lab_type': 1, 'keyword': '操作员'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['total'], 1)

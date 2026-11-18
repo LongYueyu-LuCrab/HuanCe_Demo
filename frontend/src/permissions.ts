@@ -37,8 +37,7 @@ export function getMenuGroups(user: User): MenuGroup[] {
         { key: 'schedule', label: '排期管理', path: '/schedule', icon: 'Calendar' },
       ]),
       group('实验室', [
-        { key: 'suzhou', label: '苏州实验室', path: '/labs/suzhou', icon: 'Monitor' },
-        { key: 'jiangyin', label: '江阴实验室', path: '/labs/jiangyin', icon: 'OfficeBuilding' },
+        { key: 'laboratory', label: '实验室', path: '/labs/laboratory', icon: 'Monitor' },
         { key: 'devices', label: '设备管理', path: '/devices', icon: 'SetUp' },
         { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
         { key: 'outsource', label: '委外试验', path: '/outsource', icon: 'Connection' },
@@ -87,8 +86,7 @@ export function getMenuGroups(user: User): MenuGroup[] {
       { key: 'dashboard', label: '商务工作台', path: '/dashboard', icon: 'DataAnalysis' },
       { key: 'orders', label: '全部订单与下单', path: '/orders', icon: 'List' },
       { key: 'schedule', label: '排期管理', path: '/schedule', icon: 'Calendar' },
-      { key: 'suzhou', label: '苏州排期', path: '/labs/suzhou', icon: 'Monitor' },
-      { key: 'jiangyin', label: '江阴排期', path: '/labs/jiangyin', icon: 'OfficeBuilding' },
+      { key: 'laboratory', label: '实验室排期', path: '/labs/laboratory', icon: 'Monitor' },
       { key: 'reports', label: '报告初审', path: '/reports', icon: 'DocumentChecked' },
       { key: 'audit', label: '订单档案', path: '/audit', icon: 'Memo' },
     ])].filter(Boolean) as MenuGroup[]
@@ -115,13 +113,11 @@ export function getMenuGroups(user: User): MenuGroup[] {
   }
 
   if (hasRole(user, '实验室负责人') || hasRole(user, '实验室操作员') || hasRole(user, '实验操作员')) {
-    const isJiangyin = user.lab_type === 2
     const isLabManager = hasRole(user, '实验室负责人')
-    const labKey = isJiangyin ? 'jiangyin' : 'suzhou'
     return [group('实验室工作台', [
       { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataAnalysis' },
       { key: 'orders', label: '实验室订单', path: '/orders', icon: 'List' },
-      { key: labKey, label: '实验室任务', path: `/labs/${labKey}`, icon: isJiangyin ? 'Operation' : 'Cpu' },
+      { key: 'laboratory', label: '实验室任务', path: '/labs/laboratory', icon: 'Monitor' },
       ...(isLabManager ? [{ key: 'devices', label: '设备管理', path: '/devices', icon: 'SetUp' }] : []),
       { key: 'schedule', label: '排期与操作', path: '/schedule', icon: 'Calendar' },
       { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
@@ -132,10 +128,10 @@ export function getMenuGroups(user: User): MenuGroup[] {
   }
 
   if (hasRole(user, '苏州实验室')) {
-    return [group('苏州实验室', [
+    return [group('实验室工作台', [
       { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataAnalysis' },
       { key: 'orders', label: '我的订单', path: '/orders', icon: 'List' },
-      { key: 'suzhou', label: '实验室任务', path: '/labs/suzhou', icon: 'Monitor' },
+      { key: 'laboratory', label: '实验室任务', path: '/labs/laboratory', icon: 'Monitor' },
       { key: 'devices', label: '设备管理', path: '/devices', icon: 'SetUp' },
       { key: 'schedule', label: '我的排期', path: '/schedule', icon: 'Calendar' },
       { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
@@ -146,10 +142,10 @@ export function getMenuGroups(user: User): MenuGroup[] {
   }
 
   if (hasRole(user, '江阴实验室')) {
-    return [group('江阴实验室', [
+    return [group('实验室工作台', [
       { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataAnalysis' },
       { key: 'orders', label: '我的订单', path: '/orders', icon: 'List' },
-      { key: 'jiangyin', label: '实验室任务', path: '/labs/jiangyin', icon: 'OfficeBuilding' },
+      { key: 'laboratory', label: '实验室任务', path: '/labs/laboratory', icon: 'Monitor' },
       { key: 'devices', label: '设备管理', path: '/devices', icon: 'SetUp' },
       { key: 'schedule', label: '我的排期', path: '/schedule', icon: 'Calendar' },
       { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
@@ -160,13 +156,10 @@ export function getMenuGroups(user: User): MenuGroup[] {
   }
 
   if (hasRole(user, '实验操作员')) {
-    const isJiangyin = user.lab_type === 2
-    const labKey = isJiangyin ? 'jiangyin' : 'suzhou'
-    const labName = isJiangyin ? '江阴实验室' : '苏州实验室'
-    return [group(`${labName}操作台`, [
+    return [group('实验室工作台', [
       { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataAnalysis' },
       { key: 'orders', label: '实验室订单', path: '/orders', icon: 'List' },
-      { key: labKey, label: '试验任务', path: `/labs/${labKey}`, icon: isJiangyin ? 'Operation' : 'Cpu' },
+      { key: 'laboratory', label: '实验室任务', path: '/labs/laboratory', icon: 'Monitor' },
       { key: 'schedule', label: '排期与操作', path: '/schedule', icon: 'Calendar' },
       { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
       { key: 'outsource', label: '委外任务', path: '/outsource', icon: 'Connection' },
@@ -180,8 +173,7 @@ export function getMenuGroups(user: User): MenuGroup[] {
       group('经营总览', [
         { key: 'dashboard', label: '全局看板', path: '/dashboard', icon: 'DataAnalysis' },
         { key: 'orders', label: '全局订单查询', path: '/orders', icon: 'List' },
-        { key: 'suzhou', label: '苏州负荷', path: '/labs/suzhou', icon: 'Monitor' },
-        { key: 'jiangyin', label: '江阴负荷', path: '/labs/jiangyin', icon: 'OfficeBuilding' },
+        { key: 'laboratory', label: '实验室负荷', path: '/labs/laboratory', icon: 'Monitor' },
         { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
         { key: 'outsource', label: '委外占比', path: '/outsource', icon: 'Connection' },
       ]),
