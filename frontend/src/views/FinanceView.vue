@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import InvoiceTable from '../components/InvoiceTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
@@ -35,6 +35,12 @@ const form = reactive({
   payment_amount: '',
   payment_date: '',
   payment_remark: '',
+})
+
+onMounted(() => {
+  void session.refreshDashboard().catch((error: unknown) => {
+    ElMessage.error(error instanceof Error ? error.message : '财务待办刷新失败')
+  })
 })
 
 const actionMeta = computed(() => {

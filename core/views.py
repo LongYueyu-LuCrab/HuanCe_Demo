@@ -1153,7 +1153,7 @@ def _pending_final_invoice_payload(report):
         'invoice_type': '待确认',
         'invoice_date': '',
         'pay_status': '待开票',
-        'finish_status': order.get_order_status_display(),
+        'finish_status': '待最终总开票',
         'record_status': Invoice.RecordStatus.VALID,
         'record_status_label': Invoice.RecordStatus.VALID.label,
         'finance_user': '',

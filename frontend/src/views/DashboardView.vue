@@ -85,6 +85,14 @@ function setRiskFilter(filter: RiskFilter) {
   riskPage.value = 1
 }
 
+function selectMetric(key: string) {
+  if (['preinvoice_orders', 'pending_invoice_orders', 'issued_invoice_orders'].includes(key)) {
+    void router.push({ name: 'finance' })
+    return
+  }
+  activeMetric.value = key
+}
+
 // Dashboard actions share the same workflow forms as the order management page.
 // Route the selected action there so every visible action button has a real handler.
 function openWorkflow(action: string, order: (typeof orders.value)[number]) {
@@ -149,9 +157,9 @@ watch(riskOrders, () => {
         role="button"
         tabindex="0"
         :aria-pressed="selectedKey === card.key"
-        @click="activeMetric = card.key"
-        @keydown.enter.prevent="activeMetric = card.key"
-        @keydown.space.prevent="activeMetric = card.key"
+        @click="selectMetric(card.key)"
+        @keydown.enter.prevent="selectMetric(card.key)"
+        @keydown.space.prevent="selectMetric(card.key)"
       >
         <span>{{ card.label }}</span>
           <strong :key="`${card.key}-${card.value}`" class="metric-value">{{ card.value }}</strong>

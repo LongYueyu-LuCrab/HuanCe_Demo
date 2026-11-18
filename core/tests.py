@@ -985,6 +985,7 @@ class InvoiceWorkflowTests(TestCase):
         self.assertFalse(any(item['order_no'] == self.order.order_no for item in finance['preinvoice_candidates']))
         final_candidate = next(item for item in finance['pending_invoices'] if item['report_no'] == report.report_no)
         self.assertEqual(final_candidate['invoice_stage'], Invoice.Stage.FINAL)
+        self.assertEqual(final_candidate['finish_status'], '待最终总开票')
         self.assertEqual(final_candidate['remaining_amount'], '300.00')
         self.assertEqual(final_candidate['experiment_result_status'], '实验结果已提交')
 
