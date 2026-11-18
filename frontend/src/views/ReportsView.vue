@@ -136,7 +136,7 @@ async function submitWorkflow(result: 'pass' | 'reject') {
       <div class="action-dialog-step"><span>流程影响</span><strong>{{ actionMeta.stage }}</strong><small>{{ actionMeta.impact }}</small></div>
       <el-space v-if="activeReport?.has_file" class="report-file-actions" wrap>
         <el-button size="small" type="primary" plain @click="previewReport">预览 PDF</el-button>
-        <el-button size="small" plain @click="downloadReport">下载 PDF</el-button>
+        <el-button size="small" plain @click="downloadReport">下载报告</el-button>
       </el-space>
     </div>
     <el-divider content-position="left">审核意见</el-divider>

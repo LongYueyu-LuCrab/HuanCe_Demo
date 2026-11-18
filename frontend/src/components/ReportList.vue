@@ -98,20 +98,13 @@ function downloadReport(report: ReportItem) {
       <el-table-column prop="status" label="状态" min-width="150">
         <template #default="{ row }"><StatusBadge :label="row.status" /></template>
       </el-table-column>
-      <el-table-column prop="report_type_label" label="版本" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.report_type === 'formal' ? 'danger' : row.report_type === 'data_only' ? 'info' : 'warning'" effect="plain">
-            {{ row.report_type_label }}
-          </el-tag>
-        </template>
-      </el-table-column>
       <el-table-column prop="remake_count" label="重制次数" width="100" />
-      <el-table-column prop="quality_user" label="出具人" min-width="120" />
+      <el-table-column prop="quality_user" label="上传人" min-width="120" />
       <el-table-column label="订单信息 / 审核操作" fixed="right" min-width="260">
         <template #default="{ row }">
           <div class="row-actions">
             <el-button size="small" plain @click="emit('detail', row)">订单详情</el-button>
-            <el-button v-if="row.has_file" size="small" type="primary" plain @click="downloadReport(row)">下载 PDF</el-button>
+            <el-button v-if="row.has_file" size="small" type="primary" plain @click="downloadReport(row)">下载报告</el-button>
             <el-button
               v-for="action in actionsFor(row)"
               :key="action.key"

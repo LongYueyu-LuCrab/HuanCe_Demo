@@ -358,7 +358,7 @@ class LimsDashboardTests(TestCase):
         )
         self.assertEqual(payload['order']['outsource_info']['entrust_order_no'], 'WT-2026-001')
 
-    def test_outsource_order_requires_complete_outsource_information(self):
+    def test_outsource_order_allows_deferred_outsource_information(self):
         self.client.force_login(self.user)
 
         response = self.client.post(
@@ -373,9 +373,12 @@ class LimsDashboardTests(TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 400)
-        self.assertIn('委外订单必须完整填写', response.json()['error'])
-        self.assertFalse(LabOrder.objects.filter(customer_name='缺少委外资料客户').exists())
+        self.assertEqual(response.status_code, 200)
+        order = LabOrder.objects.get(customer_name='缺少委外资料客户')
+        self.assertTrue(order.outsourced_execution)
+        self.assertEqual(order.outsource_requirement.outsource_company, '')
+        self.assertIsNone(order.outsource_requirement.outsource_amount)
+        self.assertEqual(order.outsource_requirement.entrust_order_no, '')
 
     def test_sales_can_upload_contract_and_attachment(self):
         self.client.force_login(self.user)
@@ -768,7 +771,7 @@ class LimsFullRoleWorkflowTests(TestCase):
         self.assertEqual(progress['steps'][-1]['state'], 'completed')
         self.assertEqual(
             set(Group.objects.values_list('name', flat=True)),
-            set(self.roles.values()) | {'实验操作员', '销售经理', '商务部'},
+            set(self.roles.values()) | {'实验室负责人', '实验室操作员', '销售经理', '商务部'},
         )
 
 
@@ -1230,7 +1233,7 @@ class LimsV2DirectLabWorkflowTests(TestCase):
     def action(self, user_key, action, **payload):
         self.client.force_login(self.users[user_key])
         data = {'action': action, 'order_no': self.order.order_no, **payload}
-        if 'sample_photos' in payload:
+        if 'sample_photos' in payload or 'report_files' in payload:
             data = {key: value for key, value in data.items() if value is not None}
             return self.client.post(reverse('lims_action'), data=data)
         return self.client.post(
@@ -1277,7 +1280,36 @@ class LimsV2DirectLabWorkflowTests(TestCase):
             if step['key'] == 'scheduling'
         )
         self.assertEqual(scheduling_step['state'], 'current')
-        self.assertIn('0/1', scheduling_step['detail'])
+
+    def test_all_outsource_order_can_be_split_into_mixed_routes(self):
+        self.order.autonomous_execution = False
+        self.order.outsourced_execution = True
+        self.order.save(update_fields=['autonomous_execution', 'outsourced_execution', 'update_time'])
+        self.assertEqual(self.action('business_v2', 'review_pass').status_code, 200)
+        response = self.action(
+            'tech_v2',
+            'review_pass',
+            execution_routes=['suzhou', 'outsource'],
+            suzhou_manager_id=self.users['suzhou_v2'].id,
+            outsource_owner_id=self.users['suzhou_v2'].id,
+            lead_lab_manager_id=self.users['suzhou_v2'].id,
+            suzhou_task='自主环境试验',
+            outsource_task='委外盐雾试验',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertTrue(self.order.autonomous_execution)
+        self.assertEqual(self.order.execution_mode, LabOrder.ExecutionMode.MIXED)
+        self.assertEqual(self.order.schedules.count(), 2)
+
+        schedule = self.order.schedules.get(test_type=SchedulePlan.TestType.OUTSOURCE)
+        detail = self.client.get(reverse('order_detail', kwargs={'order_no': self.order.order_no}))
+        self.assertEqual(detail.status_code, 200)
+        scheduling_step = next(
+            step for step in detail.json()['order']['workflow_progress']['steps']
+            if step['key'] == 'scheduling'
+        )
+        self.assertIn('0/2', scheduling_step['detail'])
         self.assertEqual(scheduling_step['time'], '')
 
         schedules = self.client.get(reverse('laboratory_orders'), {'lab_type': 1})
@@ -1327,7 +1359,8 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         self.assertEqual(schedule.scheduled_by, self.users['suzhou_v2'])
         self.client.force_login(self.users['sales_v2'])
         scheduled_detail = self.client.get(reverse('order_detail', kwargs={'order_no': self.order.order_no}))
-        self.assertTrue(scheduled_detail.json()['order']['all_routes_scheduled'])
+        # Mixed execution is not complete until the internal route is scheduled as well.
+        self.assertFalse(scheduled_detail.json()['order']['all_routes_scheduled'])
 
     def test_v2_routes_directly_to_labs_and_lead_manager_issues_report(self):
         business = self.action('business_v2', 'review_pass', biz_quote_detail='商务评审通过')
@@ -1462,9 +1495,16 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         )
         self.order.refresh_from_db()
         self.assertEqual(self.order.order_status, LabOrder.Status.TEST_FINISHED)
-        denied_report = self.action('jiangyin_v2', 'issue_report', final_conclusion='全部合格')
-        self.assertEqual(denied_report.status_code, 403)
-        issued_report = self.action('suzhou_v2', 'issue_report', final_conclusion='三条路径全部完成，结论合格')
+        denied_report = self.action('jiangyin_v2', 'issue_report', report_no='RPT-V2-001', final_conclusion='全部合格')
+        self.assertEqual(denied_report.status_code, 400)
+        self.assertIn('上传检测报告', denied_report.json()['error'])
+        issued_report = self.action(
+            'suzhou_v2',
+            'issue_report',
+            report_no='RPT-V2-001',
+            final_conclusion='三条路径全部完成，结论合格',
+            report_files=SimpleUploadedFile('RPT-V2-001.docx', b'uploaded-report', content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+        )
         self.assertEqual(issued_report.status_code, 200)
         self.assertTrue(issued_report.json()['report']['has_file'])
         self.assertRegex(issued_report.json()['report']['download_url'], r'^/api/reports/\d+/download/$')
@@ -1473,17 +1513,16 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         report = self.order.reports.get()
         self.assertEqual(report.create_quality_user, self.users['suzhou_v2'])
         self.assertEqual(report.report_type, TestReport.ReportType.FORMAL)
-        self.assertIn('-formal', report.report_file.name)
-        self.assertTrue(report.report_file.name.endswith('.pdf'))
-        self.assertGreater(report.report_file.size, 1000)
+        self.assertTrue(report.report_file.name.endswith('.docx'))
+        self.assertEqual(report.report_file.size, len(b'uploaded-report'))
         detail = self.client.get(reverse('order_detail', args=[self.order.order_no]))
         self.assertEqual(detail.status_code, 200)
         self.assertEqual(detail.json()['order']['report_records'][0]['report_no'], report.report_no)
         self.assertTrue(detail.json()['order']['report_records'][0]['has_file'])
         download = self.client.get(reverse('download_test_report', args=[report.id]))
         self.assertEqual(download.status_code, 200)
-        self.assertEqual(download['Content-Type'], 'application/pdf')
-        self.assertTrue(b''.join(download.streaming_content).startswith(b'%PDF'))
+        self.assertEqual(download['Content-Type'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        self.assertEqual(b''.join(download.streaming_content), b'uploaded-report')
         self.client.force_login(self.users['quality_v1'])
         self.assertEqual(self.client.get(reverse('download_test_report', args=[report.id])).status_code, 403)
 
@@ -1613,8 +1652,8 @@ class LabDeviceSchedulingTests(TestCase):
 class LaboratoryOperatorTests(TestCase):
     def setUp(self):
         user_model = get_user_model()
-        manager_group, _ = Group.objects.get_or_create(name='苏州实验室')
-        operator_group, _ = Group.objects.get_or_create(name='实验操作员')
+        manager_group, _ = Group.objects.get_or_create(name='实验室负责人')
+        operator_group, _ = Group.objects.get_or_create(name='实验室操作员')
         self.manager = user_model.objects.create_user(username='operator_manager', password='password123')
         self.manager.groups.add(manager_group)
         LabStaffProfile.objects.update_or_create(
@@ -1645,7 +1684,7 @@ class LaboratoryOperatorTests(TestCase):
     def action(self, action, **payload):
         self.client.force_login(self.operator)
         data = {'action': action, 'order_no': self.order.order_no, 'schedule_id': self.schedule.id, **payload}
-        if 'sample_photos' in payload:
+        if 'sample_photos' in payload or 'report_files' in payload:
             return self.client.post(reverse('lims_action'), data=data)
         return self.client.post(
             reverse('lims_action'),
@@ -1685,6 +1724,7 @@ class LaboratoryOperatorTests(TestCase):
             data={
                 'action': 'issue_report',
                 'order_no': self.order.order_no,
+                'report_no': 'RPT-RESULT-PENDING-001',
                 'report_type': TestReport.ReportType.DATA_ONLY,
                 'final_conclusion': '尚未提交结果',
             },
@@ -1696,17 +1736,11 @@ class LaboratoryOperatorTests(TestCase):
         self.assertEqual(self.action('submit_test').status_code, 200)
         self.order.refresh_from_db()
         self.assertEqual(self.order.order_status, LabOrder.Status.TEST_FINISHED)
-        denied_report = self.action('issue_report', final_conclusion='检测项目全部合格')
-        self.assertEqual(denied_report.status_code, 403)
-        self.client.force_login(self.manager)
-        issued_report = self.client.post(
-            reverse('lims_action'),
-            data={
-                'action': 'issue_report', 'order_no': self.order.order_no,
-                'report_type': TestReport.ReportType.DATA_ONLY,
-                'final_conclusion': '检测项目全部合格',
-            },
-            content_type='application/json',
+        issued_report = self.action(
+            'issue_report',
+            report_no='RPT-RESULT-PENDING-001',
+            final_conclusion='检测项目全部合格',
+            report_files=SimpleUploadedFile('RPT-RESULT-PENDING-001.pdf', b'uploaded-report', content_type='application/pdf'),
         )
         self.assertEqual(issued_report.status_code, 200)
 
@@ -1717,13 +1751,12 @@ class LaboratoryOperatorTests(TestCase):
         self.assertTrue({
             'lab_schedule_assign', 'lab_test_start', 'lab_test_end', 'lab_test_result_submit',
         }.issubset(action_codes))
-        self.assertNotIn('lab_report_issue', action_codes)
-        self.assertTrue(WorkflowEvent.objects.filter(
+        self.assertIn('lab_report_issue', action_codes)
+        self.assertFalse(WorkflowEvent.objects.filter(
             order=self.order, actor=self.manager, action_code='lab_report_issue',
         ).exists())
         report = self.order.reports.get()
-        self.assertEqual(report.report_type, TestReport.ReportType.DATA_ONLY)
-        self.assertIn('-data_only', report.report_file.name)
+        self.assertEqual(report.report_type, TestReport.ReportType.FORMAL)
         self.assertTrue(report.report_file.name.endswith('.pdf'))
         schedule_event = WorkflowEvent.objects.get(order=self.order, action_code='lab_schedule_assign')
         self.assertEqual(schedule_event.schedule, self.schedule)

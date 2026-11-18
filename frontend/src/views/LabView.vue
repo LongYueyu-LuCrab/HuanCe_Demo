@@ -31,6 +31,7 @@ const activeScheduleChangePending = computed(() => activeSchedule.value?.schedul
 const availabilityLoading = ref(false)
 const availableDevices = ref<LabDevice[]>([])
 const samplePhotoFiles = ref<UploadUserFile[]>([])
+const reportFiles = ref<UploadUserFile[]>([])
 const availabilityMessage = ref('')
 let availabilityRequest = 0
 let preferredDeviceId: number | undefined
@@ -53,7 +54,6 @@ const form = reactive({
   test_start_time: '',
   test_end_time: '',
   report_no: '',
-  report_type: 'formal',
   final_conclusion: '',
 })
 
@@ -67,7 +67,7 @@ const actionMeta = computed(() => {
     submit_test: { title: '提交实验结果', stage: '实验已结束 → 结果已提交', impact: '确认提交后，该执行路径才会计入订单完成判断。', button: '提交结果' },
     sample_outbound: { title: '办理样品出库', stage: '样品流转 → 样品出库', impact: '提交后使用服务器当前时间记录出库。', button: '确认出库' },
     outsource_result: { title: '回传委外结果', stage: '委外执行 → 实验已结束', impact: '保存委外结果后，仍需继续提交结果。', button: '保存委外结果' },
-    issue_report: { title: '出具检测报告', stage: '结果已提交 → 报告审核', impact: '提交后报告进入后续审核节点。', button: '生成并提交报告' },
+    issue_report: { title: '上传检测报告', stage: '结果已提交 → 报告审核', impact: '上传后报告进入后续审核节点。', button: '上传并提交报告' },
     create_change: { title: '发起试验中变更', stage: '实验执行 → 变更申请', impact: '提交后等待实验室重新确认执行安排。', button: '提交变更申请' },
   }
   return map[activeAction.value] || { title: '实验室任务操作', stage: '当前订单流程', impact: '请确认本次操作内容后提交。', button: '确认提交' }
@@ -167,12 +167,12 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
     test_start_time: '',
     test_end_time: '',
     report_no: '',
-    report_type: 'formal',
     final_conclusion: '',
   })
   preferredDeviceId = form.device_id
   dialogVisible.value = true
   samplePhotoFiles.value = []
+  reportFiles.value = []
   void loadOrderContext(schedule.order_no)
   if ((action === 'schedule_assign' || action === 'process_change') && schedule.start_time && schedule.end_time && !schedule.test_type.includes('委外')) {
     void queryAvailableDevices()
@@ -260,6 +260,16 @@ async function submitWorkflow() {
     ElMessage.warning(activeSchedule.value?.sample_arrived ? '请至少上传一张补充样品图片' : '样品入库必须上传至少一张样品图片')
     return
   }
+  if (activeAction.value === 'issue_report') {
+    if (!String(form.report_no || '').trim()) {
+      ElMessage.warning('请填写报告编号')
+      return
+    }
+    if (reportFiles.value.length === 0) {
+      ElMessage.warning('请上传检测报告文件')
+      return
+    }
+  }
   submitting.value = true
   try {
     await workflowAction({
@@ -270,6 +280,7 @@ async function submitWorkflow() {
       ...form,
       test_item_list: activeSchedule.value?.remark || form.test_item_list,
       sample_photos: samplePhotoFiles.value.map((item) => item.raw).filter((file): file is File => Boolean(file)),
+      report_files: reportFiles.value.map((item) => item.raw).filter((file): file is File => Boolean(file)),
     })
     ElMessage.success('试验节点操作已完成')
     dialogVisible.value = false
@@ -454,19 +465,15 @@ async function submitWorkflow() {
           <el-alert class="form-wide" title="回传后仍需点击“提交结果”" type="info" :closable="false" show-icon />
         </template>
         <template v-else-if="activeAction === 'issue_report'">
-          <el-form-item label="报告编号">
-            <el-input v-model="form.report_no" placeholder="可手动填写" />
-            <div class="field-help">留空将自动生成</div>
+          <el-form-item label="报告编号" required>
+            <el-input v-model="form.report_no" placeholder="请填写报告编号" />
+            <div class="field-help">报告编号由实验室员工填写，必须唯一。</div>
           </el-form-item>
-          <el-form-item label="报告版本" class="form-wide">
-            <el-radio-group v-model="form.report_type">
-              <el-radio-button value="formal">正式版</el-radio-button>
-              <el-radio-button value="draft">草稿版</el-radio-button>
-              <el-radio-button value="data_only">仅数据</el-radio-button>
-            </el-radio-group>
-            <div class="field-help">
-              正式版带“示例章 / DEMO”占位水印；草稿版无水印；仅数据版只保留委托、实验与原始数据。
-            </div>
+          <el-form-item label="检测报告文件" class="form-wide" required>
+            <el-upload v-model:file-list="reportFiles" :auto-upload="false" :limit="1" accept=".pdf,.doc,.docx">
+              <el-button type="primary" plain>上传检测报告</el-button>
+              <template #tip><div class="el-upload__tip">请上传实验室员工整理好的检测报告，支持 PDF、Word，单文件不超过 20MB。</div></template>
+            </el-upload>
           </el-form-item>
           <el-form-item label="最终结论" class="form-wide"><el-input v-model="form.final_conclusion" type="textarea" :rows="4" /></el-form-item>
         </template>

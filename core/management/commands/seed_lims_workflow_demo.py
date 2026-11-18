@@ -17,6 +17,8 @@ from core.models import (
     SchedulePlan,
     TestReport,
     WorkflowEvent,
+    LabDevice,
+    LabStaffProfile,
 )
 
 
@@ -149,8 +151,8 @@ class Command(BaseCommand):
             'sales03': ('销售三号', '销售', self.demo_password, False),
             'business_dept01': ('商务部一号', '商务部', self.demo_password, False),
             'quality01': ('质量专员一号', '质量部', self.demo_password, False),
-            'suzhou_lab01': ('苏州实验室负责人', '苏州实验室', self.demo_password, False),
-            'jiangyin_lab01': ('江阴实验室负责人', '江阴实验室', self.demo_password, False),
+            'suzhou_lab01': ('苏州实验室负责人', '实验室负责人', self.demo_password, False),
+            'jiangyin_lab01': ('江阴实验室负责人', '实验室负责人', self.demo_password, False),
             'general_manager01': ('常务副总经理一号', '常务副总经理', self.demo_password, False),
             'accountant01': ('会计一号', '会计', self.demo_password, False),
         }
@@ -168,6 +170,14 @@ class Command(BaseCommand):
             user.groups.clear()
             user.groups.add(group)
             users[username] = user
+        LabStaffProfile.objects.update_or_create(
+            user=users['suzhou_lab01'],
+            defaults={'lab_type': LabDevice.LabType.SUZHOU, 'position': LabStaffProfile.Position.MANAGER, 'is_active': True},
+        )
+        LabStaffProfile.objects.update_or_create(
+            user=users['jiangyin_lab01'],
+            defaults={'lab_type': LabDevice.LabType.JIANGYIN, 'position': LabStaffProfile.Position.MANAGER, 'is_active': True},
+        )
         legacy_chairman = user_model.objects.filter(username='LuCrab').first()
         if legacy_chairman:
             chairman_group, _ = Group.objects.get_or_create(name='总经理')

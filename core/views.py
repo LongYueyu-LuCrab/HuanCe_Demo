@@ -12,7 +12,6 @@ from urllib.parse import quote
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.models import Group
-from django.core.files.base import ContentFile
 from django.db import connection, transaction
 from django.db.models import Case, Count, F, IntegerField, Prefetch, Q, Sum, Value, When
 from django.http import FileResponse, HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, JsonResponse
@@ -25,7 +24,6 @@ from openpyxl.utils import get_column_letter
 
 from .models import BusinessReview, ChangeRequest, Experiment, Invoice, LabDevice, LabOrder, LabStaffProfile, OrderDocument, OrderPayment, OutsourceRequirement, ReportAudit, Sample, SamplePhoto, SchedulePlan, TestReport, TestStandard, WorkflowEvent
 from .branding import COMPANY_NAME, SYSTEM_NAME
-from .report_pdf import build_test_report_pdf
 
 
 ROLE_SALES = '销售'
@@ -34,9 +32,12 @@ ROLE_BUSINESS = '商务'  # Retired role; retained only for historical reference
 ROLE_BUSINESS_DEPT = '商务部'
 ROLE_TECH = '技术'
 ROLE_QUALITY = '质量部'
+# 统一后的实验室岗位；旧岗位名保留为历史数据兼容别名。
+ROLE_LAB_MANAGER = '实验室负责人'
 ROLE_SUZHOU_LAB = '苏州实验室'
 ROLE_JIANGYIN_LAB = '江阴实验室'
-ROLE_LAB_OPERATOR = '实验操作员'
+ROLE_LAB_OPERATOR = '实验室操作员'
+ROLE_LEGACY_LAB_OPERATOR = '实验操作员'
 ROLE_OUTSOURCE = '委外供应商'
 ROLE_GENERAL_MANAGER = '常务副总经理'
 ROLE_ACCOUNTING = '会计'
@@ -55,9 +56,11 @@ VALID_ROLES = [
     ROLE_SALES_MANAGER,
     ROLE_BUSINESS_DEPT,
     ROLE_QUALITY,
+    ROLE_LAB_MANAGER,
     ROLE_SUZHOU_LAB,
     ROLE_JIANGYIN_LAB,
     ROLE_LAB_OPERATOR,
+    ROLE_LEGACY_LAB_OPERATOR,
     ROLE_OUTSOURCE,
     ROLE_GENERAL_MANAGER,
     ROLE_ACCOUNTING,
@@ -159,16 +162,32 @@ def _user_lab_type(user):
     return None
 
 
+def _is_lab_manager(user):
+    roles = set(_roles(user))
+    profile = _lab_profile(user)
+    return bool(
+        ROLE_LAB_MANAGER in roles
+        or ROLE_SUZHOU_LAB in roles
+        or ROLE_JIANGYIN_LAB in roles
+        or (profile and profile.position == LabStaffProfile.Position.MANAGER)
+    )
+
+
 def _is_lab_operator(user):
     profile = _lab_profile(user)
-    return bool(ROLE_LAB_OPERATOR in _roles(user) and profile and profile.position == LabStaffProfile.Position.OPERATOR)
+    return bool(
+        {ROLE_LAB_OPERATOR, ROLE_LEGACY_LAB_OPERATOR}.intersection(_roles(user))
+        and profile
+        and profile.position == LabStaffProfile.Position.OPERATOR
+    )
 
 
 def _lab_schedule_query(lab_type):
     manager_role = ROLE_SUZHOU_LAB if lab_type == LabDevice.LabType.SUZHOU else ROLE_JIANGYIN_LAB
-    return Q(test_type=lab_type) | Q(
-        test_type=SchedulePlan.TestType.OUTSOURCE,
-        lab_manager__groups__name=manager_role,
+    return (
+        Q(test_type=lab_type)
+        | Q(test_type=SchedulePlan.TestType.OUTSOURCE, lab_manager__lims_lab_profile__lab_type=lab_type)
+        | Q(test_type=SchedulePlan.TestType.OUTSOURCE, lab_manager__groups__name=manager_role)
     )
 
 
@@ -183,11 +202,15 @@ def _can_operate_schedule(user, schedule):
         lab_type = _user_lab_type(user)
         if schedule.test_type == lab_type:
             return True
-        manager_role = ROLE_SUZHOU_LAB if lab_type == LabDevice.LabType.SUZHOU else ROLE_JIANGYIN_LAB
         return bool(
             schedule.test_type == SchedulePlan.TestType.OUTSOURCE
             and schedule.lab_manager
-            and schedule.lab_manager.groups.filter(name=manager_role).exists()
+            and (
+                _user_lab_type(schedule.lab_manager) == lab_type
+                or schedule.lab_manager.groups.filter(
+                    name=ROLE_SUZHOU_LAB if lab_type == LabDevice.LabType.SUZHOU else ROLE_JIANGYIN_LAB,
+                ).exists()
+            )
         )
     return schedule.lab_manager_id == user.id
 
@@ -213,7 +236,7 @@ def _can_view_order_contracts(user, order):
 def _can_view_order_amounts(user):
     """实验室负责人和实验操作员不接触报价及委外金额。"""
     roles = set(_roles(user)) if user and user.is_authenticated else set()
-    return not bool({ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_BUSINESS_STAFF}.intersection(roles))
+    return not bool({ROLE_LAB_MANAGER, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_LEGACY_LAB_OPERATOR, ROLE_BUSINESS_STAFF}.intersection(roles))
 
 
 def _user_payload(user):
@@ -221,6 +244,7 @@ def _user_payload(user):
         return {'authenticated': False}
     roles = _roles(user)
     profile = _lab_profile(user)
+    lab_name = '实验室' if {ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR}.intersection(roles) else (profile.get_lab_type_display() if profile else '')
     return {
         'authenticated': True,
         'id': user.id,
@@ -232,7 +256,7 @@ def _user_payload(user):
         'is_staff': user.is_staff,
         'is_superuser': user.is_superuser,
         'lab_type': profile.lab_type if profile else _user_lab_type(user),
-        'lab_name': profile.get_lab_type_display() if profile else '',
+        'lab_name': lab_name,
         'lab_position': profile.get_position_display() if profile else '',
     }
 
@@ -266,7 +290,7 @@ def _orders_for_user(user):
             LabOrder.Status.TEST_FINISHED,
             LabOrder.Status.REPORT_REVIEW,
         ], workflow_version=LabOrder.WorkflowVersion.LEGACY_QUALITY)
-    if ROLE_SUZHOU_LAB in roles or ROLE_JIANGYIN_LAB in roles:
+    if _is_lab_manager(user):
         query |= Q(
             schedules__lab_manager=user,
             order_status__in=[
@@ -277,7 +301,7 @@ def _orders_for_user(user):
                 LabOrder.Status.REPORT_REVIEW,
             ],
         ) | Q(lead_lab_manager=user)
-    if ROLE_LAB_OPERATOR in roles:
+    if _is_lab_operator(user):
         lab_type = _user_lab_type(user)
         if lab_type:
             query |= Q(
@@ -636,11 +660,11 @@ def _workflow_progress_payload(order, include_amounts=True):
         summary = '全部实验已结束，等待提交结果'
     elif order.order_status == LabOrder.Status.TEST_FINISHED:
         current_keys = ['report']
-        summary = '实验结果已提交，等待出具报告'
+        summary = '实验结果已提交，等待实验室员工上传报告'
     elif order.order_status == LabOrder.Status.REPORT_REVIEW:
         if not latest_report or latest_report.report_status == TestReport.Status.DRAFT:
             current_keys = ['report']
-            summary = '等待出具报告'
+            summary = '等待实验室员工上传报告'
         elif latest_report.report_status == TestReport.Status.SALES_REVIEW:
             current_keys = ['sales_audit']
             summary = '等待销售初审'
@@ -685,9 +709,9 @@ def _outsource_requirement_payload(order, include_amounts=True):
         return None
     return {
         'outsource_company': requirement.outsource_company,
-        'outsource_amount': str(requirement.outsource_amount) if include_amounts else '',
+        'outsource_amount': str(requirement.outsource_amount) if include_amounts and requirement.outsource_amount is not None else '',
         'entrust_order_no': requirement.entrust_order_no,
-        'undertaking_amount': str(requirement.undertaking_amount) if include_amounts else '',
+        'undertaking_amount': str(requirement.undertaking_amount) if include_amounts and requirement.undertaking_amount is not None else '',
         'experiment_start_time': _display_datetime(requirement.experiment_start_time),
         'experiment_end_time': _display_datetime(requirement.experiment_end_time),
         'created_by': _display_user(requirement.created_by),
@@ -837,7 +861,7 @@ def _order_payload(order, include_sample_records=False, viewer=None):
 def _redact_order_experiment_data(payload, roles):
     raw_data_roles = {
         ROLE_CHAIRMAN, ROLE_GENERAL_MANAGER, ROLE_QUALITY,
-        ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_OUTSOURCE,
+        ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_LEGACY_LAB_OPERATOR, ROLE_OUTSOURCE,
     }
     if raw_data_roles.intersection(roles):
         return payload
@@ -1348,6 +1372,19 @@ def _role_user_options(role_name):
     ]
 
 
+def _lab_manager_options(lab_type):
+    return [
+        {'id': user.id, 'username': user.username, 'name': _display_user(user)}
+        for user in get_user_model().objects.filter(
+            is_active=True,
+        ).filter(
+            Q(groups__name=ROLE_SUZHOU_LAB if lab_type == LabDevice.LabType.SUZHOU else ROLE_JIANGYIN_LAB)
+            | Q(groups__name=ROLE_LAB_MANAGER, lims_lab_profile__lab_type=lab_type)
+            | Q(lims_lab_profile__position=LabStaffProfile.Position.MANAGER, lims_lab_profile__lab_type=lab_type)
+        ).distinct().order_by('first_name', 'username')
+    ]
+
+
 def _limit_queryset(queryset, limit=50):
     try:
         limit_value = int(limit)
@@ -1434,13 +1471,10 @@ def _lab_payload(test_type, name, related_orders=None, user=None):
     if user is not None and not _is_chairman(user):
         roles = set(_roles(user))
         can_view_lab = ROLE_QUALITY in roles or ROLE_GENERAL_MANAGER in roles or ROLE_BUSINESS_DEPT in roles
-        if ROLE_SUZHOU_LAB in roles and test_type == SchedulePlan.TestType.SUZHOU:
+        if _is_lab_manager(user) and _user_lab_type(user) == test_type:
             can_view_lab = True
             schedules = schedules.filter(lab_manager=user)
-        elif ROLE_JIANGYIN_LAB in roles and test_type == SchedulePlan.TestType.JIANGYIN:
-            can_view_lab = True
-            schedules = schedules.filter(lab_manager=user)
-        elif ROLE_LAB_OPERATOR in roles and _user_lab_type(user) == test_type:
+        elif _is_lab_operator(user) and _user_lab_type(user) == test_type:
             can_view_lab = True
         if not can_view_lab:
             schedules = schedules.none()
@@ -1473,16 +1507,10 @@ def _pending_reports_for_user(user, related_orders):
             order__workflow_version=LabOrder.WorkflowVersion.LEGACY_QUALITY,
             report_status__in=[TestReport.Status.DRAFT, TestReport.Status.REJECTED],
         )
-    if ROLE_SUZHOU_LAB in roles or ROLE_JIANGYIN_LAB in roles:
+    lab_type = _user_lab_type(user)
+    if (_is_lab_manager(user) or _is_lab_operator(user)) and lab_type:
         query |= Q(
-            order__lead_lab_manager=user,
-            report_status__in=[TestReport.Status.DRAFT, TestReport.Status.REJECTED],
-        )
-    if ROLE_LAB_OPERATOR in roles:
-        lab_type = _user_lab_type(user)
-        manager_role = ROLE_SUZHOU_LAB if lab_type == LabDevice.LabType.SUZHOU else ROLE_JIANGYIN_LAB
-        query |= Q(
-            order__lead_lab_manager__groups__name=manager_role,
+            order__schedules__in=SchedulePlan.objects.filter(_lab_schedule_query(lab_type)),
             report_status__in=[TestReport.Status.DRAFT, TestReport.Status.REJECTED],
         )
     if not query:
@@ -1568,6 +1596,14 @@ def _json_payload(request):
 
 def _has_any_role(user, *roles):
     user_roles = set(_roles(user))
+    if ROLE_LAB_MANAGER in user_roles:
+        user_roles.update({ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB})
+    elif {ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB}.intersection(user_roles):
+        user_roles.add(ROLE_LAB_MANAGER)
+    if ROLE_LAB_OPERATOR in user_roles:
+        user_roles.add(ROLE_LEGACY_LAB_OPERATOR)
+    elif ROLE_LEGACY_LAB_OPERATOR in user_roles:
+        user_roles.add(ROLE_LAB_OPERATOR)
     return _is_chairman(user) or any(role in user_roles for role in roles)
 
 
@@ -1675,6 +1711,27 @@ def _user_in_role(user_id, role_name):
     ).first()
 
 
+def _user_in_lab_manager(user_id, lab_type=None):
+    if not user_id:
+        return None
+    manager_roles = [ROLE_LAB_MANAGER, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB]
+    queryset = get_user_model().objects.filter(
+        id=user_id,
+        is_active=True,
+    ).filter(
+        Q(groups__name__in=manager_roles) | Q(lims_lab_profile__position=LabStaffProfile.Position.MANAGER)
+    )
+    if lab_type == LabDevice.LabType.SUZHOU:
+        queryset = queryset.filter(
+            Q(lims_lab_profile__lab_type=lab_type) | Q(groups__name=ROLE_SUZHOU_LAB)
+        )
+    elif lab_type == LabDevice.LabType.JIANGYIN:
+        queryset = queryset.filter(
+            Q(lims_lab_profile__lab_type=lab_type) | Q(groups__name=ROLE_JIANGYIN_LAB)
+        )
+    return queryset.first()
+
+
 def _configure_v2_routes(order, actor, payload):
     routes = payload.get('execution_routes') or []
     if isinstance(routes, str):
@@ -1683,25 +1740,28 @@ def _configure_v2_routes(order, actor, payload):
     valid_routes = {'suzhou', 'jiangyin', 'outsource'}
     if not routes or not set(routes).issubset(valid_routes):
         return '技术评审必须选择至少一条有效执行路径'
-    if ({'suzhou', 'jiangyin'} & set(routes)) and not order.autonomous_execution:
-        return '销售订单未选择“自主”，不能分配内部实验室'
+    has_internal_route = bool({'suzhou', 'jiangyin'} & set(routes))
+    # 全部委外的订单可以在技术评审时重新拆分为“自主 + 委外”。
+    # 只有既未选择自主、也未选择委外的非法旧数据才继续拦截。
+    if has_internal_route and not order.autonomous_execution and not order.outsourced_execution:
+        return '销售订单未选择“自主”或“委外”，不能分配执行路径'
     if 'outsource' in routes and not order.outsourced_execution:
         return '销售订单未选择“委外”，不能分配委外路径'
 
     route_specs = []
     if 'suzhou' in routes:
-        manager = _user_in_role(payload.get('suzhou_manager_id'), ROLE_SUZHOU_LAB)
+        manager = _user_in_lab_manager(payload.get('suzhou_manager_id'), LabDevice.LabType.SUZHOU)
         if not manager:
             return '请选择有效的苏州实验室负责人'
         route_specs.append((SchedulePlan.TestType.SUZHOU, manager, payload.get('suzhou_task') or order.test_demand))
     if 'jiangyin' in routes:
-        manager = _user_in_role(payload.get('jiangyin_manager_id'), ROLE_JIANGYIN_LAB)
+        manager = _user_in_lab_manager(payload.get('jiangyin_manager_id'), LabDevice.LabType.JIANGYIN)
         if not manager:
             return '请选择有效的江阴实验室负责人'
         route_specs.append((SchedulePlan.TestType.JIANGYIN, manager, payload.get('jiangyin_task') or order.test_demand))
     if 'outsource' in routes:
         owner_id = payload.get('outsource_owner_id')
-        manager = _user_in_role(owner_id, ROLE_SUZHOU_LAB) or _user_in_role(owner_id, ROLE_JIANGYIN_LAB)
+        manager = _user_in_lab_manager(owner_id)
         if not manager:
             return '请选择负责委外管理的内部实验室负责人'
         route_specs.append((SchedulePlan.TestType.OUTSOURCE, manager, payload.get('outsource_task') or order.test_demand))
@@ -1743,7 +1803,9 @@ def _configure_v2_routes(order, actor, payload):
     order.execution_mode = (
         route_specs[0][0] if len(route_specs) == 1 else LabOrder.ExecutionMode.MIXED
     )
-    order.save(update_fields=['lead_lab_manager', 'execution_mode', 'update_time'])
+    if has_internal_route and order.outsourced_execution:
+        order.autonomous_execution = True
+    order.save(update_fields=['lead_lab_manager', 'execution_mode', 'autonomous_execution', 'update_time'])
     return ''
 
 
@@ -1858,8 +1920,8 @@ def add_employee(request):
         return JsonResponse({'ok': False, 'error': '请选择有效岗位；商务评审由总经理负责，技术评审由常务副总经理负责'}, status=400)
     if role == ROLE_QUALITY:
         return JsonResponse({'ok': False, 'error': 'V2 工作流已取消质量部岗位，请选择实验室负责人'}, status=400, json_dumps_params={'ensure_ascii': False})
-    if role == ROLE_LAB_OPERATOR and lab_type not in LabDevice.LabType.values:
-        return JsonResponse({'ok': False, 'error': '实验操作员必须选择所属实验室'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if role in {ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR} and lab_type not in LabDevice.LabType.values:
+        return JsonResponse({'ok': False, 'error': '实验室岗位必须选择所属实验室'}, status=400, json_dumps_params={'ensure_ascii': False})
 
     user_model = get_user_model()
     if user_model.objects.filter(username=username).exists():
@@ -1870,7 +1932,7 @@ def add_employee(request):
         password=password,
         email=email,
         first_name=display_name,
-        is_staff=role != ROLE_LAB_OPERATOR,
+        is_staff=role not in {ROLE_LAB_OPERATOR, ROLE_LEGACY_LAB_OPERATOR},
     )
     if role:
         group, _ = Group.objects.get_or_create(name=role)
@@ -1878,6 +1940,8 @@ def add_employee(request):
     profile_position = None
     if role == ROLE_LAB_OPERATOR:
         profile_position = LabStaffProfile.Position.OPERATOR
+    elif role == ROLE_LAB_MANAGER:
+        profile_position = LabStaffProfile.Position.MANAGER
     elif role == ROLE_SUZHOU_LAB:
         lab_type = LabDevice.LabType.SUZHOU
         profile_position = LabStaffProfile.Position.MANAGER
@@ -1911,9 +1975,11 @@ def _device_lab_types_for_user(user, include_read_only=False):
         return [LabDevice.LabType.SUZHOU, LabDevice.LabType.JIANGYIN]
     roles = set(_roles(user))
     lab_types = []
-    if ROLE_SUZHOU_LAB in roles:
+    if _is_lab_manager(user) and _user_lab_type(user) in LabDevice.LabType.values:
+        lab_types.append(_user_lab_type(user))
+    elif ROLE_SUZHOU_LAB in roles:
         lab_types.append(LabDevice.LabType.SUZHOU)
-    if ROLE_JIANGYIN_LAB in roles:
+    if ROLE_JIANGYIN_LAB in roles and LabDevice.LabType.JIANGYIN not in lab_types:
         lab_types.append(LabDevice.LabType.JIANGYIN)
     return lab_types
 
@@ -2758,33 +2824,27 @@ def create_order(request):
         entrust_order_no = (payload.get('entrust_order_no') or '').strip()
         experiment_start_time = _parse_datetime(payload.get('outsource_experiment_start_time'))
         experiment_end_time = _parse_datetime(payload.get('outsource_experiment_end_time'))
-        if not all([
-            outsource_contract_files,
-            outsource_company,
-            payload.get('outsource_amount'),
-            entrust_order_no,
-            payload.get('undertaking_amount'),
-            experiment_start_time,
-            experiment_end_time,
-        ]):
-            return JsonResponse(
-                {'ok': False, 'error': '委外订单必须完整填写委外合同、委外金额、委外公司、委托单号、承接金额和实验起止时间'},
-                status=400,
-                json_dumps_params={'ensure_ascii': False},
-            )
-        try:
-            outsource_amount = Decimal(str(payload.get('outsource_amount')))
-            undertaking_amount = Decimal(str(payload.get('undertaking_amount')))
-        except InvalidOperation:
-            return JsonResponse({'ok': False, 'error': '委外金额或承接金额格式错误'}, status=400, json_dumps_params={'ensure_ascii': False})
-        if (
-            not outsource_amount.is_finite()
-            or not undertaking_amount.is_finite()
-            or outsource_amount <= 0
-            or undertaking_amount <= 0
-        ):
-            return JsonResponse({'ok': False, 'error': '委外金额和承接金额必须大于 0'}, status=400, json_dumps_params={'ensure_ascii': False})
-        if experiment_end_time <= experiment_start_time:
+        raw_outsource_amount = payload.get('outsource_amount')
+        raw_undertaking_amount = payload.get('undertaking_amount')
+        outsource_amount = None
+        undertaking_amount = None
+        if raw_outsource_amount not in [None, '']:
+            try:
+                outsource_amount = Decimal(str(raw_outsource_amount))
+            except InvalidOperation:
+                return JsonResponse({'ok': False, 'error': '委外金额格式错误'}, status=400, json_dumps_params={'ensure_ascii': False})
+            if not outsource_amount.is_finite() or outsource_amount <= 0:
+                return JsonResponse({'ok': False, 'error': '委外金额必须大于 0'}, status=400, json_dumps_params={'ensure_ascii': False})
+        if raw_undertaking_amount not in [None, '']:
+            try:
+                undertaking_amount = Decimal(str(raw_undertaking_amount))
+            except InvalidOperation:
+                return JsonResponse({'ok': False, 'error': '承接金额格式错误'}, status=400, json_dumps_params={'ensure_ascii': False})
+            if not undertaking_amount.is_finite() or undertaking_amount <= 0:
+                return JsonResponse({'ok': False, 'error': '承接金额必须大于 0'}, status=400, json_dumps_params={'ensure_ascii': False})
+        if (experiment_start_time and not experiment_end_time) or (experiment_end_time and not experiment_start_time):
+            return JsonResponse({'ok': False, 'error': '委外实验起止时间需要同时填写'}, status=400, json_dumps_params={'ensure_ascii': False})
+        if experiment_start_time and experiment_end_time and experiment_end_time <= experiment_start_time:
             return JsonResponse({'ok': False, 'error': '委外实验结束时间必须晚于开始时间'}, status=400, json_dumps_params={'ensure_ascii': False})
         outsource_requirement_data = {
             'outsource_company': outsource_company,
@@ -2909,11 +2969,12 @@ def download_test_report(request, report_id):
     if not can_view:
         return JsonResponse({'ok': False, 'error': '无权下载该检测报告'}, status=403, json_dumps_params={'ensure_ascii': False})
     if not report.report_file or not report.report_file.storage.exists(report.report_file.name):
-        return JsonResponse({'ok': False, 'error': '报告 PDF 尚未生成或已被移除'}, status=404, json_dumps_params={'ensure_ascii': False})
-    filename = f'{report.report_no}-{report.get_report_type_display()}.pdf'
+        return JsonResponse({'ok': False, 'error': '检测报告文件尚未上传或已被移除'}, status=404, json_dumps_params={'ensure_ascii': False})
+    extension = Path(report.report_file.name).suffix.lower() or '.bin'
+    filename = f'{report.report_no}{extension}'
     response = FileResponse(
         report.report_file.open('rb'),
-        content_type='application/pdf',
+        content_type=mimetypes.guess_type(filename)[0] or 'application/octet-stream',
         as_attachment=request.GET.get('preview') not in {'1', 'true', 'yes'},
         filename=filename,
     )
@@ -2982,6 +3043,7 @@ def lims_action(request):
         'start_test': _action_start_test,
         'end_test': _action_end_test,
         'outsource_result': _action_outsource_result,
+        'outsource_update': _action_outsource_update,
         'submit_test': _action_submit_test,
         'sample_outbound': _action_sample_outbound,
         'issue_report': _action_issue_report,
@@ -3196,7 +3258,7 @@ def _action_create_change(request, payload):
             change_time=timezone.now(),
             change_status=ChangeRequest.Status.PENDING,
         )
-        if ROLE_SUZHOU_LAB in roles or ROLE_JIANGYIN_LAB in roles or ROLE_LAB_OPERATOR in roles:
+        if _is_lab_manager(request.user) or _is_lab_operator(request.user):
             _event(
                 order,
                 request.user,
@@ -3655,7 +3717,7 @@ def _sync_order_test_completion(order, actor):
             order.mark_status(
                 LabOrder.Status.TEST_FINISHED,
                 actor,
-                '全部执行路径的实验结果均已提交，等待主责实验室负责人出具报告',
+                '全部执行路径的实验结果均已提交，等待实验室员工上传报告',
             )
         return True
 
@@ -3739,7 +3801,7 @@ def _action_outsource_result(request, payload):
     experiment.test_item_list = payload.get('test_item_list') or experiment.test_item_list or schedule.remark or order.test_demand
     experiment.test_standard = payload.get('test_standard') or experiment.test_standard or '委外厂家回传标准'
     experiment.test_raw_data = payload.get('test_raw_data') or experiment.test_raw_data or '委外厂家已回传原始试验数据'
-    experiment.test_conclusion_temp = payload.get('test_conclusion_temp') or experiment.test_conclusion_temp or '委外试验完成，等待主责实验室出具报告'
+    experiment.test_conclusion_temp = payload.get('test_conclusion_temp') or experiment.test_conclusion_temp or '委外试验完成，等待实验室员工上传报告'
     experiment.result_status = result_status
     experiment.test_start_time = experiment.test_start_time or schedule.plan_start_time or timezone.now()
     experiment.test_end_time = _parse_datetime(payload.get('test_end_time')) or timezone.now()
@@ -3768,6 +3830,133 @@ def _action_outsource_result(request, payload):
     )
     _sync_order_test_completion(order, request.user)
     return _status_response('委外实验已结束并记录结果，请确认后点击“提交结果”', order)
+
+
+def _outsource_schedule_for_actor(order, payload, user):
+    schedules = order.schedules.filter(test_type=SchedulePlan.TestType.OUTSOURCE)
+    if payload.get('schedule_id'):
+        schedules = schedules.filter(id=payload.get('schedule_id'))
+    if _is_chairman(user) or ROLE_OUTSOURCE in _roles(user):
+        return schedules.order_by('-create_time').first()
+    for schedule in schedules.select_related('lab_manager').order_by('-create_time'):
+        if _can_operate_schedule(user, schedule):
+            return schedule
+    return None
+
+
+def _action_outsource_update(request, payload):
+    """由已分配的委外负责人补录订单级委外资料和委外合同。"""
+    order, error = _get_order(payload)
+    if error:
+        return error
+    if order.order_status in [LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]:
+        return JsonResponse({'ok': False, 'error': '已办结或已退单的订单不能补录委外资料'}, status=400, json_dumps_params={'ensure_ascii': False})
+    schedule = _outsource_schedule_for_actor(order, payload, request.user)
+    if not schedule:
+        return JsonResponse({'ok': False, 'error': '只有本订单委外负责人可以补录委外资料'}, status=403, json_dumps_params={'ensure_ascii': False})
+
+    try:
+        requirement = order.outsource_requirement
+    except OutsourceRequirement.DoesNotExist:
+        requirement = None
+
+    company = str(payload.get('outsource_company') or (requirement.outsource_company if requirement else '')).strip()
+    entrust_order_no = str(payload.get('entrust_order_no') or (requirement.entrust_order_no if requirement else '')).strip()
+    raw_outsource_amount = payload.get('outsource_amount')
+    raw_undertaking_amount = payload.get('undertaking_amount')
+    if raw_outsource_amount in [None, ''] and requirement:
+        raw_outsource_amount = requirement.outsource_amount
+    if raw_undertaking_amount in [None, ''] and requirement:
+        raw_undertaking_amount = requirement.undertaking_amount
+    try:
+        outsource_amount = Decimal(str(raw_outsource_amount)) if raw_outsource_amount not in [None, ''] else None
+        undertaking_amount = Decimal(str(raw_undertaking_amount)) if raw_undertaking_amount not in [None, ''] else None
+    except (InvalidOperation, TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': '委外金额或承接金额格式错误'}, status=400, json_dumps_params={'ensure_ascii': False})
+
+    start_time = _parse_datetime(payload.get('outsource_experiment_start_time'))
+    end_time = _parse_datetime(payload.get('outsource_experiment_end_time'))
+    if start_time is None and requirement:
+        start_time = requirement.experiment_start_time
+    if end_time is None and requirement:
+        end_time = requirement.experiment_end_time
+    if not company or not entrust_order_no or outsource_amount is None or undertaking_amount is None or not start_time or not end_time:
+        return JsonResponse({'ok': False, 'error': '请补全委外公司、委外金额、委托单号、承接金额和实验起止时间'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if outsource_amount <= 0 or undertaking_amount <= 0:
+        return JsonResponse({'ok': False, 'error': '委外金额和承接金额必须大于 0'}, status=400, json_dumps_params={'ensure_ascii': False})
+    if end_time <= start_time:
+        return JsonResponse({'ok': False, 'error': '委外实验结束时间必须晚于开始时间'}, status=400, json_dumps_params={'ensure_ascii': False})
+
+    contract_files = request.FILES.getlist('outsource_contract_files')
+    file_error = _validate_order_documents(contract_files, '委外合同', 1)
+    if file_error:
+        return JsonResponse({'ok': False, 'error': file_error}, status=400, json_dumps_params={'ensure_ascii': False})
+    existing_contract = order.documents.filter(document_type=OrderDocument.DocumentType.OUTSOURCE_CONTRACT).first()
+    if not existing_contract and not contract_files:
+        return JsonResponse({'ok': False, 'error': '请上传委外合同'}, status=400, json_dumps_params={'ensure_ascii': False})
+
+    with transaction.atomic():
+        order = LabOrder.objects.select_for_update().get(pk=order.pk)
+        if requirement is None:
+            requirement = OutsourceRequirement.objects.create(
+                order=order,
+                created_by=request.user,
+                updated_by=request.user,
+                outsource_company=company,
+                outsource_amount=outsource_amount,
+                entrust_order_no=entrust_order_no,
+                undertaking_amount=undertaking_amount,
+                experiment_start_time=start_time,
+                experiment_end_time=end_time,
+            )
+        else:
+            requirement.outsource_company = company
+            requirement.outsource_amount = outsource_amount
+            requirement.entrust_order_no = entrust_order_no
+            requirement.undertaking_amount = undertaking_amount
+            requirement.experiment_start_time = start_time
+            requirement.experiment_end_time = end_time
+            requirement.updated_by = request.user
+            requirement.save()
+
+        if contract_files:
+            if existing_contract:
+                existing_contract.file.delete(save=False)
+                existing_contract.delete()
+            uploaded_file = contract_files[0]
+            uploaded_file.seek(0)
+            digest = hashlib.sha256(uploaded_file.read()).hexdigest()
+            uploaded_file.seek(0)
+            OrderDocument.objects.create(
+                order=order,
+                document_type=OrderDocument.DocumentType.OUTSOURCE_CONTRACT,
+                file=uploaded_file,
+                original_name=uploaded_file.name,
+                file_size=uploaded_file.size,
+                sha256=digest,
+                uploaded_by=request.user,
+            )
+
+        schedule.outsource_factory = company
+        schedule.outsource_price = outsource_amount
+        schedule.plan_start_time = start_time
+        schedule.plan_end_time = end_time
+        schedule.save(update_fields=['outsource_factory', 'outsource_price', 'plan_start_time', 'plan_end_time', 'update_time'])
+        _event(
+            order,
+            request.user,
+            '委外负责人补充委外订单资料',
+            action_code='outsource_requirement_update',
+            changes={
+                'outsource_company': _audit_change('委外公司', '', company),
+                'outsource_amount': _audit_change('委外金额', '', outsource_amount),
+                'entrust_order_no': _audit_change('委托单号', '', entrust_order_no),
+                'undertaking_amount': _audit_change('承接金额', '', undertaking_amount),
+                'outsource_contract': _audit_change('委外合同', '', contract_files[0].name if contract_files else '已保留原合同'),
+            },
+            schedule=schedule,
+        )
+    return _status_response('委外资料已补充', order)
 
 
 def _action_end_test(request, payload):
@@ -3852,7 +4041,7 @@ def _action_submit_test(request, payload):
         schedule=schedule,
     )
     all_finished = _sync_order_test_completion(order, request.user)
-    message = '结果已提交；全部执行路径均已提交，可出具报告' if all_finished else '本任务结果已提交，等待其他执行路径提交结果'
+    message = '结果已提交；全部执行路径均已提交，可上传检测报告' if all_finished else '本任务结果已提交，等待其他执行路径提交结果'
     return _status_response(message, order)
 
 
@@ -3906,11 +4095,15 @@ def _action_issue_report(request, payload):
     if error:
         return error
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB)
+        role_error = _require_role(
+            request.user,
+            ROLE_LAB_MANAGER,
+            ROLE_SUZHOU_LAB,
+            ROLE_JIANGYIN_LAB,
+            ROLE_LAB_OPERATOR,
+        )
         if role_error:
             return role_error
-        if not _is_chairman(request.user) and order.lead_lab_manager_id != request.user.id:
-            return JsonResponse({'ok': False, 'error': '仅本订单主责实验室负责人可以汇总出具报告'}, status=403, json_dumps_params={'ensure_ascii': False})
         if order.schedules.exclude(schedule_status=SchedulePlan.Status.FINISHED).exists():
             return JsonResponse({'ok': False, 'error': '仍有执行路径未提交实验结果，暂不能出具总报告'}, status=400, json_dumps_params={'ensure_ascii': False})
         if order.experiments.exclude(test_status=Experiment.Status.FINISHED).exists() or not order.experiments.exists():
@@ -3925,16 +4118,25 @@ def _action_issue_report(request, payload):
     experiment = order.experiments.order_by('-create_time').first()
     if not experiment:
         return JsonResponse({'ok': False, 'error': '请先完成试验记录'}, status=400, json_dumps_params={'ensure_ascii': False})
-    report_type = payload.get('report_type') or TestReport.ReportType.FORMAL
-    if report_type not in TestReport.ReportType.values:
-        return JsonResponse({'ok': False, 'error': '请选择有效的报告版本'}, status=400, json_dumps_params={'ensure_ascii': False})
+    report_no = str(payload.get('report_no') or '').strip()
+    if not report_no:
+        return JsonResponse({'ok': False, 'error': '请填写报告编号'}, status=400, json_dumps_params={'ensure_ascii': False})
     latest_report = order.reports.order_by('-update_time', '-create_time', '-id').first()
     if latest_report and latest_report.report_status != TestReport.Status.REJECTED:
         return JsonResponse({'ok': False, 'error': '当前报告已进入审核或开票流程，不能重复出具'}, status=400, json_dumps_params={'ensure_ascii': False})
     report = latest_report if latest_report and latest_report.report_status == TestReport.Status.REJECTED else None
+    if TestReport.objects.filter(report_no=report_no).exclude(pk=report.pk if report else None).exists():
+        return JsonResponse({'ok': False, 'error': '报告编号已存在，请更换编号'}, status=400, json_dumps_params={'ensure_ascii': False})
+    report_files = request.FILES.getlist('report_files')
+    file_error = _validate_order_documents(report_files, '检测报告', 1)
+    if file_error:
+        return JsonResponse({'ok': False, 'error': file_error}, status=400, json_dumps_params={'ensure_ascii': False})
+    if not report_files:
+        return JsonResponse({'ok': False, 'error': '请上传检测报告文件'}, status=400, json_dumps_params={'ensure_ascii': False})
     if report:
         report.test_record = experiment
-        report.report_type = report_type
+        report.report_no = report_no
+        report.report_type = TestReport.ReportType.FORMAL
         report.final_conclusion = payload.get('final_conclusion') or report.final_conclusion or '检测完成，形成正式检测报告。'
         report.report_status = TestReport.Status.SALES_REVIEW
         report.create_quality_user = request.user
@@ -3942,22 +4144,21 @@ def _action_issue_report(request, payload):
         report = TestReport(
             order=order,
             test_record=experiment,
-            report_no=payload.get('report_no') or _next_report_no(order),
-            report_type=report_type,
+            report_no=report_no,
+            report_type=TestReport.ReportType.FORMAL,
             final_conclusion=payload.get('final_conclusion') or '检测完成，形成正式检测报告。',
             report_status=TestReport.Status.SALES_REVIEW,
             create_quality_user=request.user,
         )
     report.generated_at = timezone.now()
     report.save()
-    experiments = order.experiments.select_related('test_operator', 'schedule').order_by('create_time')
-    pdf_content = build_test_report_pdf(report, experiments)
     old_file_name = report.report_file.name if report.report_file else ''
-    report_filename = f'{report.report_no}-{report.report_type}.pdf'
-    report.report_file.save(report_filename, ContentFile(pdf_content), save=False)
+    uploaded_report = report_files[0]
+    report_filename = f'{report.report_no}{Path(uploaded_report.name).suffix.lower()}'
+    report.report_file.save(report_filename, uploaded_report, save=False)
     report.report_file_url = f'/api/reports/{report.id}/download/'
     report.save(update_fields=[
-        'test_record', 'report_type', 'final_conclusion', 'report_status', 'create_quality_user',
+        'report_no', 'test_record', 'report_type', 'final_conclusion', 'report_status', 'create_quality_user',
         'generated_at', 'report_file', 'report_file_url', 'update_time',
     ])
     if old_file_name and old_file_name != report.report_file.name:
@@ -3965,11 +4166,10 @@ def _action_issue_report(request, payload):
     _event(
         order,
         request.user,
-        '实验室人员汇总并提交检测报告',
+        '实验室员工上传并提交检测报告',
         action_code='lab_report_issue',
         changes={
             'report_no': _audit_change('报告编号', '', report.report_no),
-            'report_type': _audit_change('报告版本', '', report.get_report_type_display()),
             'report_file': _audit_change('报告文件', '', report.report_file.name),
             'report_status': _audit_change('报告状态', '草稿/驳回', report.get_report_status_display()),
             'final_conclusion': _audit_change('最终结论', '', report.final_conclusion[:500]),
@@ -3977,11 +4177,11 @@ def _action_issue_report(request, payload):
         },
         schedule=experiment.schedule,
     )
-    order.mark_status(LabOrder.Status.REPORT_REVIEW, request.user, f'主责实验室负责人出具报告 {report.report_no}，提交销售初审')
+    order.mark_status(LabOrder.Status.REPORT_REVIEW, request.user, f'实验室员工上传报告 {report.report_no}，提交销售初审')
     return JsonResponse(
         {
             'ok': True,
-            'message': '报告已生成并提交销售初审',
+            'message': '检测报告已上传并提交销售初审',
             'order': _order_payload(order, viewer=request.user),
             'report': _report_payload(report),
         },
@@ -4476,11 +4676,11 @@ def lims_dashboard(request):
         order__in=related_orders
     ).order_by('-change_time', '-create_time')
     dashboard_roles = set(_roles(request.user))
-    if not _is_chairman(request.user) and (ROLE_SUZHOU_LAB in dashboard_roles or ROLE_JIANGYIN_LAB in dashboard_roles):
+    if not _is_chairman(request.user) and _is_lab_manager(request.user):
         schedules = schedules.filter(lab_manager=request.user)
         samples = samples.filter(schedule__lab_manager=request.user)
         changes = changes.filter(schedule__lab_manager=request.user)
-    elif not _is_chairman(request.user) and ROLE_LAB_OPERATOR in dashboard_roles:
+    elif not _is_chairman(request.user) and _is_lab_operator(request.user):
         lab_type = _user_lab_type(request.user)
         schedule_scope = _lab_schedule_query(lab_type) if lab_type else Q(pk__in=[])
         schedules = schedules.filter(schedule_scope)
@@ -4605,8 +4805,8 @@ def lims_dashboard(request):
         'workflow_events': [_workflow_payload(event) for event in workflow_events],
         'test_standards': [_standard_payload(standard) for standard in test_standards],
         'routing_options': {
-            'suzhou_managers': _role_user_options(ROLE_SUZHOU_LAB),
-            'jiangyin_managers': _role_user_options(ROLE_JIANGYIN_LAB),
+            'suzhou_managers': _lab_manager_options(LabDevice.LabType.SUZHOU),
+            'jiangyin_managers': _lab_manager_options(LabDevice.LabType.JIANGYIN),
         } if _has_any_role(request.user, ROLE_GENERAL_MANAGER) else {
             'suzhou_managers': [],
             'jiangyin_managers': [],

@@ -26,6 +26,7 @@ const actionForm = reactive<Record<string, unknown>>({})
 const contractFileList = ref<UploadUserFile[]>([])
 const outsourceContractFileList = ref<UploadUserFile[]>([])
 const attachmentFileList = ref<UploadUserFile[]>([])
+const reportFileList = ref<UploadUserFile[]>([])
 const form = reactive({
   customer_name: '',
   contact_name: '',
@@ -160,7 +161,7 @@ const actionTitleMap: Record<string, string> = {
   end_test: '实验结束',
   submit_test: '提交实验结果',
   outsource_result: '委外试验结果回传',
-  issue_report: '出具检测报告',
+  issue_report: '上传检测报告',
 }
 
 function openWorkflow(action: string, order: OrderItem) {
@@ -209,9 +210,9 @@ function openWorkflow(action: string, order: OrderItem) {
     test_start_time: '',
     test_end_time: '',
     report_no: '',
-    report_type: 'formal',
     final_conclusion: '',
   })
+  reportFileList.value = []
   actionDialogVisible.value = true
   void loadWorkflowOrder(order.order_no)
 }
@@ -233,6 +234,16 @@ async function submitWorkflow() {
     ElMessage.warning('请选择实验结果')
     return
   }
+  if (activeAction.value === 'issue_report') {
+    if (!String(actionForm.report_no || '').trim()) {
+      ElMessage.warning('请填写报告编号')
+      return
+    }
+    if (reportFileList.value.length === 0) {
+      ElMessage.warning('请上传检测报告文件')
+      return
+    }
+  }
   actionSubmitting.value = true
   try {
     const result = await workflowAction({
@@ -240,11 +251,12 @@ async function submitWorkflow() {
       order_no: activeOrder.value.order_no,
       expected_update_time: activeOrder.value.updated_at,
       ...actionForm,
+      report_files: reportFileList.value.map((item) => item.raw).filter((file): file is File => Boolean(file)),
     })
     if (activeAction.value === 'issue_report' && result.report) {
       generatedReport.value = result.report
       reportResultVisible.value = true
-      ElMessage.success('检测报告 PDF 已生成')
+      ElMessage.success('检测报告已上传并提交销售初审')
     } else {
       ElMessage.success(result.message || '流程操作已完成')
     }
@@ -277,23 +289,25 @@ async function submit() {
     return
   }
   if (isOutsourceSelected.value) {
-    if (
-      !form.outsource_company.trim()
-      || !form.outsource_amount
-      || !form.entrust_order_no.trim()
-      || !form.undertaking_amount
-      || !form.outsource_experiment_start_time
-      || !form.outsource_experiment_end_time
-      || rawFiles(outsourceContractFileList.value).length !== 1
-    ) {
-      ElMessage.warning('下单信息有缺失，请补全')
+    if (form.outsource_amount && Number(form.outsource_amount) <= 0) {
+      ElMessage.warning('委外金额必须大于 0')
       return
     }
-    if (Number(form.outsource_amount) <= 0 || Number(form.undertaking_amount) <= 0) {
-      ElMessage.warning('下单信息有缺失，请补全')
+    if (form.undertaking_amount && Number(form.undertaking_amount) <= 0) {
+      ElMessage.warning('承接金额必须大于 0')
       return
     }
-    if (new Date(form.outsource_experiment_end_time) <= new Date(form.outsource_experiment_start_time)) {
+    if ((form.outsource_experiment_start_time && !form.outsource_experiment_end_time)
+      || (!form.outsource_experiment_start_time && form.outsource_experiment_end_time)) {
+      ElMessage.warning('委外实验起止时间需要同时填写')
+      return
+    }
+    if (form.outsource_experiment_start_time && form.outsource_experiment_end_time
+      && new Date(form.outsource_experiment_end_time) <= new Date(form.outsource_experiment_start_time)) {
+      ElMessage.warning('委外实验结束时间必须晚于开始时间')
+      return
+    }
+    if (rawFiles(outsourceContractFileList.value).length > 1) {
       ElMessage.warning('下单信息有缺失，请补全')
       return
     }
@@ -410,22 +424,23 @@ async function submit() {
               <span>OUTSOURCE INTAKE</span>
               <h3 id="outsource-intake-title">委外订单资料</h3>
             </div>
-            <el-tag type="danger" effect="plain">全部必填</el-tag>
+            <el-tag type="info" effect="plain">可由委外负责人后补</el-tag>
           </div>
+          <div class="field-help form-wide">委外公司、金额、委托单号、承接金额、实验时间和委外合同均可在订单创建后由委外负责人补充。</div>
           <div class="form-grid">
-            <el-form-item label="委外公司" required>
+            <el-form-item label="委外公司">
               <el-input v-model="form.outsource_company" placeholder="填写实际承接试验的委外公司" />
             </el-form-item>
-            <el-form-item label="委托单号" required>
+            <el-form-item label="委托单号">
               <el-input v-model="form.entrust_order_no" placeholder="填写对外委托业务单号" />
             </el-form-item>
-            <el-form-item label="委外金额" required>
+            <el-form-item label="委外金额">
               <el-input v-model="form.outsource_amount" type="number" min="0" placeholder="支付给委外公司的成本" />
             </el-form-item>
-            <el-form-item label="承接金额" required>
+            <el-form-item label="承接金额">
               <el-input v-model="form.undertaking_amount" type="number" min="0" placeholder="向客户承接的项目金额" />
             </el-form-item>
-            <el-form-item label="实验开始时间" required>
+            <el-form-item label="实验开始时间">
               <el-date-picker
                 v-model="form.outsource_experiment_start_time"
                 type="datetime"
@@ -433,7 +448,7 @@ async function submit() {
                 placeholder="选择计划开始时间"
               />
             </el-form-item>
-            <el-form-item label="实验结束时间" required>
+            <el-form-item label="实验结束时间">
               <el-date-picker
                 v-model="form.outsource_experiment_end_time"
                 type="datetime"
@@ -443,8 +458,8 @@ async function submit() {
             </el-form-item>
             <div class="form-wide order-upload-panel outsource-contract-upload">
               <div class="upload-panel-heading">
-                <strong><span class="required-asterisk" aria-hidden="true">*</span>委外合同</strong>
-                <span>必传 1 份</span>
+                <strong>委外合同</strong>
+                <span>可后补，最多 1 份</span>
               </div>
               <el-upload
                 v-model:file-list="outsourceContractFileList"
@@ -524,7 +539,7 @@ async function submit() {
                 <el-checkbox value="jiangyin">江阴内部实验室</el-checkbox>
                 <el-checkbox value="outsource">外部委外</el-checkbox>
               </el-checkbox-group>
-              <div class="field-help">可多选；选择结果必须与销售填写的“自主/委外”属性一致。</div>
+              <div class="field-help">可多选；全部委外订单也可以在技术评审时拆分为“自主 + 委外”混合路径。</div>
             </el-form-item>
             <template v-if="hasExecutionRoute('suzhou')">
               <el-form-item label="苏州实验室负责人">
@@ -654,17 +669,15 @@ async function submit() {
         </template>
 
         <template v-else-if="activeAction === 'issue_report'">
-          <el-form-item label="报告编号">
-            <el-input v-model="actionForm.report_no" placeholder="可手动填写" />
-            <div class="field-help">留空将自动生成</div>
+          <el-form-item label="报告编号" required>
+            <el-input v-model="actionForm.report_no" placeholder="请填写报告编号" />
+            <div class="field-help">报告编号由实验室员工填写，必须唯一。</div>
           </el-form-item>
-          <el-form-item label="报告版本" class="form-wide">
-            <el-radio-group v-model="actionForm.report_type">
-              <el-radio-button value="formal">正式版</el-radio-button>
-              <el-radio-button value="draft">草稿版</el-radio-button>
-              <el-radio-button value="data_only">仅数据</el-radio-button>
-            </el-radio-group>
-            <div class="field-help">正式版带示例章占位水印，草稿版无水印，仅数据版聚焦实验数据。</div>
+          <el-form-item label="检测报告文件" class="form-wide" required>
+            <el-upload v-model:file-list="reportFileList" :auto-upload="false" :limit="1" accept=".pdf,.doc,.docx">
+              <el-button type="primary" plain>上传检测报告</el-button>
+              <template #tip><div class="el-upload__tip">支持 PDF、Word，单文件不超过 20MB。</div></template>
+            </el-upload>
           </el-form-item>
           <el-form-item label="最终结论" class="form-wide"><el-input v-model="actionForm.final_conclusion" type="textarea" :rows="4" /></el-form-item>
         </template>
@@ -675,18 +688,17 @@ async function submit() {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="reportResultVisible" title="检测报告已生成" width="min(520px, 92vw)">
-      <el-result icon="success" title="PDF 报告生成成功" sub-title="报告已保存，并已提交销售初审。">
+    <el-dialog v-model="reportResultVisible" title="检测报告已上传" width="min(520px, 92vw)">
+      <el-result icon="success" title="检测报告上传成功" sub-title="报告已保存，并已提交销售初审。">
         <template #extra>
           <div v-if="generatedReport" class="generated-report-summary">
             <el-descriptions :column="1" border>
               <el-descriptions-item label="报告编号">{{ generatedReport.report_no }}</el-descriptions-item>
-              <el-descriptions-item label="报告版本">{{ generatedReport.report_type_label }}</el-descriptions-item>
               <el-descriptions-item label="当前状态">{{ generatedReport.status }}</el-descriptions-item>
               <el-descriptions-item label="生成时间">{{ generatedReport.generated_at }}</el-descriptions-item>
             </el-descriptions>
             <div class="dialog-result-actions">
-              <el-button type="primary" :icon="Download" @click="downloadGeneratedReport">下载 PDF</el-button>
+              <el-button type="primary" :icon="Download" @click="downloadGeneratedReport">下载报告</el-button>
               <el-button @click="openReportCenter">查看报告任务</el-button>
             </div>
           </div>

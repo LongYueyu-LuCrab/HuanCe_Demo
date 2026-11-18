@@ -25,7 +25,7 @@ class NoSalesConfirmationFiveOrderTests(TestCase):
     def action(self, who, name, expected=200, **kw):
         self.client.force_login(self.users[who])
         data={'action':name,'order_no':self.order.order_no,**kw}
-        response=self.client.post(reverse('lims_action'),data,**({} if 'sample_photos' in kw else {'content_type':'application/json'}))
+        response=self.client.post(reverse('lims_action'),data,**({} if ('sample_photos' in kw or 'report_files' in kw) else {'content_type':'application/json'}))
         self.assertEqual(response.status_code,expected,response.content)
         self.order.refresh_from_db()
         self.assertIsNone(self.order.sales_confirmed_at)
@@ -56,7 +56,13 @@ class NoSalesConfirmationFiveOrderTests(TestCase):
             self.action(lab,'start_test',schedule_id=schedule.pk)
             self.action(lab,'end_test',schedule_id=schedule.pk,result_status=Experiment.Result.PASS,test_raw_data='完整虚拟数据',test_conclusion_temp='合格')
             self.action(lab,'submit_test',schedule_id=schedule.pk)
-        self.action(routes[0],'issue_report',final_conclusion='虚拟回归合格')
+        self.action(
+            routes[0],
+            'issue_report',
+            report_no=f'RPT-{self._testMethodName}-001',
+            final_conclusion='虚拟回归合格',
+            report_files=SimpleUploadedFile('virtual-report.pdf', b'uploaded-report', content_type='application/pdf'),
+        )
         report=self.order.reports.get()
         self.action(owner,'report_sales_pass',report_no=report.report_no)
         self.action('gm','report_gm_pass',report_no=report.report_no)

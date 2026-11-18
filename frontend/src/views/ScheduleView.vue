@@ -48,16 +48,20 @@ const activeAction = ref('')
 const availabilityLoading = ref(false)
 const availableDevices = ref<LabDevice[]>([])
 const samplePhotoFiles = ref<UploadUserFile[]>([])
+const outsourceContractFiles = ref<UploadUserFile[]>([])
+const reportFiles = ref<UploadUserFile[]>([])
 const availabilityMessage = ref('')
 let availabilityRequest = 0
 let preferredDeviceId: number | undefined
 const form = reactive({
   plan_start_time: '', plan_end_time: '', outsource_factory: '', outsource_price: '', outsource_cycle: '',
+  outsource_company: '', outsource_amount: '', entrust_order_no: '', undertaking_amount: '',
+  outsource_experiment_start_time: '', outsource_experiment_end_time: '',
   device_id: undefined as number | undefined,
   sample_arrived: false,
   test_item_list: '', test_standard: '', test_raw_data: '', test_conclusion_temp: '', result_status: '',
   test_start_time: '', test_end_time: '', change_scene: 2, new_test_demand: '', change_content: '',
-  report_no: '', report_type: 'formal', final_conclusion: '',
+  report_no: '', final_conclusion: '',
 })
 
 const actionMeta = computed(() => {
@@ -70,7 +74,8 @@ const actionMeta = computed(() => {
     submit_test: { title: '提交实验结果', stage: '实验已结束 → 结果已提交', impact: '确认提交后，该执行路径才会计入订单完成判断。', button: '提交结果' },
     sample_outbound: { title: '办理样品出库', stage: '样品流转 → 样品出库', impact: '提交后使用服务器当前时间记录出库。', button: '确认出库' },
     outsource_result: { title: '回传委外结果', stage: '委外执行 → 实验已结束', impact: '保存委外结果后，仍需继续提交结果。', button: '保存委外结果' },
-    issue_report: { title: '出具检测报告', stage: '结果已提交 → 报告审核', impact: '提交后报告进入后续审核节点。', button: '生成并提交报告' },
+    outsource_update: { title: '补充委外资料', stage: '委外路径 → 委外资料完整', impact: '保存委外金额、委托单号、委外合同和排期信息。', button: '保存委外资料' },
+    issue_report: { title: '上传检测报告', stage: '结果已提交 → 报告审核', impact: '上传后报告进入后续审核节点。', button: '上传并提交报告' },
     create_change: { title: '发起试验中变更', stage: '实验执行 → 变更申请', impact: '提交后等待实验室重新确认执行安排。', button: '提交变更申请' },
   }
   return map[activeAction.value] || { title: '实验室任务操作', stage: '当前订单流程', impact: '请确认本次操作内容后提交。', button: '确认提交' }
@@ -81,6 +86,16 @@ async function loadOrder(orderNo: string) {
   loading.value = true
   try {
     selectedOrder.value = await fetchOrderDetail(orderNo)
+    if (activeAction.value === 'outsource_update' && selectedOrder.value.outsource_info) {
+      Object.assign(form, {
+        outsource_company: selectedOrder.value.outsource_info.outsource_company || '',
+        outsource_amount: selectedOrder.value.outsource_info.outsource_amount || '',
+        entrust_order_no: selectedOrder.value.outsource_info.entrust_order_no || '',
+        undertaking_amount: selectedOrder.value.outsource_info.undertaking_amount || '',
+        outsource_experiment_start_time: selectedOrder.value.outsource_info.experiment_start_time || '',
+        outsource_experiment_end_time: selectedOrder.value.outsource_info.experiment_end_time || '',
+      })
+    }
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '订单详情读取失败')
   } finally {
@@ -103,14 +118,18 @@ function openWorkflow(action: string, schedule: ScheduleItem) {
     sample_arrived: action === 'sample_arrival' ? true : schedule.sample_arrived,
     outsource_factory: '', outsource_price: '', outsource_cycle: '',
     test_item_list: schedule.remark || schedule.project_name,
+    outsource_company: '', outsource_amount: '', entrust_order_no: '', undertaking_amount: '',
+    outsource_experiment_start_time: '', outsource_experiment_end_time: '',
     test_standard: '', test_raw_data: '', test_conclusion_temp: '', result_status: '', test_start_time: '', test_end_time: '',
-    change_scene: 2, new_test_demand: '', change_content: '', report_no: '', report_type: 'formal', final_conclusion: '',
+    change_scene: 2, new_test_demand: '', change_content: '', report_no: '', final_conclusion: '',
   })
   preferredDeviceId = form.device_id
   dialogVisible.value = true
   void loadOrder(schedule.order_no)
   availableDevices.value = []
   samplePhotoFiles.value = []
+  reportFiles.value = []
+  outsourceContractFiles.value = []
   if ((action === 'schedule_assign' || action === 'process_change') && schedule.start_time && schedule.end_time && !schedule.test_type.includes('委外')) {
     void queryAvailableDevices()
   }
@@ -189,6 +208,14 @@ async function submitWorkflow() {
     ElMessage.warning('请选择实验结果')
     return
   }
+  if (activeAction.value === 'issue_report' && !String(form.report_no || '').trim()) {
+    ElMessage.warning('请填写报告编号')
+    return
+  }
+  if (activeAction.value === 'issue_report' && reportFiles.value.length === 0) {
+    ElMessage.warning('请上传检测报告文件')
+    return
+  }
   if ((activeAction.value === 'schedule_assign' || activeAction.value === 'process_change')
     && !isBusinessDept.value && form.sample_arrived && activeSchedule.value.sample_photos.length === 0 && samplePhotoFiles.value.length === 0) {
     ElMessage.warning('选择“样品已到”时必须上传至少一张样品照片')
@@ -197,6 +224,29 @@ async function submitWorkflow() {
   if (activeAction.value === 'sample_arrival' && samplePhotoFiles.value.length === 0) {
     ElMessage.warning(activeSchedule.value.sample_arrived ? '请至少上传一张补充样品图片' : '样品入库必须上传至少一张样品图片')
     return
+  }
+  if (activeAction.value === 'outsource_update') {
+    if (!String(form.outsource_company || '').trim()
+      || !String(form.entrust_order_no || '').trim()
+      || !form.outsource_amount
+      || !form.undertaking_amount
+      || !form.outsource_experiment_start_time
+      || !form.outsource_experiment_end_time) {
+      ElMessage.warning('请补全委外公司、委外金额、委托单号、承接金额和实验起止时间')
+      return
+    }
+    if (Number(form.outsource_amount) <= 0 || Number(form.undertaking_amount) <= 0) {
+      ElMessage.warning('委外金额和承接金额必须大于 0')
+      return
+    }
+    if (new Date(String(form.outsource_experiment_end_time)) <= new Date(String(form.outsource_experiment_start_time))) {
+      ElMessage.warning('委外实验结束时间必须晚于开始时间')
+      return
+    }
+    if (!selectedOrder.value?.documents?.some((item) => item.type === 'outsource_contract') && outsourceContractFiles.value.length === 0) {
+      ElMessage.warning('请上传委外合同')
+      return
+    }
   }
   submitting.value = true
   try {
@@ -207,6 +257,8 @@ async function submitWorkflow() {
       schedule_id: activeSchedule.value.id,
       ...form,
       sample_photos: samplePhotoFiles.value.map((item) => item.raw).filter((file): file is File => Boolean(file)),
+      outsource_contract_files: outsourceContractFiles.value.map((item) => item.raw).filter((file): file is File => Boolean(file)),
+      report_files: reportFiles.value.map((item) => item.raw).filter((file): file is File => Boolean(file)),
     })
     ElMessage.success('任务操作已完成')
     dialogVisible.value = false
@@ -222,7 +274,7 @@ async function submitWorkflow() {
 
 <template>
   <div class="page-stack">
-    <div class="page-toolbar"><div><h2>{{ outsourcedOnly ? '委外排期与执行' : '排期与任务' }}</h2><p>实验室负责人在这里维护本人负责的内部及委外任务、样品、变更和报告。</p></div></div>
+    <div class="page-toolbar"><div><h2>{{ outsourcedOnly ? '委外排期与执行' : '排期与任务' }}</h2><p>实验室员工在这里维护实验任务、样品、变更和检测报告。</p></div></div>
     <ScheduleTable :orders="schedules" :user="session.state.user" :initial-device-id="initialDeviceId" :filter-options="scheduleFilterOptions" remote :total="scheduleTotal" :loading="schedulesLoading" :error="schedulesError" @query="loadSchedules" @detail="openOrderDetail" @workflow="openWorkflow" @retry="loadSchedules()" />
 
     <el-dialog v-model="dialogVisible" class="action-dialog" :title="actionMeta.title" width="min(960px, 94vw)">
@@ -287,6 +339,28 @@ async function submitWorkflow() {
             </el-upload>
           </el-form-item>
         </template>
+        <template v-else-if="activeAction === 'outsource_update'">
+          <el-alert
+            class="form-wide"
+            title="委外资料由委外负责人补充"
+            type="info"
+            :closable="false"
+            description="下单时可以留空；此处需要补齐委外公司、金额、委托单号、承接金额和实验起止时间。"
+            show-icon
+          />
+          <el-form-item label="委外公司" required><el-input v-model="form.outsource_company" placeholder="填写实际承接试验的委外公司" /></el-form-item>
+          <el-form-item label="委托单号" required><el-input v-model="form.entrust_order_no" placeholder="填写对外委托业务单号" /></el-form-item>
+          <el-form-item label="委外金额" required><el-input v-model="form.outsource_amount" type="number" min="0" placeholder="支付给委外公司的成本" /></el-form-item>
+          <el-form-item label="承接金额" required><el-input v-model="form.undertaking_amount" type="number" min="0" placeholder="向客户承接的项目金额" /></el-form-item>
+          <el-form-item label="实验开始时间" required><el-date-picker v-model="form.outsource_experiment_start_time" type="datetime" value-format="YYYY-MM-DD HH:mm" placeholder="选择计划开始时间" /></el-form-item>
+          <el-form-item label="实验结束时间" required><el-date-picker v-model="form.outsource_experiment_end_time" type="datetime" value-format="YYYY-MM-DD HH:mm" placeholder="选择计划结束时间" /></el-form-item>
+          <el-form-item label="委外合同" class="form-wide" required>
+            <el-upload v-model:file-list="outsourceContractFiles" :auto-upload="false" :limit="1" accept=".doc,.docx,.pdf,.jpg,.jpeg,.png">
+              <el-button type="primary" plain>上传委外合同</el-button>
+              <template #tip><div class="el-upload__tip">已有合同可不重复上传；支持 Word、PDF、JPG、PNG，单文件不超过 20MB。</div></template>
+            </el-upload>
+          </el-form-item>
+        </template>
         <template v-else-if="activeAction === 'start_test'">
           <el-form-item label="试验项目" class="form-wide"><el-input v-model="form.test_item_list" disabled type="textarea" :rows="3" /></el-form-item>
         </template>
@@ -330,17 +404,15 @@ async function submitWorkflow() {
           <el-form-item label="变更说明" class="form-wide"><el-input v-model="form.change_content" type="textarea" :rows="3" /></el-form-item>
         </template>
         <template v-else-if="activeAction === 'issue_report'">
-          <el-form-item label="报告编号">
-            <el-input v-model="form.report_no" placeholder="可手动填写" />
-            <div class="field-help">留空将自动生成</div>
+          <el-form-item label="报告编号" required>
+            <el-input v-model="form.report_no" placeholder="请填写报告编号" />
+            <div class="field-help">报告编号由实验室人员填写，必须唯一。</div>
           </el-form-item>
-          <el-form-item label="报告版本" class="form-wide">
-            <el-radio-group v-model="form.report_type">
-              <el-radio-button value="formal">正式版</el-radio-button>
-              <el-radio-button value="draft">草稿版</el-radio-button>
-              <el-radio-button value="data_only">仅数据</el-radio-button>
-            </el-radio-group>
-            <div class="field-help">正式版带示例章占位水印，草稿版无水印，仅数据版聚焦实验数据。</div>
+          <el-form-item label="检测报告文件" class="form-wide" required>
+            <el-upload v-model:file-list="reportFiles" :auto-upload="false" :limit="1" accept=".pdf,.doc,.docx">
+              <el-button type="primary" plain>上传检测报告</el-button>
+              <template #tip><div class="el-upload__tip">请上传实验室员工整理好的检测报告，支持 PDF、Word，单文件不超过 20MB。</div></template>
+            </el-upload>
           </el-form-item>
           <el-form-item label="最终结论" class="form-wide"><el-input v-model="form.final_conclusion" type="textarea" :rows="4" /></el-form-item>
         </template>

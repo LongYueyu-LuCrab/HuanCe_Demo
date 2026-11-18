@@ -188,12 +188,14 @@ class OutsourceRequirement(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name='outsource_requirement',
     )
-    outsource_company = models.CharField('委外公司', max_length=200)
-    outsource_amount = models.DecimalField('委外金额', max_digits=12, decimal_places=2)
-    entrust_order_no = models.CharField('委托单号', max_length=64, db_index=True)
-    undertaking_amount = models.DecimalField('承接金额', max_digits=12, decimal_places=2)
-    experiment_start_time = models.DateTimeField('委外实验开始时间')
-    experiment_end_time = models.DateTimeField('委外实验结束时间')
+    # 委外订单允许先创建、后由委外负责人补齐资料。
+    # 历史完整记录仍保持原有值；空值仅代表资料尚未补录。
+    outsource_company = models.CharField('委外公司', max_length=200, blank=True)
+    outsource_amount = models.DecimalField('委外金额', max_digits=12, decimal_places=2, null=True, blank=True)
+    entrust_order_no = models.CharField('委托单号', max_length=64, db_index=True, blank=True)
+    undertaking_amount = models.DecimalField('承接金额', max_digits=12, decimal_places=2, null=True, blank=True)
+    experiment_start_time = models.DateTimeField('委外实验开始时间', null=True, blank=True)
+    experiment_end_time = models.DateTimeField('委外实验结束时间', null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         verbose_name='创建人',
@@ -294,7 +296,7 @@ class LabDevice(TimeStampedModel):
 class LabStaffProfile(TimeStampedModel):
     class Position(models.TextChoices):
         MANAGER = 'manager', '实验室负责人'
-        OPERATOR = 'operator', '实验操作员'
+        OPERATOR = 'operator', '实验室操作员'
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,

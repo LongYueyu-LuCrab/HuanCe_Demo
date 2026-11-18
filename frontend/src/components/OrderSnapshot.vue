@@ -29,8 +29,10 @@ const sampleArrivalScheduleId = ref<number | null>(null)
 const samplePhotoFiles = ref<UploadUserFile[]>([])
 const labRoles = computed(() => new Set(session.state.user.roles || []))
 const isLabAccount = computed(() => (
-  labRoles.value.has('苏州实验室')
+  labRoles.value.has('实验室负责人')
+  || labRoles.value.has('苏州实验室')
   || labRoles.value.has('江阴实验室')
+  || labRoles.value.has('实验室操作员')
   || labRoles.value.has('实验操作员')
   || labRoles.value.has('商务部')
 ))
@@ -43,7 +45,7 @@ const actionableSchedules = computed(() => {
     if (![3, 4].includes(schedule.status_key) || schedule.schedule_status_key === 5) return false
     if (schedule.schedule_status_key === 4 && !canSubmitResult) return false
     if (labRoles.value.has('商务部')) return schedule.schedule_status_key !== 2
-    if (labRoles.value.has('实验操作员')) return schedule.lab_type === session.state.user.lab_type
+    if (labRoles.value.has('实验室操作员') || labRoles.value.has('实验操作员')) return schedule.lab_type === session.state.user.lab_type
     return schedule.lab_manager_username === session.state.user.username
   })
 })
@@ -304,11 +306,11 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
           <section v-for="report in order.report_records" :key="report.id" class="report-record-item">
             <div>
               <strong>{{ report.report_no }}</strong>
-              <span>{{ report.report_type_label }} · {{ report.status }}</span>
+              <span>{{ report.status }}</span>
               <small>{{ report.generated_at || '生成时间未记录' }}</small>
             </div>
-            <a v-if="report.has_file" :href="report.download_url" class="report-download-link">下载 PDF</a>
-            <el-tag v-else type="warning" effect="plain">文件待生成</el-tag>
+            <a v-if="report.has_file" :href="report.download_url" class="report-download-link">下载报告</a>
+            <el-tag v-else type="warning" effect="plain">文件待上传</el-tag>
           </section>
         </div>
         <span v-else class="cell-sub">该订单尚未出具检测报告</span>
@@ -380,8 +382,8 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
         <div class="section-heading-row"><div><h4>报告与财务</h4><p>报告状态、审核进度和开票信息集中在这里。</p></div></div>
         <div v-if="order.report_records?.length" class="report-record-list">
           <section v-for="report in order.report_records" :key="report.id" class="report-record-item">
-            <div><strong>{{ report.report_no }}</strong><span>{{ report.report_type_label }} · {{ report.status }}</span><small>{{ report.generated_at || '生成时间未记录' }}</small></div>
-            <a v-if="report.has_file" :href="report.download_url" class="report-download-link">下载 PDF</a><el-tag v-else type="warning" effect="plain">文件待生成</el-tag>
+            <div><strong>{{ report.report_no }}</strong><span>{{ report.status }}</span><small>{{ report.generated_at || '上传时间未记录' }}</small></div>
+            <a v-if="report.has_file" :href="report.download_url" class="report-download-link">下载报告</a><el-tag v-else type="warning" effect="plain">文件待上传</el-tag>
           </section>
         </div>
         <div v-else class="snapshot-empty-note">检测报告尚未生成，当前节点：{{ currentSteps.map((step) => step.title).join('、') || order.status }}</div>

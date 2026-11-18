@@ -45,7 +45,7 @@ class ReportIssueGuardTests(TestCase):
         self.assertEqual(payload['workflow_progress']['summary'], '报告已审核通过，等待最终开票')
 
         expected = {
-            TestReport.Status.DRAFT: '等待出具报告',
+            TestReport.Status.DRAFT: '等待实验室员工上传报告',
             TestReport.Status.SALES_REVIEW: '等待销售初审',
             TestReport.Status.GM_REVIEW: '等待常务副总经理终审',
             TestReport.Status.APPROVED: '报告已审核通过，等待最终开票',
@@ -63,6 +63,7 @@ class ReportIssueGuardTests(TestCase):
             data={
                 'action': 'issue_report',
                 'order_no': self.order.order_no,
+                'report_no': self.report.report_no,
                 'final_conclusion': '不应重复生成',
             },
             content_type='application/json',
@@ -70,3 +71,19 @@ class ReportIssueGuardTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('不能重复出具', response.json()['error'])
         self.assertEqual(self.order.reports.count(), 1)
+
+    def test_report_number_is_required_for_new_report(self):
+        self.report.report_status = TestReport.Status.DRAFT
+        self.report.save(update_fields=['report_status', 'update_time'])
+        self.client.force_login(self.quality)
+        response = self.client.post(
+            reverse('lims_action'),
+            data={
+                'action': 'issue_report',
+                'order_no': self.order.order_no,
+                'final_conclusion': '必须填写报告编号',
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['error'], '请填写报告编号')
