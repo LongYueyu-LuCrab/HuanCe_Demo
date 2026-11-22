@@ -65,7 +65,7 @@ export function getMenuGroups(user: User): MenuGroup[] {
   if (['副总经理', '总经办', '市场部部长'].some((role) => hasRole(user, role))) {
     return [group('管理查看工作台', [
       { key: 'dashboard', label: '业务总览', path: '/dashboard', icon: 'DataAnalysis' },
-      { key: 'orders', label: '全部订单查询', path: '/orders', icon: 'List' },
+      { key: 'orders', label: '全部订单与下单', path: '/orders', icon: 'List' },
       { key: 'audit', label: '订单档案', path: '/audit', icon: 'Memo' },
     ])].filter(Boolean) as MenuGroup[]
   }

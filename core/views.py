@@ -2754,8 +2754,8 @@ def create_order(request):
         return JsonResponse({'ok': False, 'error': '请先登录'}, status=401, json_dumps_params={'ensure_ascii': False})
 
     roles = set(_roles(request.user))
-    if not (_is_chairman(request.user) or ROLE_SALES in roles or ROLE_BUSINESS_DEPT in roles):
-        return JsonResponse({'ok': False, 'error': '仅销售或总经理可以下单'}, status=403, json_dumps_params={'ensure_ascii': False})
+    if not (_is_chairman(request.user) or ROLE_SALES in roles or ROLE_BUSINESS_DEPT in roles or ROLE_MARKETING_MANAGER in roles):
+        return JsonResponse({'ok': False, 'error': '仅销售、商务部、市场部部长或总经理可以下单'}, status=403, json_dumps_params={'ensure_ascii': False})
 
     payload, parse_error = _request_order_payload(request)
     if parse_error:

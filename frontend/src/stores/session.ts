@@ -23,7 +23,7 @@ export function useSession() {
   const isAuthenticated = computed(() => Boolean(state.user.authenticated))
   const isChairman = computed(() => Boolean(state.user.is_chairman))
   const canSeeAllBusiness = computed(() => isChairman.value || roles.value.has('常务副总经理'))
-  const canCreateOrder = computed(() => isChairman.value || roles.value.has('销售') || roles.value.has('商务部'))
+  const canCreateOrder = computed(() => isChairman.value || roles.value.has('销售') || roles.value.has('商务部') || roles.value.has('市场部部长'))
   const canAccessAdmin = computed(() => isChairman.value || roles.value.has('常务副总经理'))
 
   function hasRole(role: string) {

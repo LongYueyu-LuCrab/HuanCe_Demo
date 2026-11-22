@@ -84,7 +84,7 @@ function rawFiles(files: UploadUserFile[]) {
   return files.map((file) => file.raw).filter((file): file is UploadRawFile => Boolean(file))
 }
 
-const isSalesManager = computed(() => ['销售经理', '商务部'].some(role => (session.state.user.roles || []).includes(role)))
+const isSalesManager = computed(() => ['销售经理', '商务部', '市场部部长'].some(role => (session.state.user.roles || []).includes(role)))
 const isSales = computed(() => ['销售', '商务部'].some(role => (session.state.user.roles || []).includes(role)))
 const canExportOrders = computed(() => isSalesManager.value || isSales.value || ['副总经理', '总经办', '市场部部长', '商务部员工'].some(role => (session.state.user.roles || []).includes(role)))
 const managerOrders = ref<OrderItem[]>([])

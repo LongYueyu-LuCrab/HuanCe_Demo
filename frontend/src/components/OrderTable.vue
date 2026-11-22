@@ -146,7 +146,10 @@ const effectiveRoles = computed(() => new Set(effectiveUser.value.roles || []))
 const isLabAccount = computed(() => ['实验室负责人', '实验室操作员', '实验操作员', '商务部'].some((role) => effectiveRoles.value.has(role)))
 const isSalesRole = computed(() => ['销售', '销售经理', '商务部'].some((role) => effectiveRoles.value.has(role)))
 const isFinanceRole = computed(() => effectiveRoles.value.has('会计'))
-const isManagementRole = computed(() => Boolean(effectiveUser.value.is_chairman || effectiveRoles.value.has('常务副总经理')))
+const isManagementRole = computed(() => Boolean(
+  effectiveUser.value.is_chairman
+  || ['常务副总经理', '副总经理', '总经办', '市场部部长', '商务部员工'].some((role) => effectiveRoles.value.has(role)),
+))
 
 function hasRole(role: string) {
   return isChairman.value || roleSet.value.has(role) || (role === '销售' && roleSet.value.has('商务部'))

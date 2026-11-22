@@ -359,6 +359,46 @@ class LimsDashboardTests(TestCase):
         )
         self.assertEqual(payload['order']['outsource_info']['entrust_order_no'], 'WT-2026-001')
 
+    def test_marketing_manager_can_create_and_export_all_orders(self):
+        market_user = get_user_model().objects.create_user(
+            username='marketing-manager',
+            password='password123',
+            first_name='黄俊杰',
+        )
+        market_user.groups.add(Group.objects.get_or_create(name='市场部部长')[0])
+        self.client.force_login(market_user)
+
+        response = self.client.post(
+            reverse('create_order'),
+            data={
+                'customer_name': '市场部下单客户',
+                'project_name': '市场部下单项目',
+                'test_requirements': '验证市场部部长下单权限。',
+                'expected_sample_arrival': '2026-07-01',
+                'industry_category': 'other',
+                'execution_attributes': ['autonomous'],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        created = LabOrder.objects.get(order_no=response.json()['order']['order_no'])
+        self.assertEqual(created.sale_user, market_user)
+
+        listing = self.client.get(reverse('sales_manager_orders'), {'page': 1, 'page_size': 10})
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(listing.json()['total'], 2)
+        self.assertEqual(
+            {item['order_no'] for item in listing.json()['items']},
+            {self.order.order_no, created.order_no},
+        )
+
+        exported = self.client.get(reverse('sales_manager_orders_export'))
+        self.assertEqual(exported.status_code, 200)
+        workbook = load_workbook(BytesIO(exported.content), read_only=True)
+        rows = list(workbook.active.iter_rows(values_only=True))
+        self.assertEqual(workbook.active.title, '全部销售订单')
+        self.assertEqual({rows[1][1], rows[2][1]}, {self.order.order_no, created.order_no})
+
     def test_outsource_order_allows_deferred_outsource_information(self):
         self.client.force_login(self.user)
 
