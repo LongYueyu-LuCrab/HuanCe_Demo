@@ -2060,6 +2060,13 @@ def lab_device_detail(request, device_id):
     payload, parse_error = _json_payload(request)
     if parse_error:
         return parse_error
+    if 'device_code' in payload:
+        device_code = str(payload.get('device_code') or '').strip()
+        if not device_code:
+            return JsonResponse({'ok': False, 'error': '设备编号不能为空'}, status=400, json_dumps_params={'ensure_ascii': False})
+        if LabDevice.objects.exclude(pk=device.id).filter(device_code=device_code).exists():
+            return JsonResponse({'ok': False, 'error': '设备编号已存在'}, status=400, json_dumps_params={'ensure_ascii': False})
+        device.device_code = device_code
     try:
         status_value = int(payload.get('device_status') or device.device_status)
     except (TypeError, ValueError):

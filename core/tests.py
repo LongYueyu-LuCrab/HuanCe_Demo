@@ -1649,11 +1649,20 @@ class LabDeviceSchedulingTests(TestCase):
         device_id = created.json()['device']['id']
         updated = self.client.patch(
             reverse('lab_device_detail', args=[device_id]),
-            data={'device_name': '新设备（已维护）', 'device_status': LabDevice.Status.MAINTENANCE},
+            data={'device_code': 'DEVICE-UPDATED-001', 'device_name': '新设备（已维护）', 'device_status': LabDevice.Status.MAINTENANCE},
             content_type='application/json',
         )
         self.assertEqual(updated.status_code, 200)
+        self.assertEqual(updated.json()['device']['device_code'], 'DEVICE-UPDATED-001')
         self.assertEqual(updated.json()['device']['status'], '维修中')
+
+        duplicate = self.client.patch(
+            reverse('lab_device_detail', args=[device_id]),
+            data={'device_code': self.device.device_code},
+            content_type='application/json',
+        )
+        self.assertEqual(duplicate.status_code, 400)
+        self.assertIn('设备编号已存在', duplicate.json()['error'])
         self.assertEqual(self.client.delete(reverse('lab_device_detail', args=[device_id])).status_code, 200)
 
         self.schedule.device = self.device

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createLabDevice, deleteLabDevice, fetchLabDevices, updateLabDevice } from '../services/api'
@@ -61,7 +61,7 @@ function openEdit(device: LabDevice) {
 }
 
 async function saveDevice() {
-  if (!form.device_name.trim() || (!editingId.value && !form.device_code.trim())) {
+  if (!form.device_code.trim() || !form.device_name.trim()) {
     ElMessage.warning('请填写设备编号和设备名称')
     return
   }
@@ -156,7 +156,7 @@ onMounted(loadDevices)
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑设备' : '新增设备'" width="min(720px, 94vw)">
       <el-form label-position="top" class="form-grid">
         <el-form-item label="所属实验室"><span>实验室</span></el-form-item>
-        <el-form-item label="设备编号"><el-input v-model="form.device_code" :disabled="Boolean(editingId)" placeholder="例如 SZ-VIB-20T" /></el-form-item>
+        <el-form-item label="设备编号" required><el-input v-model="form.device_code" placeholder="例如 LAB-VIB-20T" /></el-form-item>
         <el-form-item label="设备名称"><el-input v-model="form.device_name" /></el-form-item>
         <el-form-item label="规格型号"><el-input v-model="form.model_spec" /></el-form-item>
         <el-form-item v-if="editingId" label="管理状态">
