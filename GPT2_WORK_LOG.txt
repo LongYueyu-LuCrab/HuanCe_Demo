@@ -45,7 +45,9 @@ Git 提交号：86f8e68（代码）
 4. 增加市场部部长创建订单、查看全量订单和导出全量订单的回归测试。
 影响范围：黄俊杰（市场部部长）及同角色账号可下单、查看所有订单台账并导出；其他流程权限不变。
 验证结果：Django check、完整后端 100 项测试、makemigrations 检查通过；前端 TypeScript/Vite 生产构建通过。
-部署状态：待部署生产环境。
+部署状态：已部署生产环境。
+部署补充：发布前备份目录为 `/opt/huance/backups/market-manager-20261123-pre-deploy/`，包含 `database_before.dump` 和 `app_before.tar.gz`；本次无数据库迁移。
+生产复核：生产 `manage.py check` 通过；`huance`/`nginx` 均 active；`https://aroundtest.com/api/health/` 返回 200；关键后端、前端源文件和构建入口与本地 SHA-256 一致。
 署名：GPT二号
 
 日期：2026-11-23
