@@ -1,6 +1,7 @@
 from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -410,6 +411,29 @@ class LimsDashboardTests(TestCase):
         )
         self.assertEqual(download.status_code, 200)
         self.assertEqual(download['Content-Disposition'], "attachment; filename*=utf-8''%E5%90%88%E5%90%8C.pdf")
+
+    def test_order_document_storage_failure_returns_json_and_rolls_back_order(self):
+        self.client.force_login(self.user)
+        contract = SimpleUploadedFile('合同.pdf', b'%PDF-1.4 demo', content_type='application/pdf')
+
+        with patch('core.views.OrderDocument.objects.create', side_effect=PermissionError('media is not writable')):
+            response = self.client.post(
+                reverse('create_order'),
+                data={
+                    'customer_name': '文件存储异常客户',
+                    'project_name': '文件存储异常测试',
+                    'test_requirements': '验证文件存储异常不会生成半成品订单。',
+                    'expected_sample_arrival': '2026-07-01',
+                    'industry_category': 'other',
+                    'execution_attributes': ['autonomous'],
+                    'contract_files': contract,
+                },
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response['Content-Type'].split(';')[0], 'application/json')
+        self.assertEqual(response.json()['code'], 'ORDER_DOCUMENT_STORAGE_UNAVAILABLE')
+        self.assertFalse(LabOrder.objects.filter(customer_name='文件存储异常客户').exists())
 
     def test_sales_order_requires_expected_sample_arrival(self):
         self.client.force_login(self.user)

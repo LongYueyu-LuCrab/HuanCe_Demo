@@ -34,7 +34,7 @@ Run the frontend build as well. Generated assets in `static/frontend/` are inten
 
 ## Deployment and private materials
 
-Production serves Django through Gunicorn and Nginx, with PostgreSQL and a separate media directory. The deployed app directory is not a Git checkout. A source commit alone does not deploy the server: build assets, back up the deployment/database, upload the reviewed release, migrate, collect static files, restart the app and verify the site.
+Production serves Django through Gunicorn and Nginx, with PostgreSQL and a separate media directory. The deployed app directory is not a Git checkout. A source commit alone does not deploy the server: build assets, back up the deployment/database, upload the reviewed release, migrate, collect static files, restart the app and verify the site. Before restarting the service, ensure the upload root and its order-document directory are writable by the Gunicorn user, for example `sudo install -d -o ubuntu -g www-data -m 0775 /opt/huance/media/private_order_documents`; a deployment health check must include a multipart order-create probe so a broken media permission cannot reach users.
 
 Keep production environment files, SSH keys, databases, uploads and account/password reports outside Git. They are transferred separately through the private handoff. The full V3 workflow report contains live account credentials and is intentionally excluded; the upgrade report and this source baseline can be versioned.
 

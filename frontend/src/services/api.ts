@@ -8,7 +8,19 @@ export async function fetchHealth(): Promise<HealthStatus> {
 }
 
 async function parseJson<T>(response: Response): Promise<T> {
-  const data = await response.json()
+  let data: T & { error?: string; code?: string }
+  try {
+    data = await response.json() as T & { error?: string; code?: string }
+  } catch {
+    const error = new Error(
+      response.status === 413
+        ? '上传文件过大，请压缩文件后重试'
+        : `服务器暂时不可用（HTTP ${response.status}），请稍后重试`,
+    ) as Error & { code?: string; status?: number }
+    error.code = `HTTP_${response.status || 'UNKNOWN'}`
+    error.status = response.status
+    throw error
+  }
   if (!response.ok) {
     const error = new Error(data.error || '请求失败') as Error & { code?: string; status?: number }
     error.code = data.code || `HTTP_${response.status}`

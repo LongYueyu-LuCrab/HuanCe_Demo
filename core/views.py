@@ -2976,24 +2976,34 @@ def create_order(request):
             updated_by=request.user,
             **outsource_requirement_data,
         )
-    for document_type, files in (
-        (OrderDocument.DocumentType.CONTRACT, contract_files),
-        (OrderDocument.DocumentType.OUTSOURCE_CONTRACT, outsource_contract_files),
-        (OrderDocument.DocumentType.ATTACHMENT, attachment_files),
-    ):
-        for uploaded_file in files:
-            uploaded_file.seek(0)
-            file_sha256 = hashlib.sha256(uploaded_file.read()).hexdigest()
-            uploaded_file.seek(0)
-            OrderDocument.objects.create(
-                order=order,
-                document_type=document_type,
-                file=uploaded_file,
-                original_name=uploaded_file.name,
-                file_size=uploaded_file.size,
-                sha256=file_sha256,
-                uploaded_by=request.user,
-            )
+    try:
+        for document_type, files in (
+            (OrderDocument.DocumentType.CONTRACT, contract_files),
+            (OrderDocument.DocumentType.OUTSOURCE_CONTRACT, outsource_contract_files),
+            (OrderDocument.DocumentType.ATTACHMENT, attachment_files),
+        ):
+            for uploaded_file in files:
+                uploaded_file.seek(0)
+                file_sha256 = hashlib.sha256(uploaded_file.read()).hexdigest()
+                uploaded_file.seek(0)
+                OrderDocument.objects.create(
+                    order=order,
+                    document_type=document_type,
+                    file=uploaded_file,
+                    original_name=uploaded_file.name,
+                    file_size=uploaded_file.size,
+                    sha256=file_sha256,
+                    uploaded_by=request.user,
+                )
+    except OSError:
+        # File-system failures must not leak Django's HTML 500 page to the SPA,
+        # and the order created above must roll back with the document write.
+        transaction.set_rollback(True)
+        return JsonResponse(
+            {'ok': False, 'code': 'ORDER_DOCUMENT_STORAGE_UNAVAILABLE', 'error': '订单文件暂时无法保存，订单未提交，请稍后重试或联系管理员。'},
+            status=503,
+            json_dumps_params={'ensure_ascii': False},
+        )
     WorkflowEvent.objects.create(
         order=order,
         actor=request.user,
