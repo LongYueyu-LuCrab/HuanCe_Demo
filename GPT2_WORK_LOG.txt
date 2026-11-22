@@ -1805,3 +1805,24 @@ Git 提交号：3793b07
 4. 生产迁移 core.0022、manage.py check、collectstatic 均通过；huance、nginx 均 active；生产首页和 /api/health/ 均 HTTP 200，数据库健康检查通过。
 署名：GPT二号
 
+日期：2026-11-23
+提交说明：修复带合同/附件下单失败
+变更范围：订单文件上传、下单接口错误响应、生产媒体目录权限
+问题原因：生产服务器的订单文件目录为 root:root 且应用用户 ubuntu 无写权限；无文件下单正常，上传合同或附件时在 OrderDocument 保存阶段触发 PermissionError，Django 返回 HTML 500，前端按 JSON 解析后显示 Unexpected token '<'。
+具体改动：
+1. 将生产 /opt/huance/media/private_order_documents 修复为 ubuntu:www-data 可写，并补齐目录权限；保留用户媒体文件，不覆盖业务数据。
+2. 后端捕获订单文件存储 OSError，设置事务回滚并返回 JSON 503，避免生成半成品订单和 HTML 错误页。
+3. 前端 JSON 解析增加非 JSON 响应兜底；对 HTTP 413 显示“上传文件过大”，其他 HTML 错误显示明确的服务器暂时不可用提示。
+4. 发布文档增加媒体目录权限与 multipart 下单探针要求，避免后续部署再次遗漏。
+验证结果：
+1. Django 98 项测试全部通过；新增文件存储异常回滚测试通过。
+2. manage.py check、makemigrations --check、TypeScript、Vite 构建和前端 6 项交互测试全部通过。
+3. 生产部署后使用真实 PDF 合同通过前端同源接口创建临时订单，HTTP 200、Content-Type 为 application/json；临时订单及上传文件已清理，生产诊断订单数为 0。
+4. 生产 /api/health/ 返回 ok/database ok，huance 服务 active；部署标记为 aa812af。
+部署状态：已推送 GitHub Main_V2，并已部署服务器。
+部署补充：
+1. GitHub Main_V2、本地提交 aa812af 与服务器部署标记一致。
+2. 发布前备份：/opt/huance/backups/release-20261123-0015-order-upload/，包含应用、PostgreSQL 数据库和媒体文件备份。
+3. 已同步后端源码、前端构建产物、工作日志和发布文档；未覆盖生产 .env、PostgreSQL 业务数据及员工账号。
+署名：GPT二号
+
