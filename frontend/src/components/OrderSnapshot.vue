@@ -30,8 +30,6 @@ const samplePhotoFiles = ref<UploadUserFile[]>([])
 const labRoles = computed(() => new Set(session.state.user.roles || []))
 const isLabAccount = computed(() => (
   labRoles.value.has('实验室负责人')
-  || labRoles.value.has('苏州实验室')
-  || labRoles.value.has('江阴实验室')
   || labRoles.value.has('实验室操作员')
   || labRoles.value.has('实验操作员')
   || labRoles.value.has('商务部')
@@ -45,7 +43,7 @@ const actionableSchedules = computed(() => {
     if (![3, 4].includes(schedule.status_key) || schedule.schedule_status_key === 5) return false
     if (schedule.schedule_status_key === 4 && !canSubmitResult) return false
     if (labRoles.value.has('商务部')) return schedule.schedule_status_key !== 2
-    if (labRoles.value.has('实验室操作员') || labRoles.value.has('实验操作员')) return schedule.lab_type === session.state.user.lab_type
+    if (labRoles.value.has('实验室操作员') || labRoles.value.has('实验操作员')) return true
     return schedule.lab_manager_username === session.state.user.username
   })
 })
@@ -75,7 +73,7 @@ function isSection(...sections: string[]) {
   return sections.includes(activeSection.value)
 }
 
-function openLabAction(scheduleId: number, labType: number | null, action: 'schedule_assign' | 'sample_arrival' | 'process_change' | 'start_test' | 'end_test' | 'submit_test') {
+function openLabAction(scheduleId: number, action: 'schedule_assign' | 'sample_arrival' | 'process_change' | 'start_test' | 'end_test' | 'submit_test') {
   if (action === 'sample_arrival') {
     sampleArrivalScheduleId.value = scheduleId
     samplePhotoFiles.value = []
@@ -182,26 +180,26 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
         <div v-for="schedule in actionableSchedules" :key="schedule.id" class="snapshot-action-row">
           <span>{{ schedule.test_type }} · {{ schedule.remark || order.project_name }}</span>
           <el-space wrap>
-            <el-button v-if="![4, 5].includes(schedule.schedule_status_key)" type="primary" @click="openLabAction(schedule.id, schedule.lab_type, schedule.schedule_status_key === 2 ? 'process_change' : 'schedule_assign')">
+            <el-button v-if="![4, 5].includes(schedule.schedule_status_key)" type="primary" @click="openLabAction(schedule.id, schedule.schedule_status_key === 2 ? 'process_change' : 'schedule_assign')">
               {{ schedule.schedule_status_key === 2 ? '处理变更并排期' : schedule.is_scheduled ? '重新排期' : '排期 / 排台' }}
             </el-button>
-            <el-button v-if="!labRoles.has('商务部') && ![4, 5].includes(schedule.schedule_status_key)" type="success" @click="openLabAction(schedule.id, schedule.lab_type, 'sample_arrival')">
+            <el-button v-if="!labRoles.has('商务部') && ![4, 5].includes(schedule.schedule_status_key)" type="success" @click="openLabAction(schedule.id, 'sample_arrival')">
               {{ schedule.sample_arrived ? '补充样品图片' : '样品入库' }}
             </el-button>
             <el-button
               v-if="!labRoles.has('商务部') && !schedule.test_type.includes('委外') && schedule.schedule_status_key !== 2 && schedule.is_scheduled && schedule.sample_arrived && schedule.device_id && !schedule.experiment_status"
               type="primary"
-              @click="openLabAction(schedule.id, schedule.lab_type, 'start_test')"
+              @click="openLabAction(schedule.id, 'start_test')"
             >开始试验</el-button>
             <el-button
               v-if="!labRoles.has('商务部') && schedule.experiment_status.includes('试验中') && schedule.schedule_status_key !== 2"
               type="warning"
-              @click="openLabAction(schedule.id, schedule.lab_type, 'end_test')"
+              @click="openLabAction(schedule.id, 'end_test')"
             >实验结束</el-button>
             <el-button
               v-if="!labRoles.has('商务部') && schedule.experiment_status.includes('待提交结果') && !schedule.schedule_status.includes('变更')"
               type="success"
-              @click="openLabAction(schedule.id, schedule.lab_type, 'submit_test')"
+              @click="openLabAction(schedule.id, 'submit_test')"
             >提交结果</el-button>
           </el-space>
         </div>

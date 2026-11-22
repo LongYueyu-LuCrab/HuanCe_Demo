@@ -127,47 +127,6 @@ export function getMenuGroups(user: User): MenuGroup[] {
     ])].filter(Boolean) as MenuGroup[]
   }
 
-  if (hasRole(user, '苏州实验室')) {
-    return [group('实验室工作台', [
-      { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataAnalysis' },
-      { key: 'orders', label: '我的订单', path: '/orders', icon: 'List' },
-      { key: 'laboratory', label: '实验室任务', path: '/labs/laboratory', icon: 'Monitor' },
-      { key: 'devices', label: '设备管理', path: '/devices', icon: 'SetUp' },
-      { key: 'schedule', label: '我的排期', path: '/schedule', icon: 'Calendar' },
-      { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
-      { key: 'outsource', label: '我负责的委外', path: '/outsource', icon: 'Connection' },
-      { key: 'reports', label: '报告任务', path: '/reports', icon: 'DocumentChecked' },
-      { key: 'audit', label: '相关变更记录', path: '/audit', icon: 'Memo' },
-    ])].filter(Boolean) as MenuGroup[]
-  }
-
-  if (hasRole(user, '江阴实验室')) {
-    return [group('实验室工作台', [
-      { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataAnalysis' },
-      { key: 'orders', label: '我的订单', path: '/orders', icon: 'List' },
-      { key: 'laboratory', label: '实验室任务', path: '/labs/laboratory', icon: 'Monitor' },
-      { key: 'devices', label: '设备管理', path: '/devices', icon: 'SetUp' },
-      { key: 'schedule', label: '我的排期', path: '/schedule', icon: 'Calendar' },
-      { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
-      { key: 'outsource', label: '我负责的委外', path: '/outsource', icon: 'Connection' },
-      { key: 'reports', label: '报告任务', path: '/reports', icon: 'DocumentChecked' },
-      { key: 'audit', label: '相关变更记录', path: '/audit', icon: 'Memo' },
-    ])].filter(Boolean) as MenuGroup[]
-  }
-
-  if (hasRole(user, '实验操作员')) {
-    return [group('实验室工作台', [
-      { key: 'dashboard', label: '我的工作台', path: '/dashboard', icon: 'DataAnalysis' },
-      { key: 'orders', label: '实验室订单', path: '/orders', icon: 'List' },
-      { key: 'laboratory', label: '实验室任务', path: '/labs/laboratory', icon: 'Monitor' },
-      { key: 'schedule', label: '排期与操作', path: '/schedule', icon: 'Calendar' },
-      { key: 'samples', label: '样品台账', path: '/samples', icon: 'CollectionTag' },
-      { key: 'outsource', label: '委外任务', path: '/outsource', icon: 'Connection' },
-      { key: 'reports', label: '报告任务', path: '/reports', icon: 'DocumentChecked' },
-      { key: 'audit', label: '操作历史', path: '/audit', icon: 'Memo' },
-    ])].filter(Boolean) as MenuGroup[]
-  }
-
   if (hasRole(user, '常务副总经理')) {
     return [
       group('经营总览', [
@@ -230,7 +189,7 @@ export function getMetricCards(user: User, dashboard: Dashboard | null) {
       { key: 'change_requests', label: '变更待调整排期', value: metrics?.change_requests ?? 0 },
     ]
   }
-  if ((hasRole(user, '苏州实验室') || hasRole(user, '江阴实验室') || hasRole(user, '实验室操作员') || hasRole(user, '实验操作员')) && !canSeeAllBusiness(user)) {
+  if ((hasRole(user, '实验室负责人') || hasRole(user, '实验室操作员') || hasRole(user, '实验操作员')) && !canSeeAllBusiness(user)) {
     return [
       { key: 'orders', label: '分配给我的试验单', value: metrics?.orders ?? 0 },
       { key: 'running_experiments', label: '我的试验执行中', value: metrics?.running_experiments ?? 0 },

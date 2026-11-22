@@ -40,8 +40,7 @@ class LabOrder(TimeStampedModel):
         RESULT_PENDING = 9, '实验已结束待提交结果'
 
     class ExecutionMode(models.IntegerChoices):
-        SUZHOU = 1, '苏州内部实验室'
-        JIANGYIN = 2, '江阴内部实验室'
+        LAB = 1, '实验室'
         OUTSOURCE = 3, '外部委外'
         MIXED = 4, '多路径并行'
 
@@ -259,8 +258,7 @@ class BusinessReview(TimeStampedModel):
 
 class LabDevice(TimeStampedModel):
     class LabType(models.IntegerChoices):
-        SUZHOU = 1, '苏州实验室'
-        JIANGYIN = 2, '江阴实验室'
+        LAB = 1, '实验室'
 
     class Status(models.IntegerChoices):
         NORMAL = 1, '设备正常'
@@ -287,7 +285,7 @@ class LabDevice(TimeStampedModel):
         db_table = 'lims_lab_device'
         verbose_name = '实验室设备'
         verbose_name_plural = '实验室设备'
-        ordering = ['lab_type', 'device_code']
+        ordering = ['device_code']
 
     def __str__(self):
         return f'{self.device_code} {self.device_name}'
@@ -312,7 +310,7 @@ class LabStaffProfile(TimeStampedModel):
         db_table = 'lims_lab_staff_profile'
         verbose_name = '实验室人员档案'
         verbose_name_plural = '实验室人员档案'
-        ordering = ['lab_type', 'position', 'user__username']
+        ordering = ['position', 'user__username']
 
     def __str__(self):
         return f'{self.user} - {self.get_lab_type_display()} - {self.get_position_display()}'
@@ -320,8 +318,7 @@ class LabStaffProfile(TimeStampedModel):
 
 class SchedulePlan(TimeStampedModel):
     class TestType(models.IntegerChoices):
-        SUZHOU = 1, '苏州内部实验室'
-        JIANGYIN = 2, '江阴内部实验室'
+        LAB = 1, '实验室'
         OUTSOURCE = 3, '外部委外'
 
     class Status(models.IntegerChoices):
@@ -332,7 +329,7 @@ class SchedulePlan(TimeStampedModel):
         FINISHED = 5, '结果已提交'
 
     order = models.ForeignKey(LabOrder, verbose_name='销售订单', on_delete=models.CASCADE, related_name='schedules')
-    test_type = models.PositiveSmallIntegerField('试验执行类型', choices=TestType.choices, default=TestType.SUZHOU)
+    test_type = models.PositiveSmallIntegerField('试验执行类型', choices=TestType.choices, default=TestType.LAB)
     lab_manager = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         verbose_name='实验室负责人',
@@ -545,7 +542,7 @@ class Experiment(TimeStampedModel):
     test_conclusion_temp = models.CharField('试验临时初步结论', max_length=1000, blank=True)
     result_status = models.CharField('实验结果', max_length=20, choices=Result.choices, blank=True)
     test_status = models.PositiveSmallIntegerField('试验状态', choices=Status.choices, default=Status.WAITING)
-    test_type = models.PositiveSmallIntegerField('试验执行类型', choices=SchedulePlan.TestType.choices, default=SchedulePlan.TestType.SUZHOU)
+    test_type = models.PositiveSmallIntegerField('试验执行类型', choices=SchedulePlan.TestType.choices, default=SchedulePlan.TestType.LAB)
 
     class Meta:
         db_table = 'lims_test_record'

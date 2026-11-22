@@ -17,10 +17,10 @@ class NoSalesConfirmationFiveOrderTests(TestCase):
         self.settings_override.enable()
         self.addCleanup(self.settings_override.disable)
         self.users = {}
-        for key, role in [('sales','销售'),('dept','商务部'),('chair','总经理'),('gm','常务副总经理'),('sz','苏州实验室'),('jy','江阴实验室'),('finance','会计')]:
+        for key, role in [('sales','销售'),('dept','商务部'),('chair','总经理'),('gm','常务副总经理'),('sz','实验室负责人'),('finance','会计')]:
             u=get_user_model().objects.create_user(key)
             u.groups.add(Group.objects.get_or_create(name=role)[0]);self.users[key]=u
-        self.devices={key:LabDevice.objects.create(device_code=key,device_name=key,lab_type=typ) for key,typ in [('sz',1),('jy',2)]}
+        self.devices={'sz': LabDevice.objects.create(device_code='sz', device_name='实验室测试设备', lab_type=1)}
 
     def action(self, who, name, expected=200, **kw):
         self.client.force_login(self.users[who])
@@ -37,10 +37,11 @@ class NoSalesConfirmationFiveOrderTests(TestCase):
         self.assertEqual(response.status_code,200,response.content)
         self.order=LabOrder.objects.get(project_name=self._testMethodName)
         self.action('chair','review_pass')
-        self.action('gm','review_pass',execution_routes=['suzhou' if x=='sz' else 'jiangyin' for x in routes],suzhou_manager_id=self.users['sz'].pk,jiangyin_manager_id=self.users['jy'].pk,lead_lab_manager_id=self.users[routes[0]].pk)
+        execution_routes=['laboratory' for _ in routes]
+        self.action('gm','review_pass',execution_routes=execution_routes,laboratory_manager_id=self.users['sz'].pk,lead_lab_manager_id=self.users['sz'].pk)
         self.action(owner,'sales_confirm',expected=410)
         for schedule in self.order.schedules.order_by('pk'):
-            lab='sz' if schedule.test_type==1 else 'jy'
+            lab='sz'
             self.action(lab,'start_test',expected=400,schedule_id=schedule.pk)
             kwargs={'schedule_id':schedule.pk,'device_id':self.devices[lab].pk,'plan_start_time':'2026-12-01','plan_end_time':'2026-12-02'}
             self.action('dept','schedule_assign',**kwargs)
@@ -57,7 +58,7 @@ class NoSalesConfirmationFiveOrderTests(TestCase):
             self.action(lab,'end_test',schedule_id=schedule.pk,result_status=Experiment.Result.PASS,test_raw_data='完整虚拟数据',test_conclusion_temp='合格')
             self.action(lab,'submit_test',schedule_id=schedule.pk)
         self.action(
-            routes[0],
+            'sz',
             'issue_report',
             report_no=f'RPT-{self._testMethodName}-001',
             final_conclusion='虚拟回归合格',

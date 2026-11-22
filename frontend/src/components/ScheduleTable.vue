@@ -11,7 +11,6 @@ import AdvancedOrderFilter from './AdvancedOrderFilter.vue'
 const props = defineProps<{
   orders: ScheduleItem[]
   user?: User
-  labType?: number
   exportable?: boolean
   remote?: boolean
   total?: number
@@ -87,7 +86,7 @@ const pagedOrders = computed(() => {
 const roleSet = computed(() => new Set(props.user?.roles || []))
 const isChairman = computed(() => Boolean(props.user?.is_chairman))
 const isBusinessDept = computed(() => roleSet.value.has('商务部'))
-const canLabOperate = computed(() => isChairman.value || roleSet.value.has('实验室负责人') || roleSet.value.has('苏州实验室') || roleSet.value.has('江阴实验室') || roleSet.value.has('实验室操作员') || roleSet.value.has('实验操作员'))
+const canLabOperate = computed(() => isChairman.value || roleSet.value.has('实验室负责人') || roleSet.value.has('实验室操作员') || roleSet.value.has('实验操作员'))
 const canIssueReport = computed(() => canLabOperate.value)
 
 function taskState(row: ScheduleItem) {
@@ -189,7 +188,6 @@ async function exportOrders(selectedOnly: boolean) {
   exporting.value = true
   try {
     await exportLaboratoryOrders({
-      lab_type: props.labType || 0,
       keyword: keyword.value,
       order_status: orderStatus.value === '' ? '' : String(orderStatus.value),
       schedule_status: scheduleStatus.value === '' ? '' : String(scheduleStatus.value),

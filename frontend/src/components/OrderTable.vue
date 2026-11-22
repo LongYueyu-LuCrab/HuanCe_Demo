@@ -143,7 +143,7 @@ const effectiveUser = computed(() => props.user || session.state.user)
 const roleSet = computed(() => new Set(effectiveUser.value.roles || []))
 const isChairman = computed(() => Boolean(effectiveUser.value.is_chairman))
 const effectiveRoles = computed(() => new Set(effectiveUser.value.roles || []))
-const isLabAccount = computed(() => ['实验室负责人', '苏州实验室', '江阴实验室', '实验室操作员', '实验操作员', '商务部'].some((role) => effectiveRoles.value.has(role)))
+const isLabAccount = computed(() => ['实验室负责人', '实验室操作员', '实验操作员', '商务部'].some((role) => effectiveRoles.value.has(role)))
 const isSalesRole = computed(() => ['销售', '销售经理', '商务部'].some((role) => effectiveRoles.value.has(role)))
 const isFinanceRole = computed(() => effectiveRoles.value.has('会计'))
 const isManagementRole = computed(() => Boolean(effectiveUser.value.is_chairman || effectiveRoles.value.has('常务副总经理')))
@@ -192,7 +192,7 @@ function actionsFor(order: OrderItem) {
   const labActionKeys = Array.isArray(order.workflow_action_keys)
     ? new Set(order.workflow_action_keys)
     : null
-  const canOperateLabTask = hasRole('实验室负责人') || hasRole('苏州实验室') || hasRole('江阴实验室') || roleSet.value.has('实验室操作员') || roleSet.value.has('实验操作员')
+  const canOperateLabTask = hasRole('实验室负责人') || roleSet.value.has('实验室操作员') || roleSet.value.has('实验操作员')
   if (order.workflow_version === 1 && [3, 4].includes(order.status_key) && canOperateLabTask) {
     if (!labActionKeys || labActionKeys.has('start_test')) actions.push({ key: 'start_test', label: '开始试验', type: 'primary' })
     if (!labActionKeys || labActionKeys.has('end_test')) actions.push({ key: 'end_test', label: '实验结束', type: 'warning' })

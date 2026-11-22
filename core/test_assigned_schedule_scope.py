@@ -33,9 +33,10 @@ class AssignedScheduleScopeTests(SimpleTestCase):
         self.assertIn('"test_type" = 1', sql)
         self.assertIn('"test_type" = 3', sql)
 
-    def test_other_laboratory_is_still_denied(self):
-        _, _, error = self.query({'scope': 'assigned', 'lab_type': '2'})
-        self.assertEqual(error.status_code, 403)
+    def test_legacy_laboratory_selector_is_ignored(self):
+        rows, _, error = self.query({'scope': 'assigned', 'lab_type': '2'})
+        self.assertIsNone(error)
+        self.assertIn('"lab_manager_id" = 701', str(rows.query))
 
     def test_outsource_filter_keeps_owner_scope(self):
         rows, _, error = self.query({'scope': 'assigned', 'test_type': '3'})

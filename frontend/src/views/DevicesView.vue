@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createLabDevice, deleteLabDevice, fetchLabDevices, updateLabDevice } from '../services/api'
@@ -15,10 +15,9 @@ const loadError = ref('')
 const saving = ref(false)
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
-const defaultLabType = computed(() => 1)
 const filteredDevices = computed(() => devices.value)
 const form = reactive({
-  device_code: '', device_name: '', lab_type: defaultLabType.value, model_spec: '', capability: '', device_status: 1, remark: '',
+  device_code: '', device_name: '', model_spec: '', capability: '', device_status: 1, remark: '',
 })
 
 function statusType(status: string) {
@@ -43,7 +42,7 @@ async function loadDevices() {
 function openCreate() {
   editingId.value = null
   Object.assign(form, {
-    device_code: '', device_name: '', lab_type: defaultLabType.value, model_spec: '', capability: '', device_status: 1, remark: '',
+    device_code: '', device_name: '', model_spec: '', capability: '', device_status: 1, remark: '',
   })
   dialogVisible.value = true
 }
@@ -53,7 +52,6 @@ function openEdit(device: LabDevice) {
   Object.assign(form, {
     device_code: device.device_code,
     device_name: device.name,
-    lab_type: device.lab_type,
     model_spec: device.model_spec,
     capability: device.capability,
     device_status: device.status_key,

@@ -11,14 +11,14 @@ from .views import _has_dual_review_pass
 class ReviewRoleTests(TestCase):
     def setUp(self):
         self.users = {}
-        for username, role in [('dept', '商务部'), ('sales', '销售'), ('chair', '总经理'), ('gm', '常务副总经理'), ('lab', '苏州实验室'), ('oldbiz', '商务'), ('oldtech', '技术')]:
+        for username, role in [('dept', '商务部'), ('sales', '销售'), ('chair', '总经理'), ('gm', '常务副总经理'), ('lab', '实验室负责人'), ('oldbiz', '商务'), ('oldtech', '技术')]:
             user = get_user_model().objects.create_user(username)
             user.groups.add(Group.objects.get_or_create(name=role)[0])
             self.users[username] = user
         self.order = LabOrder.objects.create(order_no='ROLE-TEST', sale_user=self.users['dept'], customer_name='角色回归', test_demand='虚拟试验', workflow_version=2)
         self.other = LabOrder.objects.create(order_no='OTHER-OWNER', sale_user=self.users['sales'], workflow_version=2)
         self.device = LabDevice.objects.create(device_code='ROLE-DEVICE', device_name='测试设备', lab_type=1)
-        self.routing = {'execution_routes': ['suzhou'], 'suzhou_manager_id': self.users['lab'].pk, 'lead_lab_manager_id': self.users['lab'].pk}
+        self.routing = {'execution_routes': ['laboratory'], 'laboratory_manager_id': self.users['lab'].pk, 'lead_lab_manager_id': self.users['lab'].pk}
 
     def action(self, user, action, **payload):
         self.client.force_login(self.users[user])
@@ -100,7 +100,7 @@ class ReviewRoleTests(TestCase):
     def test_gm_routing_options_and_chairman_employee_role_whitelist(self):
         self.client.force_login(self.users['gm'])
         dashboard = self.client.get(reverse('lims_dashboard')).json()
-        self.assertTrue(dashboard['routing_options']['suzhou_managers'])
+        self.assertTrue(dashboard['routing_options']['laboratory_managers'])
         self.client.force_login(self.users['chair'])
         for role in ['商务', '技术', '商务评审', '技术评审']:
             response = self.client.post(reverse('add_employee'), {'username': 'retired', 'password': 'test-pass', 'role': role}, content_type='application/json')

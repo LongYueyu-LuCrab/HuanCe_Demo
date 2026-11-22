@@ -96,13 +96,7 @@ const managerFilterOptions = ref<Record<string, unknown>>({})
 const orders = computed(() => managerOrders.value)
 const isTechnicalReviewer = computed(() => !session.state.user.is_chairman && (session.state.user.roles || []).includes('常务副总经理'))
 const routingOptions = computed(() => session.state.dashboard?.routing_options)
-const allLabManagers = computed(() => [
-  ...(routingOptions.value?.laboratory_managers || []),
-  ...((routingOptions.value?.laboratory_managers?.length ?? 0) > 0 ? [] : [
-  ...(routingOptions.value?.suzhou_managers || []),
-  ...(routingOptions.value?.jiangyin_managers || []),
-  ]),
-])
+const allLabManagers = computed(() => routingOptions.value?.laboratory_managers || [])
 const leadManagerOptions = computed(() => {
   const selectedIds = new Set([
     Number(actionForm.laboratory_manager_id || 0),

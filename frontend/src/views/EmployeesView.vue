@@ -5,7 +5,7 @@ import { addEmployee } from '../services/api'
 
 const submitting = ref(false)
 const form = reactive({
-  username: '', password: '', display_name: '', email: '', role: '销售', lab_type: 1,
+  username: '', password: '', display_name: '', email: '', role: '销售',
 })
 const roles = ['销售', '销售经理', '商务部', '商务部员工', '实验室负责人', '实验室操作员', '委外供应商', '常务副总经理', '会计', '总经理', '副总经理', '总经办', '市场部部长']
 const showLab = computed(() => ['实验室负责人', '实验室操作员'].includes(form.role))
@@ -15,7 +15,7 @@ async function submit() {
   try {
     await addEmployee(form)
     ElMessage.success('员工账号已创建')
-    Object.assign(form, { username: '', password: '', display_name: '', email: '', role: '销售', lab_type: 1 })
+    Object.assign(form, { username: '', password: '', display_name: '', email: '', role: '销售' })
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '创建失败')
   } finally {
@@ -30,7 +30,7 @@ async function submit() {
       <div class="card-heading">
         <div>
           <h2>添加员工</h2>
-          <p>创建员工账号并分配岗位。实验室员工还必须指定所属实验室。</p>
+          <p>创建员工账号并分配岗位。实验室岗位统一归属实验室。</p>
         </div>
       </div>
     </template>

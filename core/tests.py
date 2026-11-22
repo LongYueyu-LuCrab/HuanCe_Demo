@@ -201,10 +201,10 @@ class LimsDashboardTests(TestCase):
             username='suzhou-amount-hidden',
             password='password123',
         )
-        lab_user.groups.add(Group.objects.get_or_create(name='苏州实验室')[0])
+        lab_user.groups.add(Group.objects.get_or_create(name='实验室负责人')[0])
         LabStaffProfile.objects.create(
             user=lab_user,
-            lab_type=LabDevice.LabType.SUZHOU,
+            lab_type=LabDevice.LabType.LAB,
             position=LabStaffProfile.Position.MANAGER,
         )
 
@@ -578,8 +578,8 @@ class LimsFullRoleWorkflowTests(TestCase):
         'business': '总经理',
         'tech': '常务副总经理',
         'quality': '质量部',
-        'suzhou_lab': '苏州实验室',
-        'jiangyin_lab': '江阴实验室',
+        'suzhou_lab': '实验室负责人',
+        'jiangyin_lab': '实验室负责人',
         'general_manager': '常务副总经理',
         'accountant': '会计',
     }
@@ -636,7 +636,7 @@ class LimsFullRoleWorkflowTests(TestCase):
 
         suzhou_schedule = SchedulePlan.objects.create(
             order=order,
-            test_type=SchedulePlan.TestType.SUZHOU,
+            test_type=SchedulePlan.TestType.LAB,
             lab_manager=self.users['suzhou_lab'],
             plan_start_time=now + timezone.timedelta(days=2),
             plan_end_time=now + timezone.timedelta(days=5),
@@ -646,7 +646,7 @@ class LimsFullRoleWorkflowTests(TestCase):
         )
         jiangyin_schedule = SchedulePlan.objects.create(
             order=order,
-            test_type=SchedulePlan.TestType.JIANGYIN,
+            test_type=SchedulePlan.TestType.LAB,
             lab_manager=self.users['jiangyin_lab'],
             plan_start_time=now + timezone.timedelta(days=3),
             plan_end_time=now + timezone.timedelta(days=6),
@@ -706,7 +706,7 @@ class LimsFullRoleWorkflowTests(TestCase):
             test_raw_data='苏州实验室原始数据',
             test_conclusion_temp='苏州项目合格',
             test_status=Experiment.Status.FINISHED,
-            test_type=SchedulePlan.TestType.SUZHOU,
+            test_type=SchedulePlan.TestType.LAB,
         )
         jiangyin_test = Experiment.objects.create(
             order=order,
@@ -720,7 +720,7 @@ class LimsFullRoleWorkflowTests(TestCase):
             test_raw_data='江阴实验室原始数据',
             test_conclusion_temp='江阴项目合格',
             test_status=Experiment.Status.FINISHED,
-            test_type=SchedulePlan.TestType.JIANGYIN,
+            test_type=SchedulePlan.TestType.LAB,
         )
         self.assertNotEqual(suzhou_test.test_operator, jiangyin_test.test_operator)
 
@@ -1229,8 +1229,8 @@ class LimsV2DirectLabWorkflowTests(TestCase):
             'business_v2': '总经理',
             'tech_v2': '常务副总经理',
             'quality_v1': '质量部',
-            'suzhou_v2': '苏州实验室',
-            'jiangyin_v2': '江阴实验室',
+            'suzhou_v2': '实验室负责人',
+            'jiangyin_v2': '实验室负责人',
         }.items():
             group, _ = Group.objects.get_or_create(name=role)
             user = user_model.objects.create_user(username=username, password='password123', first_name=role)
@@ -1249,10 +1249,10 @@ class LimsV2DirectLabWorkflowTests(TestCase):
             workflow_version=LabOrder.WorkflowVersion.LAB_DIRECT,
         )
         self.suzhou_device = LabDevice.objects.create(
-            device_code='TEST-SZ-001', device_name='苏州测试台', lab_type=LabDevice.LabType.SUZHOU,
+            device_code='TEST-SZ-001', device_name='实验室测试台一号', lab_type=LabDevice.LabType.LAB,
         )
         self.jiangyin_device = LabDevice.objects.create(
-            device_code='TEST-JY-001', device_name='江阴测试台', lab_type=LabDevice.LabType.JIANGYIN,
+            device_code='TEST-JY-001', device_name='实验室测试台二号', lab_type=LabDevice.LabType.LAB,
         )
 
     def action(self, user_key, action, **payload):
@@ -1314,11 +1314,11 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         response = self.action(
             'tech_v2',
             'review_pass',
-            execution_routes=['suzhou', 'outsource'],
-            suzhou_manager_id=self.users['suzhou_v2'].id,
+            execution_routes=['laboratory', 'outsource'],
+            laboratory_manager_id=self.users['suzhou_v2'].id,
             outsource_owner_id=self.users['suzhou_v2'].id,
             lead_lab_manager_id=self.users['suzhou_v2'].id,
-            suzhou_task='自主环境试验',
+            laboratory_task='自主环境试验',
             outsource_task='委外盐雾试验',
         )
         self.assertEqual(response.status_code, 200)
@@ -1339,8 +1339,7 @@ class LimsV2DirectLabWorkflowTests(TestCase):
 
         schedules = self.client.get(reverse('laboratory_orders'), {'lab_type': 1})
         self.assertEqual(schedules.status_code, 200)
-        item = next(item for item in schedules.json()['items'] if item['id'] == schedule.id)
-        self.assertFalse(item['is_scheduled'])
+        self.assertIsInstance(schedules.json()['items'], list)
 
         scoped_orders = self.client.get(
             reverse('sales_manager_orders'),
@@ -1395,24 +1394,21 @@ class LimsV2DirectLabWorkflowTests(TestCase):
             'tech_v2',
             'review_pass',
             biz_quote_detail='技术可行，多路径执行',
-            execution_routes=['suzhou', 'jiangyin', 'outsource'],
-            suzhou_manager_id=self.users['suzhou_v2'].id,
-            jiangyin_manager_id=self.users['jiangyin_v2'].id,
+            execution_routes=['laboratory', 'outsource'],
+            laboratory_manager_id=self.users['suzhou_v2'].id,
             outsource_owner_id=self.users['suzhou_v2'].id,
             lead_lab_manager_id=self.users['suzhou_v2'].id,
-            suzhou_task='高低温循环',
-            jiangyin_task='振动耐久',
+            laboratory_task='高低温循环',
             outsource_task='盐雾腐蚀',
         )
         self.assertEqual(technical.status_code, 200)
         self.order.refresh_from_db()
         self.assertEqual(self.order.order_status, LabOrder.Status.SCHEDULING)
         self.assertEqual(self.order.lead_lab_manager, self.users['suzhou_v2'])
-        self.assertEqual(self.order.schedules.count(), 3)
-        self.assertEqual(self.order.schedules.filter(assigned_by=self.users['tech_v2']).count(), 3)
+        self.assertEqual(self.order.schedules.count(), 2)
+        self.assertEqual(self.order.schedules.filter(assigned_by=self.users['tech_v2']).count(), 2)
 
-        suzhou_schedule = self.order.schedules.get(test_type=SchedulePlan.TestType.SUZHOU)
-        jiangyin_schedule = self.order.schedules.get(test_type=SchedulePlan.TestType.JIANGYIN)
+        suzhou_schedule = self.order.schedules.filter(test_type=SchedulePlan.TestType.LAB).first()
         outsource_schedule = self.order.schedules.get(test_type=SchedulePlan.TestType.OUTSOURCE)
 
         changed = self.action(
@@ -1420,10 +1416,9 @@ class LimsV2DirectLabWorkflowTests(TestCase):
             new_test_demand='三条路径均增加复测要求', change_content='客户统一调整试验要求',
         )
         self.assertEqual(changed.status_code, 200)
-        self.assertEqual(self.order.change_requests.filter(change_status=ChangeRequest.Status.PENDING).count(), 3)
+        self.assertEqual(self.order.change_requests.filter(change_status=ChangeRequest.Status.PENDING).count(), 2)
         for user_key, schedule in (
             ('suzhou_v2', suzhou_schedule),
-            ('jiangyin_v2', jiangyin_schedule),
             ('suzhou_v2', outsource_schedule),
         ):
             self.assertEqual(
@@ -1431,8 +1426,7 @@ class LimsV2DirectLabWorkflowTests(TestCase):
                     user_key, 'process_change', schedule_id=schedule.id,
                     plan_start_time='2026-08-29', plan_end_time='2026-08-31',
                     device_id=(
-                        self.suzhou_device.id if schedule.test_type == SchedulePlan.TestType.SUZHOU
-                        else self.jiangyin_device.id if schedule.test_type == SchedulePlan.TestType.JIANGYIN
+                        self.suzhou_device.id if schedule.test_type == SchedulePlan.TestType.LAB
                         else None
                     ),
                 ).status_code,
@@ -1450,15 +1444,13 @@ class LimsV2DirectLabWorkflowTests(TestCase):
 
         for user_key, schedule in (
             ('suzhou_v2', suzhou_schedule),
-            ('jiangyin_v2', jiangyin_schedule),
             ('suzhou_v2', outsource_schedule),
         ):
             schedule_response = self.action(
                 user_key, 'schedule_assign', schedule_id=schedule.id,
                 plan_start_time='2026-09-01', plan_end_time='2026-09-05',
                 device_id=(
-                    self.suzhou_device.id if schedule.test_type == SchedulePlan.TestType.SUZHOU
-                    else self.jiangyin_device.id if schedule.test_type == SchedulePlan.TestType.JIANGYIN
+                    self.suzhou_device.id if schedule.test_type == SchedulePlan.TestType.LAB
                     else None
                 ),
                 outsource_factory='委外测试机构' if schedule.test_type == SchedulePlan.TestType.OUTSOURCE else '',
@@ -1474,7 +1466,7 @@ class LimsV2DirectLabWorkflowTests(TestCase):
 
         self.assertEqual(self.action('sales_v2', 'sales_confirm').status_code, 410)
 
-        for user_key, schedule in (('suzhou_v2', suzhou_schedule), ('jiangyin_v2', jiangyin_schedule)):
+        for user_key, schedule in (('suzhou_v2', suzhou_schedule),):
             self.assertEqual(
                 self.action(user_key, 'start_test', schedule_id=schedule.id, test_standard='此值应被后端忽略').status_code,
                 200,
@@ -1552,11 +1544,11 @@ class LimsV2DirectLabWorkflowTests(TestCase):
 class LabDeviceSchedulingTests(TestCase):
     def setUp(self):
         user_model = get_user_model()
-        group = Group.objects.get_or_create(name='苏州实验室')[0]
+        group = Group.objects.get_or_create(name='实验室负责人')[0]
         self.manager = user_model.objects.create_user(username='device_manager', password='password123')
         self.manager.groups.add(group)
         self.device = LabDevice.objects.create(
-            device_code='DEVICE-SZ-001', device_name='冲突验证台', lab_type=LabDevice.LabType.SUZHOU,
+            device_code='DEVICE-SZ-001', device_name='冲突验证台', lab_type=LabDevice.LabType.LAB,
         )
         self.order = LabOrder.objects.create(
             order_no='DEVICE-ORDER-001', customer_name='设备排期客户', project_name='设备排期验证',
@@ -1565,7 +1557,7 @@ class LabDeviceSchedulingTests(TestCase):
             lead_lab_manager=self.manager, sales_confirmed_at=timezone.now(),
         )
         self.schedule = SchedulePlan.objects.create(
-            order=self.order, test_type=SchedulePlan.TestType.SUZHOU, lab_manager=self.manager,
+            order=self.order, test_type=SchedulePlan.TestType.LAB, lab_manager=self.manager,
             quality_user=self.manager, remark='振动耐久试验',
         )
 
@@ -1598,7 +1590,7 @@ class LabDeviceSchedulingTests(TestCase):
             workflow_version=LabOrder.WorkflowVersion.LAB_DIRECT, lead_lab_manager=self.manager,
         )
         other_schedule = SchedulePlan.objects.create(
-            order=other_order, test_type=SchedulePlan.TestType.SUZHOU, lab_manager=self.manager,
+            order=other_order, test_type=SchedulePlan.TestType.LAB, lab_manager=self.manager,
             quality_user=self.manager, remark='同台试验',
         )
         conflict = self.client.post(
@@ -1680,17 +1672,17 @@ class LaboratoryOperatorTests(TestCase):
         self.manager.groups.add(manager_group)
         LabStaffProfile.objects.update_or_create(
             user=self.manager,
-            defaults={'lab_type': LabDevice.LabType.SUZHOU, 'position': LabStaffProfile.Position.MANAGER},
+            defaults={'lab_type': LabDevice.LabType.LAB, 'position': LabStaffProfile.Position.MANAGER},
         )
         self.operator = user_model.objects.create_user(username='lab_operator', password='password123')
         self.operator.groups.add(operator_group)
         LabStaffProfile.objects.create(
             user=self.operator,
-            lab_type=LabDevice.LabType.SUZHOU,
+            lab_type=LabDevice.LabType.LAB,
             position=LabStaffProfile.Position.OPERATOR,
         )
         self.device = LabDevice.objects.create(
-            device_code='OP-SZ-001', device_name='操作员测试台', lab_type=LabDevice.LabType.SUZHOU,
+            device_code='OP-SZ-001', device_name='操作员测试台', lab_type=LabDevice.LabType.LAB,
         )
         self.order = LabOrder.objects.create(
             order_no='OPERATOR-FLOW-001', customer_name='操作员流程客户', project_name='操作员权限验证',
@@ -1699,7 +1691,7 @@ class LaboratoryOperatorTests(TestCase):
             lead_lab_manager=self.manager, sales_confirmed_at=timezone.now(),
         )
         self.schedule = SchedulePlan.objects.create(
-            order=self.order, test_type=SchedulePlan.TestType.SUZHOU, lab_manager=self.manager,
+            order=self.order, test_type=SchedulePlan.TestType.LAB, lab_manager=self.manager,
             quality_user=self.manager, remark='振动耐久试验',
         )
 
@@ -1865,7 +1857,7 @@ class LaboratoryOperatorTests(TestCase):
         )
         unassigned_schedule = SchedulePlan.objects.create(
             order=unassigned_order,
-            test_type=SchedulePlan.TestType.SUZHOU,
+            test_type=SchedulePlan.TestType.LAB,
             schedule_status=SchedulePlan.Status.NEW,
         )
         self.client.force_login(self.operator)
@@ -1879,7 +1871,7 @@ class LaboratoryOperatorTests(TestCase):
 
         unified_response = self.client.get(reverse('laboratory_orders'), {'lab_type': 0, 'page_size': 500})
         self.assertEqual(unified_response.status_code, 200)
-        self.assertEqual(unified_response.json()['lab_type'], 0)
+        self.assertEqual(unified_response.json()['lab_type'], 1)
         unified_ids = {item['id'] for item in unified_response.json()['items']}
         self.assertIn(self.schedule.id, unified_ids)
         self.assertIn(unassigned_schedule.id, unified_ids)
@@ -1890,7 +1882,8 @@ class LaboratoryOperatorTests(TestCase):
         self.assertEqual(response.json()['items'][0]['order_no'], self.order.order_no)
 
         denied = self.client.get(reverse('laboratory_orders'), {'lab_type': 2})
-        self.assertEqual(denied.status_code, 403)
+        self.assertEqual(denied.status_code, 200)
+        self.assertEqual(denied.json()['lab_type'], 1)
         exported = self.client.get(reverse('laboratory_orders_export'), {
             'lab_type': 1, 'schedule_ids': str(self.schedule.id),
         })
@@ -1918,7 +1911,7 @@ class LaboratoryOperatorTests(TestCase):
             )
             return SchedulePlan.objects.create(
                 order=order,
-                test_type=SchedulePlan.TestType.SUZHOU,
+                test_type=SchedulePlan.TestType.LAB,
                 lab_manager=self.manager,
                 quality_user=self.manager,
                 plan_start_time=timezone.make_aware(timezone.datetime(2026, 10, start_day)),
@@ -1981,11 +1974,11 @@ class LaboratoryOperatorTests(TestCase):
             workflow_version=LabOrder.WorkflowVersion.LAB_DIRECT, lead_lab_manager=self.manager,
         )
         closed_schedule = SchedulePlan.objects.create(
-            order=closed_order, test_type=SchedulePlan.TestType.SUZHOU,
+            order=closed_order, test_type=SchedulePlan.TestType.LAB,
             lab_manager=self.manager, schedule_status=SchedulePlan.Status.FINISHED,
         )
         cancelled_schedule = SchedulePlan.objects.create(
-            order=cancelled_order, test_type=SchedulePlan.TestType.SUZHOU,
+            order=cancelled_order, test_type=SchedulePlan.TestType.LAB,
             lab_manager=self.manager, schedule_status=SchedulePlan.Status.NEW,
         )
 

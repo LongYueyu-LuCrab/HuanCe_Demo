@@ -8,7 +8,6 @@ export type User = {
   is_chairman?: boolean
   is_staff?: boolean
   is_superuser?: boolean
-  lab_type?: number | null
   lab_name?: string
   lab_position?: string
 }
@@ -125,7 +124,6 @@ export type ScheduleItem = {
   schedule_status_key: number
   lab_manager: string
   lab_manager_username: string
-  lab_type: number | null
   device_id: number | null
   device_code: string
   device_name: string
@@ -263,7 +261,6 @@ export type LabDevice = {
   id: number
   device_code: string
   name: string
-  lab_type: number
   lab_name: string
   model_spec: string
   capability: string
@@ -391,8 +388,6 @@ export type Dashboard = {
   test_standards: TestStandardItem[]
   routing_options: {
     laboratory_managers: UserOption[]
-    suzhou_managers?: UserOption[]
-    jiangyin_managers?: UserOption[]
   }
   pending_reports: ReportItem[]
   finance: {

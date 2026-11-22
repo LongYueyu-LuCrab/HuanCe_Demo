@@ -16,7 +16,6 @@ const session = useSession()
 const isBusinessDept = computed(() => (session.state.user.roles || []).includes('商务部'))
 const labKey = computed(() => 'laboratory')
 const lab = computed(() => session.state.dashboard?.labs?.[labKey.value])
-const labType = computed(() => session.state.user.lab_type || 0)
 const labOrders = ref<ScheduleItem[]>([])
 const labOrdersError = ref('')
 const dialogVisible = ref(false)
@@ -75,7 +74,7 @@ const actionMeta = computed(() => {
 
 async function loadLaboratoryOrders() {
   try {
-    const data = await fetchLaboratoryOrders({ lab_type: labType.value, page: 1, page_size: 500 })
+    const data = await fetchLaboratoryOrders({ page: 1, page_size: 500 })
     labOrders.value = data.items
     labOrdersError.value = ''
     openRequestedAction()
@@ -113,7 +112,7 @@ async function openRequestedAction() {
   }
 }
 
-watch(labType, loadLaboratoryOrders, { immediate: true })
+void loadLaboratoryOrders()
 watch(() => route.fullPath, () => openRequestedAction())
 async function loadOrderContext(orderNo: string) {
   activeOrder.value = null
@@ -328,7 +327,6 @@ async function submitWorkflow() {
     <ScheduleTable
       :orders="labOrders"
       :user="session.state.user"
-      :lab-type="labType"
       exportable
       :error="labOrdersError"
       @workflow="openWorkflow"

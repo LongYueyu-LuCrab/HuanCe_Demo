@@ -32,10 +32,8 @@ ROLE_BUSINESS = '商务'  # Retired role; retained only for historical reference
 ROLE_BUSINESS_DEPT = '商务部'
 ROLE_TECH = '技术'
 ROLE_QUALITY = '质量部'
-# 统一后的实验室岗位；旧岗位名保留为历史数据兼容别名。
+# 统一后的实验室岗位；数据库中的历史岗位会在迁移时归并。
 ROLE_LAB_MANAGER = '实验室负责人'
-ROLE_SUZHOU_LAB = '苏州实验室'
-ROLE_JIANGYIN_LAB = '江阴实验室'
 ROLE_LAB_OPERATOR = '实验室操作员'
 ROLE_LEGACY_LAB_OPERATOR = '实验操作员'
 ROLE_OUTSOURCE = '委外供应商'
@@ -51,15 +49,13 @@ GLOBAL_READ_ONLY_ROLES = {
     ROLE_GENERAL_OFFICE,
     ROLE_MARKETING_MANAGER,
 }
-INTERNAL_LAB_TYPES = (LabDevice.LabType.SUZHOU, LabDevice.LabType.JIANGYIN)
+INTERNAL_LAB_TYPES = (LabDevice.LabType.LAB,)
 VALID_ROLES = [
     ROLE_SALES,
     ROLE_SALES_MANAGER,
     ROLE_BUSINESS_DEPT,
     ROLE_QUALITY,
     ROLE_LAB_MANAGER,
-    ROLE_SUZHOU_LAB,
-    ROLE_JIANGYIN_LAB,
     ROLE_LAB_OPERATOR,
     ROLE_LEGACY_LAB_OPERATOR,
     ROLE_OUTSOURCE,
@@ -161,12 +157,7 @@ def _lab_profile(user):
 def _user_lab_type(user):
     profile = _lab_profile(user)
     if profile:
-        return profile.lab_type
-    roles = set(_roles(user))
-    if ROLE_SUZHOU_LAB in roles:
-        return LabDevice.LabType.SUZHOU
-    if ROLE_JIANGYIN_LAB in roles:
-        return LabDevice.LabType.JIANGYIN
+        return LabDevice.LabType.LAB
     return None
 
 
@@ -175,8 +166,6 @@ def _is_lab_manager(user):
     profile = _lab_profile(user)
     return bool(
         ROLE_LAB_MANAGER in roles
-        or ROLE_SUZHOU_LAB in roles
-        or ROLE_JIANGYIN_LAB in roles
         or (profile and profile.position == LabStaffProfile.Position.MANAGER)
     )
 
@@ -190,12 +179,15 @@ def _is_lab_operator(user):
     )
 
 
-def _lab_schedule_query(lab_type):
-    manager_role = ROLE_SUZHOU_LAB if lab_type == LabDevice.LabType.SUZHOU else ROLE_JIANGYIN_LAB
+def _lab_schedule_query(_lab_type=None):
+    """Return the unified laboratory task scope.
+
+    The optional argument is retained for compatibility with older callers;
+    it is intentionally ignored because the system now has one laboratory.
+    """
     return (
-        Q(test_type=lab_type)
-        | Q(test_type=SchedulePlan.TestType.OUTSOURCE, lab_manager__lims_lab_profile__lab_type=lab_type)
-        | Q(test_type=SchedulePlan.TestType.OUTSOURCE, lab_manager__groups__name=manager_role)
+        Q(test_type=SchedulePlan.TestType.LAB)
+        | Q(test_type=SchedulePlan.TestType.OUTSOURCE)
     )
 
 
@@ -207,19 +199,9 @@ def _can_operate_schedule(user, schedule):
     if _is_chairman(user):
         return True
     if _is_lab_operator(user):
-        lab_type = _user_lab_type(user)
-        if schedule.test_type == lab_type:
+        if schedule.test_type == SchedulePlan.TestType.LAB:
             return True
-        return bool(
-            schedule.test_type == SchedulePlan.TestType.OUTSOURCE
-            and schedule.lab_manager
-            and (
-                _user_lab_type(schedule.lab_manager) == lab_type
-                or schedule.lab_manager.groups.filter(
-                    name=ROLE_SUZHOU_LAB if lab_type == LabDevice.LabType.SUZHOU else ROLE_JIANGYIN_LAB,
-                ).exists()
-            )
-        )
+        return schedule.test_type == SchedulePlan.TestType.OUTSOURCE
     return schedule.lab_manager_id == user.id
 
 
@@ -244,7 +226,7 @@ def _can_view_order_contracts(user, order):
 def _can_view_order_amounts(user):
     """实验室负责人和实验操作员不接触报价及委外金额。"""
     roles = set(_roles(user)) if user and user.is_authenticated else set()
-    return not bool({ROLE_LAB_MANAGER, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_LEGACY_LAB_OPERATOR, ROLE_BUSINESS_STAFF}.intersection(roles))
+    return not bool({ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR, ROLE_LEGACY_LAB_OPERATOR, ROLE_BUSINESS_STAFF}.intersection(roles))
 
 
 def _user_payload(user):
@@ -252,7 +234,7 @@ def _user_payload(user):
         return {'authenticated': False}
     roles = _roles(user)
     profile = _lab_profile(user)
-    lab_roles = {ROLE_LAB_MANAGER, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_LEGACY_LAB_OPERATOR}
+    lab_roles = {ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR, ROLE_LEGACY_LAB_OPERATOR}
     lab_name = '实验室' if lab_roles.intersection(roles) else ''
     return {
         'authenticated': True,
@@ -264,7 +246,7 @@ def _user_payload(user):
         'is_chairman': _is_chairman(user),
         'is_staff': user.is_staff,
         'is_superuser': user.is_superuser,
-        'lab_type': profile.lab_type if profile else _user_lab_type(user),
+        'lab_type': LabDevice.LabType.LAB if profile else _user_lab_type(user),
         'lab_name': lab_name,
         'lab_position': profile.get_position_display() if profile else '',
     }
@@ -882,7 +864,7 @@ def _order_payload(order, include_sample_records=False, viewer=None):
 def _redact_order_experiment_data(payload, roles):
     raw_data_roles = {
         ROLE_CHAIRMAN, ROLE_GENERAL_MANAGER, ROLE_QUALITY,
-        ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_LEGACY_LAB_OPERATOR, ROLE_OUTSOURCE,
+        ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR, ROLE_LEGACY_LAB_OPERATOR, ROLE_OUTSOURCE,
     }
     if raw_data_roles.intersection(roles):
         return payload
@@ -1263,9 +1245,7 @@ def _schedule_payload(schedule):
         'schedule_status_key': schedule.schedule_status,
         'lab_manager': _display_user(schedule.lab_manager),
         'lab_manager_username': schedule.lab_manager.username if schedule.lab_manager else '',
-        'lab_type': (_user_lab_type(schedule.lab_manager) if schedule.lab_manager else None) or (
-            schedule.test_type if schedule.test_type in [SchedulePlan.TestType.SUZHOU, SchedulePlan.TestType.JIANGYIN] else None
-        ),
+        'lab_type': LabDevice.LabType.LAB if schedule.test_type == SchedulePlan.TestType.LAB else None,
         'device_id': schedule.device_id,
         'device_code': schedule.device.device_code if schedule.device else '',
         'device_name': schedule.device.device_name if schedule.device else '',
@@ -1393,29 +1373,20 @@ def _role_user_options(role_name):
     ]
 
 
-def _lab_manager_options(lab_type):
+def _lab_manager_options(_lab_type=None):
     return [
         {'id': user.id, 'username': user.username, 'name': _display_user(user)}
         for user in get_user_model().objects.filter(
             is_active=True,
         ).filter(
-            Q(groups__name=ROLE_SUZHOU_LAB if lab_type == LabDevice.LabType.SUZHOU else ROLE_JIANGYIN_LAB)
-            | Q(groups__name=ROLE_LAB_MANAGER, lims_lab_profile__lab_type=lab_type)
-            | Q(lims_lab_profile__position=LabStaffProfile.Position.MANAGER, lims_lab_profile__lab_type=lab_type)
+            Q(groups__name=ROLE_LAB_MANAGER)
+            | Q(lims_lab_profile__position=LabStaffProfile.Position.MANAGER, lims_lab_profile__is_active=True)
         ).distinct().order_by('first_name', 'username')
     ]
 
 
 def _all_lab_manager_options():
-    managers = []
-    seen = set()
-    for lab_type in INTERNAL_LAB_TYPES:
-        for manager in _lab_manager_options(lab_type):
-            if manager['id'] in seen:
-                continue
-            seen.add(manager['id'])
-            managers.append(manager)
-    return managers
+    return _lab_manager_options()
 
 
 def _limit_queryset(queryset, limit=50):
@@ -1467,7 +1438,7 @@ def _device_payload(device, start_time=None, end_time=None, exclude_schedule_id=
         'id': device.id,
         'device_code': device.device_code,
         'name': device.device_name,
-        'lab_type': device.lab_type,
+        'lab_type': LabDevice.LabType.LAB,
         'lab_name': '实验室',
         'model_spec': device.model_spec,
         'capability': device.capability,
@@ -1504,14 +1475,14 @@ def _lab_payload(test_type, name, related_orders=None, user=None):
     if user is not None and not _is_chairman(user):
         roles = set(_roles(user))
         can_view_lab = ROLE_QUALITY in roles or ROLE_GENERAL_MANAGER in roles or ROLE_BUSINESS_DEPT in roles
-        if _is_lab_manager(user) and _user_lab_type(user) == test_type:
+        if _is_lab_manager(user) and test_type == SchedulePlan.TestType.LAB:
             can_view_lab = True
             schedules = schedules.filter(lab_manager=user)
-        elif _is_lab_operator(user) and _user_lab_type(user) == test_type:
+        elif _is_lab_operator(user) and test_type == SchedulePlan.TestType.LAB:
             can_view_lab = True
         if not can_view_lab:
             schedules = schedules.none()
-    devices = LabDevice.objects.filter(lab_type=test_type).order_by('device_code')
+    devices = LabDevice.objects.order_by('device_code')
 
     return {
         'name': name,
@@ -1534,20 +1505,17 @@ def _laboratory_payload(related_orders=None, user=None):
             queryset=Experiment.objects.select_related('test_operator').order_by('-create_time'),
             to_attr='ordered_experiments',
         ),
-    ).filter(test_type__in=INTERNAL_LAB_TYPES).order_by('plan_start_time')
+    ).filter(test_type=SchedulePlan.TestType.LAB).order_by('plan_start_time')
     if related_orders is not None:
         schedules = schedules.filter(order__in=related_orders)
-    devices = LabDevice.objects.filter(lab_type__in=INTERNAL_LAB_TYPES).order_by('lab_type', 'device_code')
+    devices = LabDevice.objects.order_by('device_code')
     if user is not None and not _is_chairman(user):
         roles = set(_roles(user))
         can_view_all = bool({ROLE_GENERAL_MANAGER, ROLE_BUSINESS_DEPT, ROLE_QUALITY}.intersection(roles))
         if _is_lab_manager(user):
             schedules = schedules.filter(lab_manager=user)
-            devices = devices.filter(lab_type=_user_lab_type(user))
         elif _is_lab_operator(user):
-            lab_type = _user_lab_type(user)
-            schedules = schedules.filter(_lab_schedule_query(lab_type)) if lab_type else schedules.none()
-            devices = devices.filter(lab_type=lab_type) if lab_type else devices.none()
+            schedules = schedules.filter(_lab_schedule_query())
         elif not can_view_all:
             schedules = schedules.none()
             devices = devices.none()
@@ -1644,7 +1612,7 @@ def _assign_schedule_device(schedule, payload, start_time, end_time):
     device = LabDevice.objects.select_for_update().filter(id=device_id).first()
     if not device:
         return '选择的试验设备不存在'
-    if device.lab_type != schedule.test_type:
+    if device.lab_type != LabDevice.LabType.LAB or schedule.test_type != SchedulePlan.TestType.LAB:
         return '试验设备不属于当前实验室'
     if device.device_status != LabDevice.Status.NORMAL:
         return f'设备当前为“{device.get_device_status_display()}”，不可排期'
@@ -1667,10 +1635,6 @@ def _json_payload(request):
 
 def _has_any_role(user, *roles):
     user_roles = set(_roles(user))
-    if ROLE_LAB_MANAGER in user_roles:
-        user_roles.update({ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB})
-    elif {ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB}.intersection(user_roles):
-        user_roles.add(ROLE_LAB_MANAGER)
     if ROLE_LAB_OPERATOR in user_roles:
         user_roles.add(ROLE_LEGACY_LAB_OPERATOR)
     elif ROLE_LEGACY_LAB_OPERATOR in user_roles:
@@ -1785,21 +1749,13 @@ def _user_in_role(user_id, role_name):
 def _user_in_lab_manager(user_id, lab_type=None):
     if not user_id:
         return None
-    manager_roles = [ROLE_LAB_MANAGER, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB]
+    manager_roles = [ROLE_LAB_MANAGER]
     queryset = get_user_model().objects.filter(
         id=user_id,
         is_active=True,
     ).filter(
         Q(groups__name__in=manager_roles) | Q(lims_lab_profile__position=LabStaffProfile.Position.MANAGER)
     )
-    if lab_type == LabDevice.LabType.SUZHOU:
-        queryset = queryset.filter(
-            Q(lims_lab_profile__lab_type=lab_type) | Q(groups__name=ROLE_SUZHOU_LAB)
-        )
-    elif lab_type == LabDevice.LabType.JIANGYIN:
-        queryset = queryset.filter(
-            Q(lims_lab_profile__lab_type=lab_type) | Q(groups__name=ROLE_JIANGYIN_LAB)
-        )
     return queryset.first()
 
 
@@ -1808,10 +1764,10 @@ def _configure_v2_routes(order, actor, payload):
     if isinstance(routes, str):
         routes = [routes]
     routes = list(dict.fromkeys(routes))
-    valid_routes = {'laboratory', 'suzhou', 'jiangyin', 'outsource'}
+    valid_routes = {'laboratory', 'outsource'}
     if not routes or not set(routes).issubset(valid_routes):
         return '技术评审必须选择至少一条有效执行路径'
-    has_internal_route = bool({'laboratory', 'suzhou', 'jiangyin'} & set(routes))
+    has_internal_route = 'laboratory' in routes
     # 全部委外的订单可以在技术评审时重新拆分为“自主 + 委外”。
     # 只有既未选择自主、也未选择委外的非法旧数据才继续拦截。
     if has_internal_route and not order.autonomous_execution and not order.outsourced_execution:
@@ -1824,18 +1780,7 @@ def _configure_v2_routes(order, actor, payload):
         manager = _user_in_lab_manager(payload.get('laboratory_manager_id'))
         if not manager:
             return '请选择有效的实验室负责人'
-        manager_lab_type = _user_lab_type(manager)
-        route_specs.append((manager_lab_type if manager_lab_type in INTERNAL_LAB_TYPES else SchedulePlan.TestType.SUZHOU, manager, payload.get('laboratory_task') or order.test_demand))
-    if 'suzhou' in routes:
-        manager = _user_in_lab_manager(payload.get('suzhou_manager_id'), LabDevice.LabType.SUZHOU)
-        if not manager:
-            return '请选择有效的苏州实验室负责人'
-        route_specs.append((SchedulePlan.TestType.SUZHOU, manager, payload.get('suzhou_task') or order.test_demand))
-    if 'jiangyin' in routes:
-        manager = _user_in_lab_manager(payload.get('jiangyin_manager_id'), LabDevice.LabType.JIANGYIN)
-        if not manager:
-            return '请选择有效的江阴实验室负责人'
-        route_specs.append((SchedulePlan.TestType.JIANGYIN, manager, payload.get('jiangyin_task') or order.test_demand))
+        route_specs.append((SchedulePlan.TestType.LAB, manager, payload.get('laboratory_task') or order.test_demand))
     if 'outsource' in routes:
         owner_id = payload.get('outsource_owner_id')
         manager = _user_in_lab_manager(owner_id)
@@ -1986,10 +1931,8 @@ def add_employee(request):
     email = payload.get('email', '').strip()
     display_name = payload.get('display_name', '').strip()
     role = payload.get('role', '').strip()
-    try:
-        lab_type = int(payload.get('lab_type') or 0)
-    except (TypeError, ValueError):
-        lab_type = 0
+    # Lab staff are no longer assigned to separate physical labs.
+    lab_type = LabDevice.LabType.LAB
 
     if not username or not password:
         return JsonResponse({'ok': False, 'error': '用户名和密码必填'}, status=400, json_dumps_params={'ensure_ascii': False})
@@ -1997,9 +1940,6 @@ def add_employee(request):
         return JsonResponse({'ok': False, 'error': '请选择有效岗位；商务评审由总经理负责，技术评审由常务副总经理负责'}, status=400)
     if role == ROLE_QUALITY:
         return JsonResponse({'ok': False, 'error': 'V2 工作流已取消质量部岗位，请选择实验室负责人'}, status=400, json_dumps_params={'ensure_ascii': False})
-    if role in {ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR} and lab_type not in LabDevice.LabType.values:
-        return JsonResponse({'ok': False, 'error': '实验室岗位必须选择所属实验室'}, status=400, json_dumps_params={'ensure_ascii': False})
-
     user_model = get_user_model()
     if user_model.objects.filter(username=username).exists():
         return JsonResponse({'ok': False, 'error': '用户名已存在'}, status=400, json_dumps_params={'ensure_ascii': False})
@@ -2018,12 +1958,6 @@ def add_employee(request):
     if role == ROLE_LAB_OPERATOR:
         profile_position = LabStaffProfile.Position.OPERATOR
     elif role == ROLE_LAB_MANAGER:
-        profile_position = LabStaffProfile.Position.MANAGER
-    elif role == ROLE_SUZHOU_LAB:
-        lab_type = LabDevice.LabType.SUZHOU
-        profile_position = LabStaffProfile.Position.MANAGER
-    elif role == ROLE_JIANGYIN_LAB:
-        lab_type = LabDevice.LabType.JIANGYIN
         profile_position = LabStaffProfile.Position.MANAGER
     if profile_position:
         LabStaffProfile.objects.update_or_create(
@@ -2049,16 +1983,11 @@ def add_employee(request):
 
 def _device_lab_types_for_user(user, include_read_only=False):
     if _is_chairman(user) or (include_read_only and ROLE_GENERAL_MANAGER in _roles(user)):
-        return [LabDevice.LabType.SUZHOU, LabDevice.LabType.JIANGYIN]
+        return [LabDevice.LabType.LAB]
     roles = set(_roles(user))
-    lab_types = []
-    if _is_lab_manager(user) and _user_lab_type(user) in LabDevice.LabType.values:
-        lab_types.append(_user_lab_type(user))
-    elif ROLE_SUZHOU_LAB in roles:
-        lab_types.append(LabDevice.LabType.SUZHOU)
-    if ROLE_JIANGYIN_LAB in roles and LabDevice.LabType.JIANGYIN not in lab_types:
-        lab_types.append(LabDevice.LabType.JIANGYIN)
-    return lab_types
+    if _is_lab_manager(user):
+        return [LabDevice.LabType.LAB]
+    return []
 
 
 @csrf_exempt
@@ -2081,12 +2010,9 @@ def lab_devices(request):
     payload, parse_error = _json_payload(request)
     if parse_error:
         return parse_error
-    try:
-        lab_type = int(payload.get('lab_type') or (allowed_types[0] if len(allowed_types) == 1 else 0))
-    except (TypeError, ValueError):
-        lab_type = 0
-    if lab_type not in allowed_types:
-        return JsonResponse({'ok': False, 'error': '不能在其他实验室新增设备'}, status=403, json_dumps_params={'ensure_ascii': False})
+    # There is one laboratory now. Ignore legacy client values and always
+    # persist the canonical laboratory value.
+    lab_type = LabDevice.LabType.LAB
     device_code = str(payload.get('device_code') or '').strip()
     device_name = str(payload.get('device_name') or '').strip()
     if not device_code or not device_name:
@@ -2160,7 +2086,7 @@ def lab_device_availability(request):
     auth_error = _require_auth(request)
     if auth_error:
         return auth_error
-    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_BUSINESS_DEPT)
+    role_error = _require_role(request.user, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR, ROLE_BUSINESS_DEPT)
     if role_error:
         return role_error
     try:
@@ -2177,7 +2103,7 @@ def lab_device_availability(request):
     )
     if range_error:
         return JsonResponse({'ok': False, 'error': range_error}, status=400, json_dumps_params={'ensure_ascii': False})
-    devices = LabDevice.objects.filter(lab_type=schedule.test_type).order_by('device_code')
+    devices = LabDevice.objects.order_by('device_code')
     return JsonResponse(
         {
             'ok': True,
@@ -2190,20 +2116,11 @@ def lab_device_availability(request):
 
 def _laboratory_schedule_queryset(request):
     assigned_scope = request.GET.get('scope') == 'assigned'
-    unified_lab = request.GET.get('lab') == 'laboratory' or request.GET.get('lab_type') in {'0', 'all'}
-    # Quality owns the legacy V1 scheduling queue. It has no personal lab type,
-    # so the assigned view must be allowed to query the full historical queue.
+    # The laboratory is unified. Legacy lab/lab_type query parameters are
+    # accepted for old clients but never influence the result.
     global_reader = _is_chairman(request.user) or bool({ROLE_GENERAL_MANAGER, ROLE_BUSINESS_DEPT, ROLE_QUALITY}.intersection(_roles(request.user)))
-    try:
-        lab_type = 0 if unified_lab else int(request.GET.get('lab_type') or _user_lab_type(request.user) or 0)
-    except (TypeError, ValueError):
-        lab_type = 0
-    if not unified_lab and lab_type not in LabDevice.LabType.values and not (assigned_scope and global_reader):
-        return None, None, JsonResponse({'ok': False, 'error': '所属实验室无效'}, status=400, json_dumps_params={'ensure_ascii': False})
-    allowed_lab_type = _user_lab_type(request.user)
-    if not unified_lab and not global_reader and allowed_lab_type != lab_type:
-        return None, None, JsonResponse({'ok': False, 'error': '无权查询其他实验室订单'}, status=403, json_dumps_params={'ensure_ascii': False})
-    if not _has_any_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_GENERAL_MANAGER, ROLE_BUSINESS_DEPT, ROLE_QUALITY):
+    lab_type = LabDevice.LabType.LAB
+    if not _has_any_role(request.user, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR, ROLE_GENERAL_MANAGER, ROLE_BUSINESS_DEPT, ROLE_QUALITY):
         return None, None, JsonResponse({'ok': False, 'error': '当前岗位无权查询实验室订单'}, status=403, json_dumps_params={'ensure_ascii': False})
 
     schedules = SchedulePlan.objects.select_related(
@@ -2226,24 +2143,19 @@ def _laboratory_schedule_queryset(request):
         # 的实验室可见任务。
         order__order_status__in=[LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]
     ).distinct()
-    if unified_lab:
-        if not global_reader and not (_is_lab_manager(request.user) or _is_lab_operator(request.user)):
-            return None, None, JsonResponse({'ok': False, 'error': '当前岗位无权查询实验室订单'}, status=403, json_dumps_params={'ensure_ascii': False})
-        if not global_reader and _is_lab_manager(request.user):
-            schedules = schedules.filter(lab_manager=request.user)
-        elif not global_reader and _is_lab_operator(request.user):
-            schedules = schedules.filter(_lab_schedule_query(allowed_lab_type)) if allowed_lab_type else schedules.none()
-        else:
-            schedules = schedules.filter(test_type__in=INTERNAL_LAB_TYPES)
-    elif assigned_scope:
-        if not global_reader:
-            schedules = schedules.filter(
-                _lab_schedule_query(lab_type) if _is_lab_operator(request.user) else Q(lab_manager=request.user)
-            )
+    if assigned_scope and not global_reader:
+        schedules = schedules.filter(
+            _lab_schedule_query() if _is_lab_operator(request.user) else Q(lab_manager=request.user)
+        )
+    elif not global_reader and _is_lab_manager(request.user):
+        schedules = schedules.filter(lab_manager=request.user)
+    elif not global_reader and _is_lab_operator(request.user):
+        schedules = schedules.filter(_lab_schedule_query())
     else:
-        schedules = schedules.filter(_lab_schedule_query(lab_type))
+        schedules = schedules.filter(test_type=SchedulePlan.TestType.LAB)
     if request.GET.get('test_type') in {'1', '2', '3'}:
-        schedules = schedules.filter(test_type=int(request.GET['test_type']))
+        requested_type = int(request.GET['test_type'])
+        schedules = schedules.filter(test_type=SchedulePlan.TestType.LAB if requested_type == 2 else requested_type)
     keyword = (request.GET.get('keyword') or '').strip()
     if keyword:
         schedules = schedules.filter(
@@ -3311,7 +3223,7 @@ def _action_sales_confirm(request, payload):
 
 
 def _action_create_change(request, payload):
-    role_error = _require_role(request.user, ROLE_SALES, ROLE_BUSINESS_DEPT, ROLE_QUALITY, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
+    role_error = _require_role(request.user, ROLE_SALES, ROLE_BUSINESS_DEPT, ROLE_QUALITY, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR)
     if role_error:
         return role_error
     order, error = _get_order(payload)
@@ -3321,7 +3233,7 @@ def _action_create_change(request, payload):
     if (
         order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT
         and ROLE_QUALITY in roles
-        and not ({ROLE_SALES, ROLE_BUSINESS_DEPT, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR} & roles)
+        and not ({ROLE_SALES, ROLE_BUSINESS_DEPT, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR} & roles)
         and not _is_chairman(request.user)
     ):
         return JsonResponse({'ok': False, 'error': 'V2 订单已取消质量部操作权限'}, status=403, json_dumps_params={'ensure_ascii': False})
@@ -3465,7 +3377,7 @@ def _update_sample_arrival(request, payload, order, schedule):
 
 
 def _action_sample_arrival(request, payload):
-    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
+    role_error = _require_role(request.user, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR)
     if role_error:
         return role_error
     order, error = _get_order(payload)
@@ -3512,7 +3424,7 @@ def _action_schedule_assign(request, payload):
     if error:
         return error
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_BUSINESS_DEPT)
+        role_error = _require_role(request.user, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR, ROLE_BUSINESS_DEPT)
     else:
         role_error = _require_role(request.user, ROLE_QUALITY)
     if role_error:
@@ -3579,12 +3491,10 @@ def _action_schedule_assign(request, payload):
         )
         return _status_response('当前实验室任务排期已更新', order)
 
-    test_type = int(payload.get('test_type') or SchedulePlan.TestType.SUZHOU)
-    manager = None
-    if test_type == SchedulePlan.TestType.SUZHOU:
-        manager = _first_user_in_group(ROLE_SUZHOU_LAB)
-    elif test_type == SchedulePlan.TestType.JIANGYIN:
-        manager = _first_user_in_group(ROLE_JIANGYIN_LAB)
+    test_type = int(payload.get('test_type') or SchedulePlan.TestType.LAB)
+    if test_type == 2:
+        test_type = SchedulePlan.TestType.LAB
+    manager = _first_user_in_group(ROLE_LAB_MANAGER)
     SchedulePlan.objects.create(
         order=order,
         test_type=test_type,
@@ -3611,7 +3521,7 @@ def _action_process_change(request, payload):
     if error:
         return error
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
+        role_error = _require_role(request.user, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR)
     else:
         role_error = _require_role(request.user, ROLE_QUALITY)
     if role_error:
@@ -3681,7 +3591,7 @@ def _action_process_change(request, payload):
 
 
 def _action_start_test(request, payload):
-    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
+    role_error = _require_role(request.user, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR)
     if role_error:
         return role_error
     order, error = _get_order(payload)
@@ -3760,7 +3670,7 @@ def _action_start_test(request, payload):
 
 
 def _action_standard_create(request, payload):
-    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_QUALITY)
+    role_error = _require_role(request.user, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR, ROLE_QUALITY)
     if role_error:
         return role_error
     industry = (payload.get('industry') or '').strip()
@@ -3845,7 +3755,7 @@ def _action_outsource_result(request, payload):
     if error:
         return error
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
+        role_error = _require_role(request.user, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR)
     else:
         role_error = _require_role(request.user, ROLE_QUALITY)
     if role_error:
@@ -4057,7 +3967,7 @@ def _action_outsource_update(request, payload):
 
 
 def _action_end_test(request, payload):
-    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
+    role_error = _require_role(request.user, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR)
     if role_error:
         return role_error
     order, error = _get_order(payload)
@@ -4102,7 +4012,7 @@ def _action_end_test(request, payload):
 
 
 def _action_submit_test(request, payload):
-    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_QUALITY)
+    role_error = _require_role(request.user, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR, ROLE_QUALITY)
     if role_error:
         return role_error
     order, error = _get_order(payload)
@@ -4143,7 +4053,7 @@ def _action_submit_test(request, payload):
 
 
 def _action_sample_outbound(request, payload):
-    role_error = _require_role(request.user, ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR)
+    role_error = _require_role(request.user, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR)
     if role_error:
         return role_error
     order, error = _get_order(payload)
@@ -4192,13 +4102,7 @@ def _action_issue_report(request, payload):
     if error:
         return error
     if order.workflow_version == LabOrder.WorkflowVersion.LAB_DIRECT:
-        role_error = _require_role(
-            request.user,
-            ROLE_LAB_MANAGER,
-            ROLE_SUZHOU_LAB,
-            ROLE_JIANGYIN_LAB,
-            ROLE_LAB_OPERATOR,
-        )
+        role_error = _require_role(request.user, ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR)
         if role_error:
             return role_error
         if order.schedules.exclude(schedule_status=SchedulePlan.Status.FINISHED).exists():
@@ -4910,12 +4814,8 @@ def lims_dashboard(request):
         'test_standards': [_standard_payload(standard) for standard in test_standards],
         'routing_options': {
             'laboratory_managers': _all_lab_manager_options(),
-            'suzhou_managers': _lab_manager_options(LabDevice.LabType.SUZHOU),
-            'jiangyin_managers': _lab_manager_options(LabDevice.LabType.JIANGYIN),
         } if _has_any_role(request.user, ROLE_GENERAL_MANAGER) else {
             'laboratory_managers': [],
-            'suzhou_managers': [],
-            'jiangyin_managers': [],
         },
         'pending_reports': [_report_payload(report) for report in _limit_queryset(pending_reports.order_by('-create_time'), list_limit)],
         'finance': {

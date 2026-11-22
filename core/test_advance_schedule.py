@@ -12,7 +12,7 @@ from .models import LabDevice, LabOrder, LabStaffProfile, SamplePhoto, ScheduleP
 class AdvanceScheduleTests(TestCase):
     def setUp(self):
         self.manager = get_user_model().objects.create_user('advance_manager')
-        self.manager.groups.add(Group.objects.get_or_create(name='苏州实验室')[0])
+        self.manager.groups.add(Group.objects.get_or_create(name='实验室负责人')[0])
         self.operator = get_user_model().objects.create_user('advance_operator')
         self.operator.groups.add(Group.objects.get_or_create(name='实验操作员')[0])
         LabStaffProfile.objects.create(user=self.operator, lab_type=1, position=LabStaffProfile.Position.OPERATOR)
@@ -87,7 +87,7 @@ class AdvanceScheduleTests(TestCase):
         self.assertEqual(self.schedule.plan_start_time, original_start)
         self.assertEqual(self.order.sales_confirmed_at, confirmed)
 
-    def test_other_lab_operator_cannot_advance_order(self):
+    def test_legacy_lab_value_does_not_block_operator(self):
         LabStaffProfile.objects.filter(user=self.operator).update(lab_type=2)
-        self.assertEqual(self.availability(self.operator).status_code, 403)
-        self.assertEqual(self.advance(self.operator).status_code, 403)
+        self.assertEqual(self.availability(self.operator).status_code, 200)
+        self.assertEqual(self.advance(self.operator).status_code, 200)

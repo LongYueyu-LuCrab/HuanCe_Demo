@@ -244,7 +244,6 @@ export async function fetchAvailableDevices(scheduleId: number, startDate: strin
 }
 
 export type LabOrderQuery = {
-  lab_type?: number
   scope?: 'assigned'
   test_type?: number
   keyword?: string
@@ -293,7 +292,6 @@ export async function exportLaboratoryOrders(query: LabOrderQuery): Promise<void
 export type LabDevicePayload = {
   device_code?: string
   device_name: string
-  lab_type?: number
   model_spec?: string
   capability?: string
   device_status?: number
@@ -327,7 +325,6 @@ export type AddEmployeePayload = {
   display_name: string
   email: string
   role: string
-  lab_type?: number
 }
 
 export async function addEmployee(payload: AddEmployeePayload) {

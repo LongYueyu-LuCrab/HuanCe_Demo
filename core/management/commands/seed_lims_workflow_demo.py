@@ -151,8 +151,8 @@ class Command(BaseCommand):
             'sales03': ('销售三号', '销售', self.demo_password, False),
             'business_dept01': ('商务部一号', '商务部', self.demo_password, False),
             'quality01': ('质量专员一号', '质量部', self.demo_password, False),
-            'suzhou_lab01': ('苏州实验室负责人', '实验室负责人', self.demo_password, False),
-            'jiangyin_lab01': ('江阴实验室负责人', '实验室负责人', self.demo_password, False),
+            'suzhou_lab01': ('实验室负责人一号', '实验室负责人', self.demo_password, False),
+            'jiangyin_lab01': ('实验室负责人二号', '实验室负责人', self.demo_password, False),
             'general_manager01': ('常务副总经理一号', '常务副总经理', self.demo_password, False),
             'accountant01': ('会计一号', '会计', self.demo_password, False),
         }
@@ -172,11 +172,11 @@ class Command(BaseCommand):
             users[username] = user
         LabStaffProfile.objects.update_or_create(
             user=users['suzhou_lab01'],
-            defaults={'lab_type': LabDevice.LabType.SUZHOU, 'position': LabStaffProfile.Position.MANAGER, 'is_active': True},
+            defaults={'lab_type': LabDevice.LabType.LAB, 'position': LabStaffProfile.Position.MANAGER, 'is_active': True},
         )
         LabStaffProfile.objects.update_or_create(
             user=users['jiangyin_lab01'],
-            defaults={'lab_type': LabDevice.LabType.JIANGYIN, 'position': LabStaffProfile.Position.MANAGER, 'is_active': True},
+            defaults={'lab_type': LabDevice.LabType.LAB, 'position': LabStaffProfile.Position.MANAGER, 'is_active': True},
         )
         legacy_chairman = user_model.objects.filter(username='LuCrab').first()
         if legacy_chairman:
@@ -197,17 +197,15 @@ class Command(BaseCommand):
             ('待商务技术评审', 6, LabOrder.Status.PENDING_REVIEW, LabOrder.ExecutionMode.MIXED, 'none', 1),
             ('评审驳回待销售修改', 6, LabOrder.Status.REVIEW_REJECTED, LabOrder.ExecutionMode.MIXED, 'rejected', 1),
             ('评审驳回后退单', 4, LabOrder.Status.CANCELLED, LabOrder.ExecutionMode.MIXED, 'rejected', 1),
-            ('苏州实验室排期中', 8, LabOrder.Status.SCHEDULING, LabOrder.ExecutionMode.SUZHOU, 'passed', 2),
-            ('江阴实验室排期中', 8, LabOrder.Status.SCHEDULING, LabOrder.ExecutionMode.JIANGYIN, 'passed', 2),
+            ('实验室排期中', 8, LabOrder.Status.SCHEDULING, LabOrder.ExecutionMode.LAB, 'passed', 2),
             ('委外厂家确认价格周期', 7, LabOrder.Status.SCHEDULING, LabOrder.ExecutionMode.OUTSOURCE, 'passed', 2),
             ('样品到货前变更待闭环', 7, LabOrder.Status.SCHEDULING, LabOrder.ExecutionMode.MIXED, 'passed', 2),
             ('质量部样品编号登记完成', 7, LabOrder.Status.TESTING, LabOrder.ExecutionMode.MIXED, 'passed', 3),
-            ('苏州实验室开始试验', 7, LabOrder.Status.TESTING, LabOrder.ExecutionMode.SUZHOU, 'passed', 4),
-            ('江阴实验室开始试验', 7, LabOrder.Status.TESTING, LabOrder.ExecutionMode.JIANGYIN, 'passed', 4),
+            ('实验室开始试验', 7, LabOrder.Status.TESTING, LabOrder.ExecutionMode.LAB, 'passed', 4),
             ('试验过程中变更待闭环', 5, LabOrder.Status.TESTING, LabOrder.ExecutionMode.MIXED, 'passed', 4),
             ('质量部出报告待销售初审', 6, LabOrder.Status.REPORT_REVIEW, LabOrder.ExecutionMode.MIXED, 'passed', 5),
-            ('销售审核报告驳回重制', 4, LabOrder.Status.REPORT_REVIEW, LabOrder.ExecutionMode.SUZHOU, 'passed', 5),
-            ('销售通过待总经理终审', 4, LabOrder.Status.REPORT_REVIEW, LabOrder.ExecutionMode.JIANGYIN, 'passed', 5),
+            ('销售审核报告驳回重制', 4, LabOrder.Status.REPORT_REVIEW, LabOrder.ExecutionMode.LAB, 'passed', 5),
+            ('销售通过待总经理终审', 4, LabOrder.Status.REPORT_REVIEW, LabOrder.ExecutionMode.LAB, 'passed', 5),
             ('总经理终审驳回重制', 3, LabOrder.Status.REPORT_REVIEW, LabOrder.ExecutionMode.OUTSOURCE, 'passed', 5),
             ('总经理终审通过待会计开票', 3, LabOrder.Status.REPORT_REVIEW, LabOrder.ExecutionMode.MIXED, 'passed', 6),
             ('会计开票办结退出系统', 8, LabOrder.Status.INVOICED_CLOSED, LabOrder.ExecutionMode.MIXED, 'passed', 6),
@@ -283,18 +281,15 @@ class Command(BaseCommand):
         )
 
     def create_schedules(self, order, users, created_at, scenario, rnd):
-        if scenario['mode'] == LabOrder.ExecutionMode.SUZHOU:
-            types = [SchedulePlan.TestType.SUZHOU]
-        elif scenario['mode'] == LabOrder.ExecutionMode.JIANGYIN:
-            types = [SchedulePlan.TestType.JIANGYIN]
+        if scenario['mode'] == LabOrder.ExecutionMode.LAB:
+            types = [SchedulePlan.TestType.LAB]
         elif scenario['mode'] == LabOrder.ExecutionMode.OUTSOURCE:
             types = [SchedulePlan.TestType.OUTSOURCE]
         else:
-            types = [SchedulePlan.TestType.SUZHOU, SchedulePlan.TestType.JIANGYIN, SchedulePlan.TestType.OUTSOURCE]
+            types = [SchedulePlan.TestType.LAB, SchedulePlan.TestType.OUTSOURCE]
 
         remarks = {
-            SchedulePlan.TestType.SUZHOU: '苏州实验室内部可靠性试验',
-            SchedulePlan.TestType.JIANGYIN: '江阴实验室机械环境试验',
+            SchedulePlan.TestType.LAB: '实验室内部可靠性试验',
             SchedulePlan.TestType.OUTSOURCE: '外部委托专项试验',
         }
         schedules = []
@@ -302,7 +297,7 @@ class Command(BaseCommand):
             schedule = SchedulePlan.objects.create(
                 order=order,
                 test_type=test_type,
-                lab_manager=users['suzhou_lab01'] if test_type == SchedulePlan.TestType.SUZHOU else users['jiangyin_lab01'] if test_type == SchedulePlan.TestType.JIANGYIN else None,
+                lab_manager=users['suzhou_lab01'] if test_type == SchedulePlan.TestType.LAB else None,
                 outsource_factory=f'华东外协实验室{rnd.randint(1, 5)}号' if test_type == SchedulePlan.TestType.OUTSOURCE else '',
                 outsource_price=Decimal(9000 + rnd.randint(0, 15000)) if test_type == SchedulePlan.TestType.OUTSOURCE else Decimal('0.00'),
                 outsource_cycle=7 + rnd.randint(0, 10) if test_type == SchedulePlan.TestType.OUTSOURCE else None,
@@ -349,7 +344,7 @@ class Command(BaseCommand):
             schedule.sample_arrived_at = sample.actual_arrive_time
             schedule.sample_confirmed_by = schedule.lab_manager or users['quality01']
             schedule.save(update_fields=['sample_arrived', 'sample_arrived_at', 'sample_confirmed_by', 'update_time'])
-            operator = users['suzhou_lab01'] if schedule.test_type == SchedulePlan.TestType.SUZHOU else users['jiangyin_lab01'] if schedule.test_type == SchedulePlan.TestType.JIANGYIN else users['quality01']
+            operator = users['suzhou_lab01'] if schedule.test_type == SchedulePlan.TestType.LAB else users['quality01']
             experiments.append(
                 Experiment.objects.create(
                     order=order,

@@ -227,15 +227,15 @@ class SchedulePlanAdmin(admin.ModelAdmin):
 
 @admin.register(LabDevice)
 class LabDeviceAdmin(admin.ModelAdmin):
-    list_display = ('device_code', 'device_name', 'lab_type', 'device_status', 'model_spec', 'update_time')
-    list_filter = ('lab_type', 'device_status')
+    list_display = ('device_code', 'device_name', 'device_status', 'model_spec', 'update_time')
+    list_filter = ('device_status',)
     search_fields = ('device_code', 'device_name', 'model_spec', 'capability', 'remark')
 
 
 @admin.register(LabStaffProfile)
 class LabStaffProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'lab_type', 'position', 'is_active', 'update_time')
-    list_filter = ('lab_type', 'position', 'is_active')
+    list_display = ('user', 'position', 'is_active', 'update_time')
+    list_filter = ('position', 'is_active')
     search_fields = ('user__username', 'user__first_name', 'user__email')
 
 

@@ -4,8 +4,8 @@ from django.test import SimpleTestCase
 
 from .views import (
     ROLE_ACCOUNTING, ROLE_BUSINESS, ROLE_CHAIRMAN, ROLE_GENERAL_MANAGER,
-    ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR, ROLE_QUALITY, ROLE_SALES,
-    ROLE_SALES_MANAGER, ROLE_SUZHOU_LAB, ROLE_TECH,
+    ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR, ROLE_QUALITY, ROLE_SALES,
+    ROLE_SALES_MANAGER, ROLE_TECH,
     _redact_order_experiment_data,
 )
 
@@ -37,7 +37,7 @@ class OrderDetailPrivacyTests(SimpleTestCase):
 
     def test_authorized_roles_keep_experiment_data(self):
         for role in [ROLE_CHAIRMAN, ROLE_GENERAL_MANAGER, ROLE_QUALITY,
-                     ROLE_SUZHOU_LAB, ROLE_JIANGYIN_LAB, ROLE_LAB_OPERATOR]:
+                     ROLE_LAB_MANAGER, ROLE_LAB_OPERATOR]:
             with self.subTest(role=role):
                 self.assertEqual(_redact_order_experiment_data(self.payload, [role]), self.payload)
 
