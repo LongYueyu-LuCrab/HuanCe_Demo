@@ -12,6 +12,7 @@ from urllib.parse import quote
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.models import Group
+from django.core.files.storage import default_storage
 from django.db import connection, transaction
 from django.db.models import Case, Count, F, IntegerField, Prefetch, Q, Sum, Value, When
 from django.http import FileResponse, HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, JsonResponse
@@ -3344,15 +3345,33 @@ def _update_sample_arrival(request, payload, order, schedule):
     schedule.sample_arrived_at = schedule.sample_arrived_at or timezone.now() if arrived else None
     schedule.sample_confirmed_by = request.user
     schedule.save(update_fields=['sample_arrived', 'sample_arrived_at', 'sample_confirmed_by', 'update_time'])
-    for photo in photos:
-        SamplePhoto.objects.create(
-            order=order,
-            schedule=schedule,
-            file=photo,
-            original_name=photo.name,
-            file_size=photo.size,
-            uploaded_by=request.user,
-        )
+    created_photo_names = []
+    try:
+        for photo in photos:
+            sample_photo = SamplePhoto.objects.create(
+                order=order,
+                schedule=schedule,
+                file=photo,
+                original_name=photo.name,
+                file_size=photo.size,
+                uploaded_by=request.user,
+            )
+            created_photo_names.append(sample_photo.file.name)
+    except OSError:
+        for file_name in created_photo_names:
+            try:
+                default_storage.delete(file_name)
+            except OSError:
+                pass
+        return JsonResponse(
+            {
+                'ok': False,
+                'code': 'SAMPLE_PHOTO_STORAGE_UNAVAILABLE',
+                'error': '样品照片暂时无法保存，入库未完成，请稍后重试或联系管理员。',
+            },
+            status=503,
+            json_dumps_params={'ensure_ascii': False},
+        ), None
     if arrived:
         sample, _ = Sample.objects.get_or_create(
             order=order,

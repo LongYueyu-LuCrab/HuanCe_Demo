@@ -1426,6 +1426,33 @@ class LimsV2DirectLabWorkflowTests(TestCase):
         # Mixed execution is not complete until the internal route is scheduled as well.
         self.assertFalse(scheduled_detail.json()['order']['all_routes_scheduled'])
 
+    def test_sample_arrival_storage_failure_returns_json_and_keeps_state(self):
+        self.order.order_status = LabOrder.Status.SCHEDULING
+        self.order.lead_lab_manager = self.users['suzhou_v2']
+        self.order.save(update_fields=['order_status', 'lead_lab_manager', 'update_time'])
+        schedule = SchedulePlan.objects.create(
+            order=self.order,
+            test_type=SchedulePlan.TestType.LAB,
+            lab_manager=self.users['suzhou_v2'],
+        )
+
+        with patch('core.views.SamplePhoto.objects.create', side_effect=PermissionError('media is not writable')):
+            response = self.action(
+                'suzhou_v2',
+                'sample_arrival',
+                schedule_id=schedule.id,
+                sample_photos=SimpleUploadedFile(
+                    'sample.png', b'fake-png-content', content_type='image/png'
+                ),
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['code'], 'SAMPLE_PHOTO_STORAGE_UNAVAILABLE')
+        schedule.refresh_from_db()
+        self.assertFalse(schedule.sample_arrived)
+        self.assertEqual(schedule.sample_photos.count(), 0)
+        self.assertEqual(Sample.objects.filter(order=self.order).count(), 0)
+
     def test_v2_routes_directly_to_labs_and_lead_manager_issues_report(self):
         business = self.action('business_v2', 'review_pass', biz_quote_detail='商务评审通过')
         self.assertEqual(business.status_code, 200)
