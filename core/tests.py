@@ -36,14 +36,30 @@ from .views import _next_order_no, _order_payload
 class OrderNumberGenerationTests(TestCase):
     def test_order_number_uses_actual_day_and_daily_sequence(self):
         order_day = timezone.localdate()
-        prefix = f'HCT-{order_day:%Y%m%d}-'
+        prefix = f'{order_day:%Y%m%d}'
         LabOrder.objects.create(
             order_no=f'{prefix}001',
             customer_name='编号测试客户',
             test_demand='验证订单编号规则',
         )
+        LabOrder.objects.create(
+            order_no=f'HCT-{order_day:%Y%m%d}-999',
+            customer_name='历史编号客户',
+            test_demand='确认旧编号不参与新规则序号',
+        )
 
         self.assertEqual(_next_order_no(), f'{prefix}002')
+
+    def test_new_order_number_is_numeric_and_legacy_numbers_are_unchanged(self):
+        legacy = LabOrder.objects.create(
+            order_no='HCT-20261123-002',
+            customer_name='历史订单',
+            test_demand='历史编号保持不变',
+        )
+        self.assertEqual(legacy.order_no, 'HCT-20261123-002')
+        order_day = timezone.localdate()
+        generated = _next_order_no()
+        self.assertRegex(generated, rf'^{order_day:%Y%m%d}\d{{3}}$')
 
 
 class LimsDashboardTests(TestCase):
@@ -343,6 +359,7 @@ class LimsDashboardTests(TestCase):
         self.assertTrue(payload['ok'])
         created = LabOrder.objects.get(order_no=payload['order']['order_no'])
         self.assertEqual(created.sale_user, self.user)
+        self.assertRegex(created.order_no, rf'^{timezone.localdate():%Y%m%d}\d{{3}}$')
         self.assertEqual(created.order_status, LabOrder.Status.PENDING_REVIEW)
         self.assertEqual(created.customer_name, '新客户')
         self.assertEqual(created.contract_no, 'HT-2026-001')

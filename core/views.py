@@ -13,7 +13,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.models import Group
 from django.core.files.storage import default_storage
-from django.db import connection, transaction
+from django.db import IntegrityError, connection, transaction
 from django.db.models import Case, Count, F, IntegerField, Prefetch, Q, Sum, Value, When
 from django.http import FileResponse, HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -1575,7 +1575,7 @@ def _pending_reports_for_user(user, related_orders):
 
 def _next_order_no():
     order_day = timezone.localdate()
-    prefix = f'HCT-{order_day:%Y%m%d}-'
+    prefix = f'{order_day:%Y%m%d}'
     last_order = LabOrder.objects.filter(order_no__startswith=prefix).order_by('-order_no').first()
     if not last_order:
         return f'{prefix}001'
@@ -2890,28 +2890,44 @@ def create_order(request):
     if _truthy(payload.get('is_urgent')):
         remark = f'加急；{remark}'
 
-    order = LabOrder.objects.create(
-        order_no=_next_order_no(),
-        contract_no=contract_no,
-        customer_name=customer_name,
-        customer_contact=customer_contact,
-        customer_phone=customer_phone,
-        project_name=project_name,
-        industry_category=industry_category,
-        test_demand=test_demand,
-        test_method=test_method,
-        test_standard=test_standard,
-        sale_user=request.user,
-        order_status=LabOrder.Status.PENDING_REVIEW,
-        expect_sample_arrive=expect_sample_arrive,
-        expect_delivery_time=expect_delivery_time,
-        total_quote=total_quote,
-        autonomous_execution='autonomous' in execution_attributes,
-        outsourced_execution='outsource' in execution_attributes,
-        create_by=request.user.username,
-        update_by=request.user.username,
-        remark=remark,
-    )
+    order_fields = {
+        'contract_no': contract_no,
+        'customer_name': customer_name,
+        'customer_contact': customer_contact,
+        'customer_phone': customer_phone,
+        'project_name': project_name,
+        'industry_category': industry_category,
+        'test_demand': test_demand,
+        'test_method': test_method,
+        'test_standard': test_standard,
+        'sale_user': request.user,
+        'order_status': LabOrder.Status.PENDING_REVIEW,
+        'expect_sample_arrive': expect_sample_arrive,
+        'expect_delivery_time': expect_delivery_time,
+        'total_quote': total_quote,
+        'autonomous_execution': 'autonomous' in execution_attributes,
+        'outsourced_execution': 'outsource' in execution_attributes,
+        'create_by': request.user.username,
+        'update_by': request.user.username,
+        'remark': remark,
+    }
+    order = None
+    for attempt in range(3):
+        try:
+            # The unique order number is the final guard for two sales requests
+            # arriving at the same time; a savepoint lets the loser retry with
+            # the next daily sequence without breaking the outer transaction.
+            with transaction.atomic():
+                order = LabOrder.objects.create(order_no=_next_order_no(), **order_fields)
+            break
+        except IntegrityError:
+            if attempt == 2:
+                return JsonResponse(
+                    {'ok': False, 'error': '订单编号生成冲突，请稍后重试'},
+                    status=503,
+                    json_dumps_params={'ensure_ascii': False},
+                )
+    assert order is not None
     if outsource_requirement_data:
         OutsourceRequirement.objects.create(
             order=order,
