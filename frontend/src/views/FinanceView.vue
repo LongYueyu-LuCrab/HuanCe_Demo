@@ -138,6 +138,22 @@ function openPaymentDetails(order: PaymentOrderItem) {
   paymentDetailVisible.value = true
 }
 
+function invoiceContextFor(orderNo: string) {
+  return pendingInvoices.value.find((invoice) => invoice.order_no === orderNo)
+    || preinvoiceCandidates.value.find((invoice) => invoice.order_no === orderNo)
+    || issuedInvoices.value.find((invoice) => invoice.order_no === orderNo)
+    || null
+}
+
+function pendingInvoiceFor(orderNo: string) {
+  return pendingInvoices.value.find((invoice) => invoice.order_no === orderNo) || null
+}
+
+function openPendingInvoice(orderNo: string) {
+  const invoice = pendingInvoiceFor(orderNo)
+  if (invoice) openWorkflow('invoice_create', invoice)
+}
+
 async function submitPayment() {
   if (!activePaymentOrder.value) return
   const amount = Number(form.payment_amount)
@@ -284,6 +300,9 @@ async function submitWorkflow() {
           <template #default="{ row }">
             <div class="cell-main">已回款 {{ row.paid_total }} 元</div>
             <div class="cell-sub">订单 {{ row.order_total }} · 待回款 {{ row.remaining_total }} 元</div>
+            <div v-if="invoiceContextFor(row.order_no)" class="cell-sub">
+              开票：已开 {{ invoiceContextFor(row.order_no)?.invoiced_total }} · 待开 {{ invoiceContextFor(row.order_no)?.remaining_amount }} 元
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="回款笔数" min-width="100" prop="payment_count" />
@@ -291,6 +310,7 @@ async function submitWorkflow() {
           <template #default="{ row }">
             <div class="row-actions">
               <el-button v-if="canOperateFinance" size="small" type="primary" plain @click="openPayment(row)">登记回款</el-button>
+              <el-button v-if="canOperateFinance && pendingInvoiceFor(row.order_no)" size="small" type="warning" plain @click="openPendingInvoice(row.order_no)">最终总开票</el-button>
               <el-button size="small" plain @click="openPaymentDetails(row)">回款细节</el-button>
             </div>
           </template>
