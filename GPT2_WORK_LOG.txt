@@ -1947,3 +1947,25 @@ Git 提交号：349382e5
 4. 未修改生产订单、回款、发票、员工账号、.env、用户上传媒体和 Nginx 配置。
 署名：GPT二号
 
+日期：2026-11-23
+Git 提交号：ea79d08
+提交说明：销售订单增加可选合同编号并纳入导出
+变更范围：销售下单、订单数据模型、订单详情、订单搜索、销售/实验室/财务订单导出；合同编号为空时保持兼容。
+具体改动：
+1. LabOrder 新增可空字段 `contract_no`，新增迁移 `core.0030_laborder_contract_no`。
+2. 销售下单弹窗增加“合同编号”选填栏位，提交后由后端保存；订单详情展示该字段。
+3. 销售、实验室、财务三类订单导出表均新增“合同编号”列，订单搜索也支持按合同编号检索。
+4. 后端订单载荷、Django 管理后台和回归测试同步更新。
+验证结果：
+1. Django 全量测试 101 项全部通过。
+2. manage.py check、makemigrations --check 通过；生产迁移 `core.0030_laborder_contract_no` 已成功应用。
+3. TypeScript 检查、Vite 生产构建和前端交互测试 6 项全部通过；构建仅保留依赖包既有提示。
+4. 生产静态资源返回 200，并确认销售下单构建产物包含“合同编号”和选填提示；本地与服务器变更文件 SHA256 一致。
+部署状态：已推送 GitHub Main_V2，并部署到生产服务器。
+部署补充：
+1. GitHub Main_V2、本地 HEAD 与远端均为 `ea79d08eaaef42425b8a9ef1cad45211ed36d9a1`。
+2. 发布前服务器备份：/opt/huance/backups/contract-number-20261123_235419-pre-deploy/，包含应用包和 PostgreSQL 数据库备份。
+3. 生产 huance、nginx 均 active，HTTPS `/api/health/` 返回 ok/database ok。
+4. 未修改既有订单业务数据；历史订单合同编号默认为空，可继续使用。
+署名：GPT二号
+
