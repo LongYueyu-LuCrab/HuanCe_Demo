@@ -665,7 +665,7 @@ def _workflow_progress_payload(order, include_amounts=True):
             summary = '等待常务副总经理终审'
         elif latest_report.report_status == TestReport.Status.APPROVED:
             current_keys = ['final_invoice']
-            summary = '报告已审核通过，等待最终开票'
+            summary = '待最终开票'
     for key in current_keys:
         if step_map[key]['state'] != 'completed':
             step_map[key]['state'] = 'current'
@@ -759,7 +759,7 @@ def _order_payload(order, include_sample_records=False, viewer=None):
             TestReport.Status.SALES_REVIEW: '待销售初审',
         TestReport.Status.GM_REVIEW: '待常务副总经理终审',
             TestReport.Status.REJECTED: '审核驳回重制',
-            TestReport.Status.APPROVED: '报告已审核通过，等待最终开票',
+            TestReport.Status.APPROVED: '待最终开票',
         }.get(latest_report.report_status, status_label)
 
     can_view_contracts = _can_view_order_contracts(viewer, order)
