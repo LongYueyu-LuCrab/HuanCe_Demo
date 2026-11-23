@@ -28,6 +28,7 @@ const outsourceContractFileList = ref<UploadUserFile[]>([])
 const attachmentFileList = ref<UploadUserFile[]>([])
 const reportFileList = ref<UploadUserFile[]>([])
 const form = reactive({
+  contract_no: '',
   customer_name: '',
   contact_name: '',
   phone: '',
@@ -326,6 +327,7 @@ async function submit() {
     ElMessage.success('订单已提交，等待商务技术评审')
     dialogVisible.value = false
     Object.assign(form, {
+      contract_no: '',
       customer_name: '',
       contact_name: '',
       phone: '',
@@ -391,6 +393,7 @@ async function submit() {
     <el-dialog v-model="dialogVisible" title="销售下单" width="min(960px, 94vw)">
       <el-form label-position="top" class="form-grid">
         <el-form-item label="客户名称" required><el-input v-model="form.customer_name" /></el-form-item>
+        <el-form-item label="合同编号"><el-input v-model="form.contract_no" placeholder="选填，填写销售合同编号" /></el-form-item>
         <el-form-item label="联系人"><el-input v-model="form.contact_name" /></el-form-item>
         <el-form-item label="联系电话"><el-input v-model="form.phone" /></el-form-item>
         <el-form-item label="项目名称" required><el-input v-model="form.project_name" /></el-form-item>

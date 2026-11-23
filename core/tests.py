@@ -315,6 +315,7 @@ class LimsDashboardTests(TestCase):
             reverse('create_order'),
             data={
                 'customer_name': '新客户',
+                'contract_no': 'HT-2026-001',
                 'contact_name': '王五',
                 'phone': '13800000000',
                 'project_name': '新项目',
@@ -344,6 +345,7 @@ class LimsDashboardTests(TestCase):
         self.assertEqual(created.sale_user, self.user)
         self.assertEqual(created.order_status, LabOrder.Status.PENDING_REVIEW)
         self.assertEqual(created.customer_name, '新客户')
+        self.assertEqual(created.contract_no, 'HT-2026-001')
         self.assertEqual(created.industry_category, LabOrder.IndustryCategory.AUTOMOTIVE)
         self.assertEqual(created.test_method, '按规定载荷完成振动耐久试验。')
         self.assertEqual(created.test_standard, 'GB/T 2423.10-2019')
@@ -358,6 +360,7 @@ class LimsDashboardTests(TestCase):
             created.documents.filter(document_type=OrderDocument.DocumentType.OUTSOURCE_CONTRACT).exists()
         )
         self.assertEqual(payload['order']['outsource_info']['entrust_order_no'], 'WT-2026-001')
+        self.assertEqual(payload['order']['contract_no'], 'HT-2026-001')
 
     def test_marketing_manager_can_create_and_export_all_orders(self):
         market_user = get_user_model().objects.create_user(
@@ -549,6 +552,7 @@ class SalesManagerTests(TestCase):
         self.manager.groups.add(manager_group)
         self.order_a = LabOrder.objects.create(
             order_no='SALES-MANAGER-001',
+            contract_no='HT-SALES-001',
             customer_name='销售经理测试客户甲',
             project_name='汽车振动测试',
             test_demand='验证销售经理跨销售查看能力',
@@ -592,8 +596,11 @@ class SalesManagerTests(TestCase):
         workbook = load_workbook(BytesIO(exported.content), read_only=True)
         rows = list(workbook.active.iter_rows(values_only=True))
         self.assertEqual(rows[0][1], '订单号')
+        self.assertEqual(rows[0][2], '合同编号')
         self.assertEqual({rows[1][1], rows[2][1]}, {self.order_a.order_no, self.order_b.order_no})
-        self.assertEqual({rows[1][2], rows[2][2]}, {self.sales_a.username, self.sales_b.username})
+        exported_rows = {row[1]: row for row in rows[1:]}
+        self.assertEqual(exported_rows[self.order_a.order_no][2], 'HT-SALES-001')
+        self.assertEqual({rows[1][3], rows[2][3]}, {self.sales_a.username, self.sales_b.username})
 
         self.client.force_login(self.sales_a)
         own_list = self.client.get(reverse('sales_manager_orders'), {
@@ -609,7 +616,7 @@ class SalesManagerTests(TestCase):
         own_rows = list(own_workbook.active.iter_rows(values_only=True))
         self.assertEqual(len(own_rows), 2)
         self.assertEqual(own_rows[1][1], self.order_a.order_no)
-        self.assertEqual(own_rows[1][2], self.sales_a.username)
+        self.assertEqual(own_rows[1][3], self.sales_a.username)
 
 
 class LimsFullRoleWorkflowTests(TestCase):
@@ -924,13 +931,13 @@ class InvoiceWorkflowTests(TestCase):
         self.assertEqual(exported.status_code, 200)
         workbook = load_workbook(BytesIO(exported.content), read_only=True)
         rows = list(workbook.active.iter_rows(values_only=True))
-        self.assertEqual(rows[0][6:12], ('累计回款', '待回款', '回款状态', '回款笔数', '回款明细', '回款登记人'))
-        self.assertEqual(rows[0][12:17], ('累计已开票', '待开票', '开票状态', '开票笔数', '开票明细'))
-        self.assertEqual(rows[1][6:10], (500.0, 500.0, '部分回款', 2))
-        self.assertIn('2026-11-05 11:30', rows[1][10])
-        self.assertIn('300.00 元', rows[1][10])
-        self.assertIn('会计', rows[1][11])
-        self.assertEqual(rows[1][12:16], (0.0, 1000.0, '未开票', 0))
+        self.assertEqual(rows[0][7:13], ('累计回款', '待回款', '回款状态', '回款笔数', '回款明细', '回款登记人'))
+        self.assertEqual(rows[0][13:18], ('累计已开票', '待开票', '开票状态', '开票笔数', '开票明细'))
+        self.assertEqual(rows[1][7:11], (500.0, 500.0, '部分回款', 2))
+        self.assertIn('2026-11-05 11:30', rows[1][11])
+        self.assertIn('300.00 元', rows[1][11])
+        self.assertIn('会计', rows[1][12])
+        self.assertEqual(rows[1][13:17], (0.0, 1000.0, '未开票', 0))
 
         over_limit = self.action(
             'payment_create',
@@ -975,10 +982,10 @@ class InvoiceWorkflowTests(TestCase):
         workbook = load_workbook(BytesIO(exported.content), read_only=True)
         rows = list(workbook.active.iter_rows(values_only=True))
         row = next(item for item in rows[1:] if item[1] == self.order.order_no)
-        self.assertEqual(row[12:16], (500.0, 500.0, '部分开票', 2))
-        self.assertIn('EXPORT-PRE-001', row[16])
-        self.assertIn('EXPORT-PRE-002', row[16])
-        self.assertIn('会计', row[16])
+        self.assertEqual(row[13:17], (500.0, 500.0, '部分开票', 2))
+        self.assertIn('EXPORT-PRE-001', row[17])
+        self.assertIn('EXPORT-PRE-002', row[17])
+        self.assertIn('会计', row[17])
 
     def test_preinvoices_do_not_close_order_and_final_invoice_closes_it(self):
         initial = self.dashboard()['finance']['preinvoice_candidates']

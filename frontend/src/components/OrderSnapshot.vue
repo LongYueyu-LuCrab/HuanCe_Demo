@@ -211,6 +211,7 @@ function resultTagType(result: string): 'success' | 'danger' | 'warning' | 'info
           <OutsourceBadge :visible="order.is_outsource" />
         </span>
       </el-descriptions-item>
+      <el-descriptions-item label="合同编号">{{ order.contract_no || '未填写' }}</el-descriptions-item>
       <el-descriptions-item label="销售">{{ order.sales_owner || '未记录' }}</el-descriptions-item>
       <el-descriptions-item label="客户单位">{{ order.customer }}</el-descriptions-item>
       <el-descriptions-item label="联系人 / 电话">

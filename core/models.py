@@ -50,6 +50,7 @@ class LabOrder(TimeStampedModel):
         OTHER = 'other', '其他'
 
     order_no = models.CharField('订单唯一业务编号', max_length=64, unique=True)
+    contract_no = models.CharField('合同编号', max_length=100, blank=True)
     customer_name = models.CharField('客户单位名称', max_length=100)
     customer_contact = models.CharField('客户对接人', max_length=50, blank=True)
     customer_phone = models.CharField('客户联系电话', max_length=20, blank=True)

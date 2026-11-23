@@ -119,6 +119,7 @@ class OutsourceRequirementInline(admin.StackedInline):
 class LabOrderAdmin(admin.ModelAdmin):
     list_display = (
         'order_no',
+        'contract_no',
         'customer_name',
         'project_name',
         'industry_category',
@@ -132,7 +133,7 @@ class LabOrderAdmin(admin.ModelAdmin):
     )
     list_filter = ('order_status', 'workflow_version', 'execution_mode', 'industry_category', 'autonomous_execution', 'outsourced_execution')
     search_fields = (
-        'order_no', 'customer_name', 'customer_contact', 'customer_phone', 'project_name',
+        'order_no', 'contract_no', 'customer_name', 'customer_contact', 'customer_phone', 'project_name',
         'test_demand', 'test_method', 'test_standard',
     )
     date_hierarchy = 'create_time'
@@ -141,6 +142,7 @@ class LabOrderAdmin(admin.ModelAdmin):
         ('订单基础信息', {
             'fields': (
                 'order_no',
+                'contract_no',
                 ('customer_name', 'customer_contact', 'customer_phone'),
                 'project_name',
                 'industry_category',

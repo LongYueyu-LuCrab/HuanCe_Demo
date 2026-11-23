@@ -43,6 +43,7 @@ const filteredOrders = computed(() => {
   return props.orders.filter((order) => {
     const matchesKeyword = !value || [
       order.order_no,
+      order.contract_no,
       order.customer,
       order.contact,
       order.phone,

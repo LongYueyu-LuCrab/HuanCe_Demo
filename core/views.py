@@ -802,6 +802,7 @@ def _order_payload(order, include_sample_records=False, viewer=None):
         workflow_action_keys.add('invoice_create')
     payload = {
         'order_no': order.order_no,
+        'contract_no': order.contract_no,
         'is_outsource': order.outsourced_execution,
         'customer': order.customer_name,
         'contact': order.customer_contact,
@@ -2182,6 +2183,7 @@ def _laboratory_schedule_queryset(request):
     if keyword:
         schedules = schedules.filter(
             Q(order__order_no__icontains=keyword)
+            | Q(order__contract_no__icontains=keyword)
             | Q(order__customer_name__icontains=keyword)
             | Q(order__project_name__icontains=keyword)
             | Q(remark__icontains=keyword)
@@ -2287,7 +2289,7 @@ def laboratory_orders_export(request):
     can_view_amounts = _can_view_order_amounts(request.user)
     sheet.title = '实验室订单'
     headers = [
-        '序号', '订单号', '客户名称', '项目名称', '试验任务', '执行路径', '设备编号', '设备名称',
+        '序号', '订单号', '合同编号', '客户名称', '项目名称', '试验任务', '执行路径', '设备编号', '设备名称',
         '计划开始', '计划结束', '预入库时间', '实际入库时间', '入库照片', '出库时间', '出库操作人',
         '样品状态', '排期状态', '订单状态', '负责人', '试验状态', '实验结果',
         '实际开始', '实际结束', '实验操作人', '实验结论', '销售',
@@ -2310,6 +2312,7 @@ def laboratory_orders_export(request):
         row = [
             index,
             order.order_no,
+            order.contract_no,
             order.customer_name,
             order.project_name,
             schedule.remark,
@@ -2339,7 +2342,7 @@ def laboratory_orders_export(request):
             row.append(float(order.total_quote))
         row.append(_display_date(order.expect_delivery_time))
         sheet.append(row)
-    widths = [8, 20, 24, 30, 34, 18, 18, 22, 14, 14, 18, 18, 28, 18, 16, 14, 16, 16, 16, 16, 14, 18, 18, 16, 28, 14]
+    widths = [8, 20, 20, 24, 30, 34, 18, 18, 22, 14, 14, 18, 18, 28, 18, 16, 14, 16, 16, 16, 16, 14, 18, 18, 16, 28, 14]
     if can_view_amounts:
         widths.append(14)
     widths.append(14)
@@ -2395,6 +2398,7 @@ def _sales_order_queryset(request, require_sales_role=True):
     if keyword:
         orders = orders.filter(
             Q(order_no__icontains=keyword)
+            | Q(contract_no__icontains=keyword)
             | Q(customer_name__icontains=keyword)
             | Q(project_name__icontains=keyword)
             | Q(sale_user__username__icontains=keyword)
@@ -2540,7 +2544,7 @@ def sales_manager_orders_export(request):
     can_view_amounts = _can_view_order_amounts(request.user)
     sheet.title = '全部销售订单' if can_view_all_sales_orders else '我的全部订单'
     headers = [
-        '序号', '订单号', '销售账号', '销售姓名', '客户名称', '项目名称', '行业', '执行属性',
+        '序号', '订单号', '合同编号', '销售账号', '销售姓名', '客户名称', '项目名称', '行业', '执行属性',
         '订单状态', '报价金额', '预计样品到达', '预计交付', '创建时间', '委外公司', '委外金额',
         '委托单号', '承接金额',
     ]
@@ -2560,6 +2564,7 @@ def sales_manager_orders_export(request):
         sheet.append([
             index,
             order.order_no,
+            order.contract_no,
             order.sale_user.username if order.sale_user else '',
             _display_user(order.sale_user),
             order.customer_name,
@@ -2576,7 +2581,7 @@ def sales_manager_orders_export(request):
             outsource.entrust_order_no if outsource else '',
             float(outsource.undertaking_amount) if outsource and can_view_amounts else '',
         ])
-    widths = [8, 22, 18, 16, 28, 32, 12, 16, 16, 14, 18, 18, 18, 28, 14, 20, 14]
+    widths = [8, 22, 20, 18, 16, 28, 32, 12, 16, 16, 14, 18, 18, 18, 28, 14, 20, 14]
     for column, width in enumerate(widths, start=1):
         sheet.column_dimensions[get_column_letter(column)].width = width
     sheet.freeze_panes = 'A2'
@@ -2621,6 +2626,7 @@ def finance_orders_export(request):
     if keyword:
         orders = orders.filter(
             Q(order_no__icontains=keyword)
+            | Q(contract_no__icontains=keyword)
             | Q(customer_name__icontains=keyword)
             | Q(project_name__icontains=keyword)
         )
@@ -2635,7 +2641,7 @@ def finance_orders_export(request):
     sheet = workbook.active
     sheet.title = '财务订单回款'
     headers = [
-        '序号', '订单号', '客户名称', '项目名称', '订单状态', '订单报价',
+        '序号', '订单号', '合同编号', '客户名称', '项目名称', '订单状态', '订单报价',
         '累计回款', '待回款', '回款状态', '回款笔数', '回款明细', '回款登记人',
         '累计已开票', '待开票', '开票状态', '开票笔数', '开票明细',
     ]
@@ -2665,6 +2671,7 @@ def finance_orders_export(request):
         sheet.append([
             index,
             order.order_no,
+            order.contract_no,
             order.customer_name,
             order.project_name,
             order.get_order_status_display(),
@@ -2681,12 +2688,12 @@ def finance_orders_export(request):
             len(valid_invoices),
             '\n'.join(invoice_lines),
         ])
-    widths = [8, 22, 28, 32, 18, 16, 16, 16, 14, 12, 64, 18, 16, 16, 14, 12, 80]
+    widths = [8, 22, 20, 28, 32, 18, 16, 16, 16, 14, 12, 64, 18, 16, 16, 14, 12, 80]
     for column, width in enumerate(widths, start=1):
         sheet.column_dimensions[get_column_letter(column)].width = width
-    for row in sheet.iter_rows(min_row=2, min_col=11, max_col=12):
+    for row in sheet.iter_rows(min_row=2, min_col=12, max_col=13):
         row[0].alignment = Alignment(wrap_text=True, vertical='top')
-    for row in sheet.iter_rows(min_row=2, min_col=17, max_col=17):
+    for row in sheet.iter_rows(min_row=2, min_col=18, max_col=18):
         row[0].alignment = Alignment(wrap_text=True, vertical='top')
     sheet.freeze_panes = 'A2'
     sheet.auto_filter.ref = sheet.dimensions
@@ -2778,6 +2785,7 @@ def create_order(request):
     if _contains_corrupted_text(payload):
         return _corrupted_text_response()
 
+    contract_no = payload.get('contract_no', '').strip()
     customer_name = payload.get('customer_name', '').strip()
     project_name = payload.get('project_name', '').strip()
     test_demand = payload.get('test_requirements', '').strip()
@@ -2884,6 +2892,7 @@ def create_order(request):
 
     order = LabOrder.objects.create(
         order_no=_next_order_no(),
+        contract_no=contract_no,
         customer_name=customer_name,
         customer_contact=customer_contact,
         customer_phone=customer_phone,

@@ -14,6 +14,7 @@ export type User = {
 
 export type OrderItem = {
   order_no: string
+  contract_no?: string
   is_outsource: boolean
   customer: string
   contact?: string

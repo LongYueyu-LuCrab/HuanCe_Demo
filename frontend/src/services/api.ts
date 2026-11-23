@@ -143,6 +143,7 @@ export async function exportFinanceOrders(query: Pick<SalesOrderQuery, 'keyword'
 }
 
 export type CreateOrderPayload = {
+  contract_no: string
   customer_name: string
   contact_name: string
   phone: string
