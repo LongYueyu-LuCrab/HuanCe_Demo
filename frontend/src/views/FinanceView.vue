@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import InvoiceTable from '../components/InvoiceTable.vue'
 import OrderSnapshot from '../components/OrderSnapshot.vue'
@@ -8,6 +9,8 @@ import { useSession } from '../stores/session'
 import type { InvoiceItem, OrderItem, PaymentOrderItem } from '../types'
 
 const session = useSession()
+const route = useRoute()
+const router = useRouter()
 const preinvoiceCandidates = computed(() => session.state.dashboard?.finance?.preinvoice_candidates ?? [])
 const pendingInvoices = computed(() => session.state.dashboard?.finance?.pending_invoices ?? [])
 const issuedInvoices = computed(() => session.state.dashboard?.finance?.issued_invoices ?? [])
@@ -25,6 +28,7 @@ const paymentDetailVisible = ref(false)
 const paymentSubmitting = ref(false)
 const exportingOrders = ref(false)
 const activePaymentOrder = ref<PaymentOrderItem | null>(null)
+const routedInvoiceHandled = ref('')
 const form = reactive({
   invoice_no: '',
   invoice_amount: '',
@@ -37,10 +41,13 @@ const form = reactive({
   payment_remark: '',
 })
 
-onMounted(() => {
-  void session.refreshDashboard().catch((error: unknown) => {
+onMounted(async () => {
+  try {
+    await session.refreshDashboard()
+    openRoutedInvoice()
+  } catch (error: unknown) {
     ElMessage.error(error instanceof Error ? error.message : '财务待办刷新失败')
-  })
+  }
 })
 
 const actionMeta = computed(() => {
@@ -66,6 +73,23 @@ function openWorkflow(action: string, invoice: InvoiceItem) {
   })
   dialogVisible.value = true
   void loadOrderContext(invoice.order_no)
+}
+
+function openRoutedInvoice() {
+  const orderNo = String(route.query.order || '')
+  const action = String(route.query.action || '')
+  if (!orderNo || action !== 'invoice_create') return
+  const routeKey = `${orderNo}:${action}`
+  if (routedInvoiceHandled.value === routeKey) return
+  const target = pendingInvoices.value.find((invoice) => invoice.order_no === orderNo)
+  if (!target) {
+    routedInvoiceHandled.value = routeKey
+    ElMessage.warning('该订单当前未进入最终开票队列，请刷新财务待办后重试')
+    return
+  }
+  routedInvoiceHandled.value = routeKey
+  openWorkflow('invoice_create', target)
+  void router.replace({ name: 'finance' })
 }
 
 async function loadOrderContext(orderNo: string) {

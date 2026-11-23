@@ -100,6 +100,10 @@ function openWorkflow(action: string, order: (typeof orders.value)[number]) {
     void router.push({ name: 'reports', query: { order: order.order_no, action } })
     return
   }
+  if (action === 'invoice_create') {
+    void router.push({ name: 'finance', query: { order: order.order_no, action } })
+    return
+  }
   void router.push({ name: 'orders', query: { order: order.order_no, action } })
 }
 

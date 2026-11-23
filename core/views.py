@@ -786,6 +786,20 @@ def _order_payload(order, include_sample_records=False, viewer=None):
                 workflow_action_keys.add('create_change')
             elif execution_state == 'result_pending':
                 workflow_action_keys.add('submit_test')
+    # 会计在订单列表中也必须能直接进入最终开票，避免订单已经完成终审、
+    # 但订单列表仍只显示“无可操作”，把财务误导到错误的流程节点。
+    if (
+        viewer
+        and ROLE_ACCOUNTING in set(_roles(viewer))
+        and order.order_status not in [LabOrder.Status.INVOICED_CLOSED, LabOrder.Status.CANCELLED]
+        and latest_report
+        and latest_report.report_status == TestReport.Status.APPROVED
+        and not order.invoices.filter(
+            invoice_stage=Invoice.Stage.FINAL,
+            record_status=Invoice.RecordStatus.VALID,
+        ).exists()
+    ):
+        workflow_action_keys.add('invoice_create')
     payload = {
         'order_no': order.order_no,
         'is_outsource': order.outsourced_execution,

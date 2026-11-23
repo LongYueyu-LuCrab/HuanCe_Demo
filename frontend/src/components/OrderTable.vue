@@ -195,6 +195,14 @@ function actionsFor(order: OrderItem) {
   const labActionKeys = Array.isArray(order.workflow_action_keys)
     ? new Set(order.workflow_action_keys)
     : null
+  if (
+    isFinanceRole.value
+    && order.status_key === 5
+    && order.latest_report_status_key === 5
+    && labActionKeys?.has('invoice_create')
+  ) {
+    actions.push({ key: 'invoice_create', label: '最终总开票', type: 'primary' })
+  }
   const canOperateLabTask = hasRole('实验室负责人') || roleSet.value.has('实验室操作员') || roleSet.value.has('实验操作员')
   if (order.workflow_version === 1 && [3, 4].includes(order.status_key) && canOperateLabTask) {
     if (!labActionKeys || labActionKeys.has('start_test')) actions.push({ key: 'start_test', label: '开始试验', type: 'primary' })

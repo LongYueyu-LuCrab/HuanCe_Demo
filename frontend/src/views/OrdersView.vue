@@ -165,6 +165,10 @@ function openWorkflow(action: string, order: OrderItem) {
     void router.push({ name: 'reports', query: { order: order.order_no, action } })
     return
   }
+  if (action === 'invoice_create') {
+    void router.push({ name: 'finance', query: { order: order.order_no, action } })
+    return
+  }
   activeAction.value = action
   activeOrder.value = order
   Object.keys(actionForm).forEach((key) => delete actionForm[key])

@@ -1052,6 +1052,12 @@ class InvoiceWorkflowTests(TestCase):
         self.assertEqual(final_candidate['finish_status'], '待最终总开票')
         self.assertEqual(final_candidate['remaining_amount'], '300.00')
         self.assertEqual(final_candidate['experiment_result_status'], '实验结果已提交')
+        order_row = next(
+            item for item in self.dashboard()['order_groups']['orders']
+            if item['order_no'] == self.order.order_no
+        )
+        self.assertEqual(order_row['status'], '待最终开票')
+        self.assertIn('invoice_create', order_row['workflow_action_keys'])
 
         over_limit = self.action(
             'invoice_create',
