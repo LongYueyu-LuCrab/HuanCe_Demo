@@ -212,12 +212,14 @@ def _can_view_finance(user):
 
 
 def _can_view_order_contracts(user, order):
-    """订单合同仅对创建销售、商务部和会计开放。"""
+    """订单合同对业务管理、管理层、会计和订单创建销售开放。"""
     if not user or not user.is_authenticated:
         return False
     roles = set(_roles(user))
     return bool(
-        ROLE_ACCOUNTING in roles
+        _is_chairman(user)
+        or ROLE_GENERAL_MANAGER in roles
+        or ROLE_ACCOUNTING in roles
         or ROLE_BUSINESS_DEPT in roles
         or GLOBAL_READ_ONLY_ROLES.intersection(roles)
         or order.sale_user_id == user.id
