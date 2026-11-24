@@ -2579,9 +2579,9 @@ def sales_manager_orders_export(request):
             _display_datetime(order.expect_delivery_time),
             _display_datetime(order.create_time),
             outsource.outsource_company if outsource else '',
-            float(outsource.outsource_amount) if outsource and can_view_amounts else '',
+            float(outsource.outsource_amount) if outsource and can_view_amounts and outsource.outsource_amount is not None else '',
             outsource.entrust_order_no if outsource else '',
-            float(outsource.undertaking_amount) if outsource and can_view_amounts else '',
+            float(outsource.undertaking_amount) if outsource and can_view_amounts and outsource.undertaking_amount is not None else '',
         ])
     widths = [8, 22, 20, 18, 16, 28, 32, 12, 16, 16, 14, 18, 18, 18, 28, 14, 20, 14]
     for column, width in enumerate(widths, start=1):

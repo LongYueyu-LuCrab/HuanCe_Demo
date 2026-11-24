@@ -448,6 +448,9 @@ class LimsDashboardTests(TestCase):
         self.assertIsNone(order.outsource_requirement.outsource_amount)
         self.assertEqual(order.outsource_requirement.entrust_order_no, '')
 
+        exported = self.client.get(reverse('sales_manager_orders_export'))
+        self.assertEqual(exported.status_code, 200)
+
     def test_sales_can_upload_contract_and_attachment(self):
         self.client.force_login(self.user)
         contract = SimpleUploadedFile('合同.pdf', b'%PDF-1.4 demo', content_type='application/pdf')

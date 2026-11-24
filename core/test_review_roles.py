@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import LabDevice, LabOrder, SchedulePlan
+from .models import LabDevice, LabOrder, OutsourceRequirement, SchedulePlan
 from .views import _has_dual_review_pass
 
 
@@ -72,6 +72,7 @@ class ReviewRoleTests(TestCase):
         self.assertEqual(self.order.reviews.count(), 4)
 
     def test_department_all_order_query_export_but_own_sales_mutations(self):
+        OutsourceRequirement.objects.create(order=self.order)
         self.client.force_login(self.users['dept'])
         listed = self.client.get(reverse('sales_manager_orders')).json()
         self.assertEqual(listed['total'], 2)

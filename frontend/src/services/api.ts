@@ -106,11 +106,19 @@ export async function fetchSalesManagerOrders(query: SalesOrderQuery) {
   return parseJson<{ ok: boolean; total: number; page: number; page_size: number; items: OrderItem[]; filter_options?: Record<string, unknown> }>(response)
 }
 
+async function exportErrorMessage(response: Response, fallback: string) {
+  const contentType = response.headers.get('Content-Type') || ''
+  if (contentType.toLowerCase().includes('application/json')) {
+    const data = await response.json() as { error?: string }
+    return data.error || fallback
+  }
+  return `服务器暂时不可用（HTTP ${response.status}），请稍后重试`
+}
+
 export async function exportSalesManagerOrders(query: SalesOrderQuery): Promise<void> {
   const response = await fetch(`/api/sales/orders/export/?${salesOrderParams(query)}`, { credentials: 'include' })
   if (!response.ok) {
-    const data = await response.json()
-    throw new Error(data.error || '导出失败')
+    throw new Error(await exportErrorMessage(response, '导出失败'))
   }
   const blob = await response.blob()
   const disposition = response.headers.get('Content-Disposition') || ''
@@ -127,8 +135,7 @@ export async function exportSalesManagerOrders(query: SalesOrderQuery): Promise<
 export async function exportFinanceOrders(query: Pick<SalesOrderQuery, 'keyword' | 'order_status'> = {}): Promise<void> {
   const response = await fetch(`/api/finance/orders/export/?${salesOrderParams(query)}`, { credentials: 'include' })
   if (!response.ok) {
-    const data = await response.json()
-    throw new Error(data.error || '导出失败')
+    throw new Error(await exportErrorMessage(response, '导出失败'))
   }
   const blob = await response.blob()
   const disposition = response.headers.get('Content-Disposition') || ''
