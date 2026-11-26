@@ -250,7 +250,7 @@ async function exportOrders(selectedOnly: boolean) {
           </span>
         </template>
       </el-table-column>
-      <el-table-column label="客户 / 项目" min-width="300">
+      <el-table-column label="客户 / 项目" min-width="230">
         <template #default="{ row }">
           <div class="cell-main">{{ row.customer }}</div>
           <div class="cell-sub">{{ row.project_name }}</div>
