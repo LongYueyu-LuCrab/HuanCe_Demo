@@ -97,7 +97,7 @@ function taskState(row: ScheduleItem) {
   }
   // 后端返回规范化执行状态，避免依赖中文展示文案判断流程节点。
   if (row.execution_state === 'completed') {
-    return { key: 'completed', label: '结果已提交' }
+    return { key: 'completed', label: '完成排期/排台' }
   }
   if (row.execution_state === 'result_pending') return { key: 'result', label: '待提交结果' }
   if (row.execution_state === 'running') return { key: 'running', label: '实验进行中' }
@@ -128,12 +128,12 @@ function nextActionLabel(row: ScheduleItem) {
 
 function statusLabel(row: ScheduleItem) {
   const state = taskState(row).key
-  return state === 'outsource' ? '委外执行中' : state === 'completed' ? '结果已提交' : row.status
+  return state === 'outsource' ? '委外执行中' : state === 'completed' ? '' : row.status
 }
 
 function scheduleStatusLabel(row: ScheduleItem) {
   const state = taskState(row).key
-  return state === 'outsource' ? '已排期 · 待委外回传' : state === 'completed' ? '已完成 · 结果已提交' : row.schedule_status
+  return state === 'outsource' ? '已排期 · 待委外回传' : state === 'completed' ? '' : row.schedule_status
 }
 
 function formatScheduleDate(value: string) {
@@ -282,14 +282,14 @@ async function exportOrders(selectedOnly: boolean) {
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="状态" min-width="170">
+      <el-table-column label="执行状态" min-width="170">
         <template #default="{ row }">
           <div class="task-state-line" :class="`is-${taskState(row).key}`">
             <span class="task-state-dot" aria-hidden="true"></span>
             <strong>{{ taskState(row).label }}</strong>
           </div>
-          <StatusBadge :label="statusLabel(row)" />
-          <span class="cell-sub block">{{ scheduleStatusLabel(row) }}</span>
+          <StatusBadge v-if="statusLabel(row)" :label="statusLabel(row)" />
+          <span v-if="scheduleStatusLabel(row)" class="cell-sub block">{{ scheduleStatusLabel(row) }}</span>
           <el-tag v-if="!row.is_scheduled" class="mt-8" size="small" type="warning" effect="plain">
             待确认排期
           </el-tag>
