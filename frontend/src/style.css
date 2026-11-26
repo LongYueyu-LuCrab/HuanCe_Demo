@@ -884,6 +884,12 @@ select {
   font-size: 12px;
 }
 
+.schedule-range {
+  display: inline-block;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .sample-time-line {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);

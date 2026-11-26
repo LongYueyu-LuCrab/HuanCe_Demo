@@ -130,6 +130,17 @@ function scheduleStatusLabel(row: ScheduleItem) {
   return state === 'outsource' ? '已排期 · 待委外回传' : state === 'completed' ? '已完成 · 结果已提交' : row.schedule_status
 }
 
+function formatScheduleDate(value: string) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/)
+  return match ? `${match[1]}/${match[2]}/${match[3]}` : value
+}
+
+function formatScheduleRange(row: ScheduleItem) {
+  const start = row.start_time ? formatScheduleDate(row.start_time) : '待排'
+  const end = row.end_time ? formatScheduleDate(row.end_time) : '待定'
+  return `${start}-${end}`
+}
+
 const taskStats = computed(() => {
   const stats = { attention: 0, sample: 0, running: 0, result: 0, ready: 0 }
   for (const row of props.orders) {
@@ -253,7 +264,7 @@ async function exportOrders(selectedOnly: boolean) {
         </template>
       </el-table-column>
       <el-table-column label="排期" min-width="190">
-        <template #default="{ row }">{{ row.start_time || '待排' }} - {{ row.end_time || '待定' }}</template>
+        <template #default="{ row }"><span class="schedule-range">{{ formatScheduleRange(row) }}</span></template>
       </el-table-column>
       <el-table-column label="样品流转" min-width="235">
         <template #default="{ row }">
