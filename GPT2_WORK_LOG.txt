@@ -30,7 +30,11 @@ Git 提交号：c4d2aa2
 1. `pnpm build` 通过。
 2. 前端排期回归测试 6 项全部通过。
 3. Impeccable UI 检测无问题。
-部署状态：待部署生产环境。
+部署状态：已部署到生产环境。
+部署补充：
+1. 发布前备份：/opt/huance/backups/release-20261127-schedule-date-pre-deploy/，包含应用包、数据库备份和静态资源备份。
+2. 已同步前端构建产物到 `/opt/huance/app/static/frontend` 和 Nginx 实际目录 `/opt/huance/app/staticfiles/frontend`；未修改生产数据库、订单数据、用户媒体和环境配置。
+3. 线上 `huance`、`nginx` active，`/api/health/` 返回 `ok/database ok`，入口资源和源码文件哈希与本地一致。
 署名：GPT二号
 
 日期：2026-11-25
