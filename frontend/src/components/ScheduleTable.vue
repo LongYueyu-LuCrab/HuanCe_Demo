@@ -114,7 +114,13 @@ function nextActionLabel(row: ScheduleItem) {
   if (state === 'running') return '继续实验'
   if (state === 'sample') return '先确认样品'
   if (state === 'outsource') return '回传委外结果'
-  if (state === 'completed') return '等待实验室员工上传报告'
+  if (state === 'completed') {
+    if (row.latest_report_status_key === 2) return '等待销售初审'
+    if (row.latest_report_status_key === 3) return '等待常务副总经理终审'
+    if (row.latest_report_status_key === 5) return '等待财务最终开票'
+    if (row.latest_report_status_key === 4) return '等待实验室员工重新上传报告'
+    return '等待实验室员工上传报告'
+  }
   if (state === 'schedule') return '先处理排期'
   if (state === 'ready') return '开始试验'
   return '查看任务'
